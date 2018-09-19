@@ -7,6 +7,7 @@
 
 #include "MainPage.g.h"
 
+
 namespace BasicExample
 {
 	/// <summary>
@@ -18,7 +19,16 @@ namespace BasicExample
 		MainPage();
 
 	private:
-		void Button1_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
+		
+		void Button_Click(Platform::Object^ sender, Windows::UI::Xaml::RoutedEventArgs^ e);
 		void TextBox_TextChanged(Platform::Object^ sender, Windows::UI::Xaml::Controls::TextChangedEventArgs^ e);
+		
+		Platform::String^ email;
+		Platform::String^ password;
+		Platform::String^ profileId;
+		Platform::String^ anonId;
+
+
+
 	};
 }

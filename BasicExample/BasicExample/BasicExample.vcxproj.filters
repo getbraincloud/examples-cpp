@@ -8,6 +8,9 @@
       <UniqueIdentifier>ccb4a927-10b3-4480-b920-d65036ae3b74</UniqueIdentifier>
       <Extensions>bmp;fbx;gif;jpg;jpeg;tga;tiff;tif;png</Extensions>
     </Filter>
+    <Filter Include="Scripts">
+      <UniqueIdentifier>{d9d64aaa-6f85-4322-8053-cb6965107aff}</UniqueIdentifier>
+    </Filter>
   </ItemGroup>
   <ItemGroup>
     <ApplicationDefinition Include="App.xaml" />
@@ -65,6 +68,10 @@
   </ItemGroup>
   <ItemGroup>
     <None Include="BasicExample_TemporaryKey.pfx" />
+    <None Include="..\packages\jQuery.3.3.1\tools\jquery-3.3.1.intellisense.js">
+      <Filter>Scripts</Filter>
+    </None>
+    <None Include="packages.config" />
   </ItemGroup>
   <ItemGroup>
     <Page Include="MainPage.xaml" />
