@@ -509,11 +509,8 @@ void dieWithMessage(const std::string& message)
 // Uninitialize brainCloud
 void uninitBC()
 {
-    if (pBCWrapper)
-    {
-        pBCWrapper->getBCClient()->deregisterAllRTTCallbacks();
-        pBCWrapper->getBCClient()->resetCommunication();
-    }
+    delete pBCWrapper;
+    pBCWrapper = nullptr;
     BCCallback::destroyAll();
 }
 
