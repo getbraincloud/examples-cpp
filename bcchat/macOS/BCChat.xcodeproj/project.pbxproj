@@ -12,7 +12,6 @@
 		DB7A4920215A657F009DD6B0 /* app.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4910215A657E009DD6B0 /* app.cpp */; };
 		DB7A4921215A657F009DD6B0 /* chat.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4911215A657E009DD6B0 /* chat.cpp */; };
 		DB7A4922215A657F009DD6B0 /* globals.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4912215A657E009DD6B0 /* globals.cpp */; };
-		DB7A4923215A657F009DD6B0 /* main.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4914215A657E009DD6B0 /* main.cpp */; };
 		DB7A4924215A657F009DD6B0 /* askForName.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4916215A657E009DD6B0 /* askForName.cpp */; };
 		DB7A4925215A657F009DD6B0 /* loading.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4918215A657E009DD6B0 /* loading.cpp */; };
 		DB7A4926215A657F009DD6B0 /* menuBar.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4919215A657F009DD6B0 /* menuBar.cpp */; };
@@ -29,6 +28,7 @@
 		DB7A4A6A215A6A20009DD6B0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB7A4A69215A6A20009DD6B0 /* Foundation.framework */; };
 		DB7A4A6C215A6A28009DD6B0 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB7A4A6B215A6A28009DD6B0 /* SystemConfiguration.framework */; };
 		DB7A4A6E215A6A30009DD6B0 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB7A4A6D215A6A30009DD6B0 /* Security.framework */; };
+		DBE3B93021B963DF00228D69 /* mainSDL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DBE3B92F21B963DF00228D69 /* mainSDL.cpp */; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -53,7 +53,6 @@
 		DB7A4911215A657E009DD6B0 /* chat.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = chat.cpp; path = ../../src/chat.cpp; sourceTree = "<group>"; };
 		DB7A4912215A657E009DD6B0 /* globals.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = globals.cpp; path = ../../src/globals.cpp; sourceTree = "<group>"; };
 		DB7A4913215A657E009DD6B0 /* login.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = login.h; path = ../../src/login.h; sourceTree = "<group>"; };
-		DB7A4914215A657E009DD6B0 /* main.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = main.cpp; path = ../../src/main.cpp; sourceTree = "<group>"; };
 		DB7A4915215A657E009DD6B0 /* globals.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = globals.h; path = ../../src/globals.h; sourceTree = "<group>"; };
 		DB7A4916215A657E009DD6B0 /* askForName.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = askForName.cpp; path = ../../src/askForName.cpp; sourceTree = "<group>"; };
 		DB7A4917215A657E009DD6B0 /* BCCallback.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = BCCallback.h; path = ../../src/BCCallback.h; sourceTree = "<group>"; };
@@ -84,6 +83,7 @@
 		DB7A4A69215A6A20009DD6B0 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
 		DB7A4A6B215A6A28009DD6B0 /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = System/Library/Frameworks/SystemConfiguration.framework; sourceTree = SDKROOT; };
 		DB7A4A6D215A6A30009DD6B0 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		DBE3B92F21B963DF00228D69 /* mainSDL.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mainSDL.cpp; path = ../../src/mainSDL.cpp; sourceTree = "<group>"; };
 		E0C0AB062665AB158A31AAA1 /* Pods-BCChat.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-BCChat.debug.xcconfig"; path = "Pods/Target Support Files/Pods-BCChat/Pods-BCChat.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -149,9 +149,9 @@
 				DB7A4915215A657E009DD6B0 /* globals.h */,
 				DB7A4918215A657E009DD6B0 /* loading.cpp */,
 				DB7A491B215A657F009DD6B0 /* loading.h */,
+				DBE3B92F21B963DF00228D69 /* mainSDL.cpp */,
 				DB7A491D215A657F009DD6B0 /* login.cpp */,
 				DB7A4913215A657E009DD6B0 /* login.h */,
-				DB7A4914215A657E009DD6B0 /* main.cpp */,
 				DB7A4919215A657F009DD6B0 /* menuBar.cpp */,
 				DB7A491F215A657F009DD6B0 /* menuBar.h */,
 			);
@@ -302,6 +302,7 @@
 				DB7A493B215A6639009DD6B0 /* imgui_draw.cpp in Sources */,
 				DB7A4927215A657F009DD6B0 /* BCCallback.cpp in Sources */,
 				DB7A4926215A657F009DD6B0 /* menuBar.cpp in Sources */,
+				DBE3B93021B963DF00228D69 /* mainSDL.cpp in Sources */,
 				DB7A493A215A6639009DD6B0 /* imgui_demo.cpp in Sources */,
 				DB7A4924215A657F009DD6B0 /* askForName.cpp in Sources */,
 				DB7A4928215A657F009DD6B0 /* login.cpp in Sources */,
@@ -310,7 +311,6 @@
 				DB7A4922215A657F009DD6B0 /* globals.cpp in Sources */,
 				DB7A4920215A657F009DD6B0 /* app.cpp in Sources */,
 				DB7A4937215A6639009DD6B0 /* imgui_impl_opengl2.cpp in Sources */,
-				DB7A4923215A657F009DD6B0 /* main.cpp in Sources */,
 				DB7A4921215A657F009DD6B0 /* chat.cpp in Sources */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
