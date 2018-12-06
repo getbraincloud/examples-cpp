@@ -1,5 +1,5 @@
 PODS:
-  - BrainCloudCpp (3.9.0):
+  - BrainCloudCpp (3.10.0):
     - BrainCloudJsonCpp
     - SocketRocket (~> 0.5)
     - SSKeychain
@@ -8,7 +8,7 @@ PODS:
   - SSKeychain (1.4.1)
 
 DEPENDENCIES:
-  - BrainCloudCpp (~> 3.9)
+  - BrainCloudCpp (~> 3.10.0)
 
 SPEC REPOS:
   https://github.com/cocoapods/specs.git:
@@ -18,11 +18,11 @@ SPEC REPOS:
     - SSKeychain
 
 SPEC CHECKSUMS:
-  BrainCloudCpp: 70d4b83134298f20bdf015dde857fef1f34519b7
+  BrainCloudCpp: 69cbb68554dfedfe287f46a6f235d2f1db3ce11f
   BrainCloudJsonCpp: 668a2cef2109fc8effbc473716d1f3d42f1fd346
   SocketRocket: d57c7159b83c3c6655745cd15302aa24b6bae531
   SSKeychain: 55cc80f66f5c73da827e3077f02e43528897db41
 
-PODFILE CHECKSUM: e4e322516dd5f75bd8bfed548c346e65ef03ce47
+PODFILE CHECKSUM: ce02477d058c264d5e40e8f53e73272ad56a772c
 
 COCOAPODS: 1.5.3
