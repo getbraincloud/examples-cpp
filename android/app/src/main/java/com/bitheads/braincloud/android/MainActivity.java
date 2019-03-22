@@ -2,6 +2,7 @@ package com.bitheads.braincloud.android;
 
 import android.support.v7.app.AppCompatActivity;
 import android.os.Bundle;
+import android.text.method.ScrollingMovementMethod;
 import android.widget.TextView;
 
 public class MainActivity extends AppCompatActivity {
@@ -20,7 +21,8 @@ public class MainActivity extends AppCompatActivity {
 
         // Example of a call to a native method
         TextView tv = (TextView) findViewById(R.id.sample_text);
-        tv.setText("Initializing...");
+        tv.setMovementMethod(new ScrollingMovementMethod());
+        tv.setText("Initializing...\n");
 
         thread = new MainLoop(tv);
         thread.start();
@@ -52,7 +54,10 @@ public class MainActivity extends AppCompatActivity {
 
                 tv.post(new Runnable() {
                     public void run() {
-                        tv.setText(mainLoopJNI());
+                        String newText = mainLoopJNI();
+                        if (!("".equals(newText))) {
+                            tv.setText(tv.getText() + newText);
+                        }
                     }
                 });
 
