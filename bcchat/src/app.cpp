@@ -159,9 +159,9 @@ void handlePlayerState(const Json::Value& result)
 // User fully logged in. Enable RTT and listen for chat messages
 void onLoggedIn()
 {
-    pBCWrapper->getBCClient()->registerRTTChatCallback(&bcRTTCallback);
-    pBCWrapper->getBCClient()->registerRTTPresenceCallback(&bcRTTCallback);
-    pBCWrapper->getBCClient()->enableRTT(&bcRTTConnectCallback, true);
+    pBCWrapper->getBCClient()->getRTTService()->registerRTTChatCallback(&bcRTTCallback);
+    pBCWrapper->getBCClient()->getRTTService()->registerRTTPresenceCallback(&bcRTTCallback);
+    pBCWrapper->getBCClient()->getRTTService()->enableRTT(&bcRTTConnectCallback, true);
 }
 
 // RTT connected. Go to main chat screen and fetch channels data.
