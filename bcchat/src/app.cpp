@@ -117,6 +117,7 @@ public:
 //-----------------------------------------------------------------------------
 BrainCloud::BrainCloudWrapper *pBCWrapper = nullptr;
 std::string errorMessage;
+static bool dead = false;
 
 RTTConnectCallback bcRTTConnectCallback;
 RTTCallback bcRTTCallback;
@@ -128,6 +129,7 @@ void initBC()
     {
         pBCWrapper = new BrainCloud::BrainCloudWrapper("BCChat");
     }
+    dead = false;
     pBCWrapper->initialize(BRAINCLOUD_SERVER_URL, 
                            BRAINCLOUD_APP_SECRET, 
                            BRAINCLOUD_APP_ID, 
@@ -501,8 +503,7 @@ void dieWithMessage(const std::string& message)
 {
     errorMessage = message;
     ImGui::OpenPopup("Error");
-
-    uninitBC();
+    dead = true;
     resetState();
 }
 
@@ -511,7 +512,6 @@ void uninitBC()
 {
     delete pBCWrapper;
     pBCWrapper = nullptr;
-    BCCallback::destroyAll();
 }
 
 // Reset application state, back to login screen
@@ -534,6 +534,12 @@ void app_update()
     if (pBCWrapper)
     {
         pBCWrapper->runCallbacks();
+    }
+    if (dead)
+    {
+        dead = false;
+        uninitBC(); // We differ destroying BC because we cannot destroy it within a callback (yet)
+        BCCallback::destroyAll();
     }
 
     // Display the proper scree
