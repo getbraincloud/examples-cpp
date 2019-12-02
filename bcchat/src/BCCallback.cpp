@@ -92,7 +92,7 @@ void BCCallback::serverError(BrainCloud::ServiceName serviceName,
         reader.parse(jsonError, result);
         m_error(result["status_message"].asString());
     }
-    //destroy();
+    destroy();
 }
 
 void BCCallback::serverWarning(BrainCloud::ServiceName serviceName, 
