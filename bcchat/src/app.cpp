@@ -82,8 +82,11 @@ public:
 class RTTCallback final : public BrainCloud::IRTTCallback
 {
 public:
-    void rttCallback(const Json::Value& eventJson) override
+    void rttCallback(const std::string& dataJson) override
     {
+        Json::Reader reader;
+        Json::Value eventJson;
+        reader.parse(dataJson, eventJson);
         auto service = eventJson["service"];
         auto operation = eventJson["operation"];
 
