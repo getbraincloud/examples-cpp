@@ -22,7 +22,7 @@
 #include "globals.h"
 
 // Third party includes
-#include <imgui.h>
+#include "imgui.h"
 
 // Loading dialog dimensions
 #define DIALOG_WIDTH 250.0f

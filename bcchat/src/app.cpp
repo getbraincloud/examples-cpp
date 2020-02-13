@@ -30,7 +30,7 @@
 // Third party includes
 #include <braincloud/BrainCloudWrapper.h>
 #include <braincloud/IRTTCallback.h>
-#include <imgui.h>
+#include "imgui.h"
 
 // C/C++ includes
 #include <stdlib.h>
@@ -82,8 +82,11 @@ public:
 class RTTCallback final : public BrainCloud::IRTTCallback
 {
 public:
-    void rttCallback(const Json::Value& eventJson) override
+    void rttCallback(const std::string& jsonData) override
     {
+        Json::Value eventJson;
+        Json::Reader reader;
+        reader.parse(jsonData, eventJson);
         auto service = eventJson["service"];
         auto operation = eventJson["operation"];
 
@@ -159,9 +162,9 @@ void handlePlayerState(const Json::Value& result)
 // User fully logged in. Enable RTT and listen for chat messages
 void onLoggedIn()
 {
-    pBCWrapper->getBCClient()->registerRTTChatCallback(&bcRTTCallback);
-    pBCWrapper->getBCClient()->registerRTTPresenceCallback(&bcRTTCallback);
-    pBCWrapper->getBCClient()->enableRTT(&bcRTTConnectCallback, true);
+    pBCWrapper->getBCClient()->getRTTService()->registerRTTChatCallback(&bcRTTCallback);
+    pBCWrapper->getBCClient()->getRTTService()->registerRTTPresenceCallback(&bcRTTCallback);
+    pBCWrapper->getBCClient()->getRTTService()->enableRTT(&bcRTTConnectCallback, true);
 }
 
 // RTT connected. Go to main chat screen and fetch channels data.

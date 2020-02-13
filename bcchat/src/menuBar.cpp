@@ -23,7 +23,7 @@
 #include "globals.h"
 
 // Third party includes
-#include <imgui.h>
+#include "imgui.h"
 
 // Draws menu bar GUI and update its logic
 void menuBar_update()

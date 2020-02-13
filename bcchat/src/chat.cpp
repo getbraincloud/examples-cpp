@@ -25,7 +25,7 @@
 #include "menuBar.h"
 
 // Thirdparty includes
-#include <imgui.h>
+#include "imgui.h"
 
 // Panels dimension defines
 #define MENU_BAR_HEIGHT 19.0f

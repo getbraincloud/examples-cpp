@@ -24,7 +24,7 @@
 #include "menuBar.h"
 
 // Third party libs
-#include <imgui.h>
+#include "imgui.h"
 
 // Loading dialog dimensions
 #define DIALOG_WIDTH 400.0f
