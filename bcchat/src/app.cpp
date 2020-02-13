@@ -30,7 +30,7 @@
 // Third party includes
 #include <braincloud/BrainCloudWrapper.h>
 #include <braincloud/IRTTCallback.h>
-#include <imgui.h>
+#include "imgui.h"
 
 // C/C++ includes
 #include <stdlib.h>
@@ -82,11 +82,19 @@ public:
 class RTTCallback final : public BrainCloud::IRTTCallback
 {
 public:
+<<<<<<< HEAD
     void rttCallback(const std::string& dataJson) override
     {
         Json::Reader reader;
         Json::Value eventJson;
         reader.parse(dataJson, eventJson);
+=======
+    void rttCallback(const std::string& jsonData) override
+    {
+        Json::Value eventJson;
+        Json::Reader reader;
+        reader.parse(jsonData, eventJson);
+>>>>>>> a9ea043... Fixed sample with latest XCode + Pods + SDL2
         auto service = eventJson["service"];
         auto operation = eventJson["operation"];
 

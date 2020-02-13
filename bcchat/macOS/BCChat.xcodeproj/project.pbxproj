@@ -3,12 +3,11 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 50;
+	objectVersion = 51;
 	objects = {
 
 /* Begin PBXBuildFile section */
 		06D5A5B7C379D53BEBB8FA44 /* libPods-BCChat.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B2A414F5888172DCB4373B99 /* libPods-BCChat.a */; };
-		DB7A490E215A6427009DD6B0 /* SDL2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB7A490D215A6427009DD6B0 /* SDL2.framework */; };
 		DB7A4920215A657F009DD6B0 /* app.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4910215A657E009DD6B0 /* app.cpp */; };
 		DB7A4921215A657F009DD6B0 /* chat.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4911215A657E009DD6B0 /* chat.cpp */; };
 		DB7A4922215A657F009DD6B0 /* globals.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4912215A657E009DD6B0 /* globals.cpp */; };
@@ -29,6 +28,8 @@
 		DB7A4A6C215A6A28009DD6B0 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB7A4A6B215A6A28009DD6B0 /* SystemConfiguration.framework */; };
 		DB7A4A6E215A6A30009DD6B0 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB7A4A6D215A6A30009DD6B0 /* Security.framework */; };
 		DBE3B93021B963DF00228D69 /* mainSDL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DBE3B92F21B963DF00228D69 /* mainSDL.cpp */; };
+		DBF6869723F583B000A6922F /* SDL2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DBF6869623F583B000A6922F /* SDL2.framework */; };
+		DBF6869823F583B000A6922F /* SDL2.framework in Embed Frameworks */ = {isa = PBXBuildFile; fileRef = DBF6869623F583B000A6922F /* SDL2.framework */; settings = {ATTRIBUTES = (CodeSignOnCopy, RemoveHeadersOnCopy, ); }; };
 /* End PBXBuildFile section */
 
 /* Begin PBXCopyFilesBuildPhase section */
@@ -40,6 +41,17 @@
 			files = (
 			);
 			runOnlyForDeploymentPostprocessing = 1;
+		};
+		DBF6869923F583B000A6922F /* Embed Frameworks */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = "";
+			dstSubfolderSpec = 10;
+			files = (
+				DBF6869823F583B000A6922F /* SDL2.framework in Embed Frameworks */,
+			);
+			name = "Embed Frameworks";
+			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXCopyFilesBuildPhase section */
 
@@ -84,6 +96,7 @@
 		DB7A4A6B215A6A28009DD6B0 /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = System/Library/Frameworks/SystemConfiguration.framework; sourceTree = SDKROOT; };
 		DB7A4A6D215A6A30009DD6B0 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
 		DBE3B92F21B963DF00228D69 /* mainSDL.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mainSDL.cpp; path = ../../src/mainSDL.cpp; sourceTree = "<group>"; };
+		DBF6869623F583B000A6922F /* SDL2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = SDL2.framework; sourceTree = "<group>"; };
 		E0C0AB062665AB158A31AAA1 /* Pods-BCChat.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-BCChat.debug.xcconfig"; path = "Pods/Target Support Files/Pods-BCChat/Pods-BCChat.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
@@ -98,8 +111,8 @@
 				DB7A4A68215A6A13009DD6B0 /* CoreFoundation.framework in Frameworks */,
 				DB7A4A66215A6A0A009DD6B0 /* GameKit.framework in Frameworks */,
 				DB7A493E215A6682009DD6B0 /* OpenGL.framework in Frameworks */,
-				DB7A490E215A6427009DD6B0 /* SDL2.framework in Frameworks */,
 				06D5A5B7C379D53BEBB8FA44 /* libPods-BCChat.a in Frameworks */,
+				DBF6869723F583B000A6922F /* SDL2.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
@@ -161,6 +174,7 @@
 		DB7A490C215A6426009DD6B0 /* Frameworks */ = {
 			isa = PBXGroup;
 			children = (
+				DBF6869623F583B000A6922F /* SDL2.framework */,
 				DB7A4A6D215A6A30009DD6B0 /* Security.framework */,
 				DB7A4A6B215A6A28009DD6B0 /* SystemConfiguration.framework */,
 				DB7A4A69215A6A20009DD6B0 /* Foundation.framework */,
@@ -213,6 +227,7 @@
 				DB15261C215A60870005F27A /* Frameworks */,
 				DB15261D215A60870005F27A /* CopyFiles */,
 				86EA8941C3366B5A01BF3CB7 /* [CP] Copy Pods Resources */,
+				DBF6869923F583B000A6922F /* Embed Frameworks */,
 			);
 			buildRules = (
 			);
@@ -260,17 +275,16 @@
 			buildActionMask = 2147483647;
 			files = (
 			);
-			inputPaths = (
-				"${SRCROOT}/Pods/Target Support Files/Pods-BCChat/Pods-BCChat-resources.sh",
-				"${PODS_ROOT}/SSKeychain/Support/SSKeychain.bundle",
+			inputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-BCChat/Pods-BCChat-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
 			name = "[CP] Copy Pods Resources";
-			outputPaths = (
-				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SSKeychain.bundle",
+			outputFileListPaths = (
+				"${PODS_ROOT}/Target Support Files/Pods-BCChat/Pods-BCChat-resources-${CONFIGURATION}-output-files.xcfilelist",
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
-			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-BCChat/Pods-BCChat-resources.sh\"\n";
+			shellScript = "\"${PODS_ROOT}/Target Support Files/Pods-BCChat/Pods-BCChat-resources.sh\"\n";
 			showEnvVarsInLog = 0;
 		};
 		DF53DE7A35C1DEFA08216A3E /* [CP] Check Pods Manifest.lock */ = {
@@ -435,18 +449,14 @@
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+					"$(PROJECT_DIR)",
 				);
 				GCC_PREPROCESSOR_DEFINITIONS = (
-					DEBUG,
-					_DEBUG,
+					"$(inherited)",
+					"COCOAPODS=1",
 					USE_MAXOS_SDL_FRAMEWORK,
 				);
-				HEADER_SEARCH_PATHS = (
-					../src/,
-					../src/imgui/,
-				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = "";
 			};
 			name = Debug;
 		};
@@ -458,14 +468,14 @@
 				FRAMEWORK_SEARCH_PATHS = (
 					"$(inherited)",
 					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+					"$(PROJECT_DIR)",
 				);
-				GCC_PREPROCESSOR_DEFINITIONS = USE_MAXOS_SDL_FRAMEWORK;
-				HEADER_SEARCH_PATHS = (
-					../src/,
-					../src/imgui/,
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"$(inherited)",
+					"COCOAPODS=1",
+					USE_MAXOS_SDL_FRAMEWORK,
 				);
 				PRODUCT_NAME = "$(TARGET_NAME)";
-				USER_HEADER_SEARCH_PATHS = "";
 			};
 			name = Release;
 		};
