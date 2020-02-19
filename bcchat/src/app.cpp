@@ -30,7 +30,7 @@
 // Third party includes
 #include <braincloud/BrainCloudWrapper.h>
 #include <braincloud/IRTTCallback.h>
-#include <imgui.h>
+#include "imgui.h"
 
 // C/C++ includes
 #include <stdlib.h>
@@ -82,8 +82,11 @@ public:
 class RTTCallback final : public BrainCloud::IRTTCallback
 {
 public:
-    void rttCallback(const Json::Value& eventJson) override
+    void rttCallback(const std::string& dataJson) override
     {
+        Json::Reader reader;
+        Json::Value eventJson;
+        reader.parse(dataJson, eventJson);
         auto service = eventJson["service"];
         auto operation = eventJson["operation"];
 
@@ -117,6 +120,7 @@ public:
 //-----------------------------------------------------------------------------
 BrainCloud::BrainCloudWrapper *pBCWrapper = nullptr;
 std::string errorMessage;
+static bool dead = false;
 
 RTTConnectCallback bcRTTConnectCallback;
 RTTCallback bcRTTCallback;
@@ -128,6 +132,7 @@ void initBC()
     {
         pBCWrapper = new BrainCloud::BrainCloudWrapper("BCChat");
     }
+    dead = false;
     pBCWrapper->initialize(BRAINCLOUD_SERVER_URL, 
                            BRAINCLOUD_APP_SECRET, 
                            BRAINCLOUD_APP_ID, 
@@ -159,9 +164,9 @@ void handlePlayerState(const Json::Value& result)
 // User fully logged in. Enable RTT and listen for chat messages
 void onLoggedIn()
 {
-    pBCWrapper->getBCClient()->registerRTTChatCallback(&bcRTTCallback);
-    pBCWrapper->getBCClient()->registerRTTPresenceCallback(&bcRTTCallback);
-    pBCWrapper->getBCClient()->enableRTT(&bcRTTConnectCallback, true);
+    pBCWrapper->getBCClient()->getRTTService()->registerRTTChatCallback(&bcRTTCallback);
+    pBCWrapper->getBCClient()->getRTTService()->registerRTTPresenceCallback(&bcRTTCallback);
+    pBCWrapper->getBCClient()->getRTTService()->enableRTT(&bcRTTConnectCallback, true);
 }
 
 // RTT connected. Go to main chat screen and fetch channels data.
@@ -501,8 +506,7 @@ void dieWithMessage(const std::string& message)
 {
     errorMessage = message;
     ImGui::OpenPopup("Error");
-
-    uninitBC();
+    dead = true;
     resetState();
 }
 
@@ -511,7 +515,6 @@ void uninitBC()
 {
     delete pBCWrapper;
     pBCWrapper = nullptr;
-    BCCallback::destroyAll();
 }
 
 // Reset application state, back to login screen
@@ -534,6 +537,12 @@ void app_update()
     if (pBCWrapper)
     {
         pBCWrapper->runCallbacks();
+    }
+    if (dead)
+    {
+        dead = false;
+        uninitBC(); // We differ destroying BC because we cannot destroy it within a callback (yet)
+        BCCallback::destroyAll();
     }
 
     // Display the proper scree
