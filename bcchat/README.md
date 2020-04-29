@@ -60,4 +60,4 @@ git submodule update --init
    ```
    pod install
    ```
-6. Open the pre-made Xcode project `./macOS/BCChar.xcodeproj` and run it.
+6. Open the pre-made Xcode project `./macOS/BCChat.xcodeproj` and run it.
