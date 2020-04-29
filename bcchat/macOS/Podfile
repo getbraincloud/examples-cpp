@@ -1,5 +1,6 @@
 platform :osx, '10.13'
 
 target 'BCChat' do
-  pod 'BrainCloudCpp', '~> 4.3.6'
+  pod 'BrainCloudCpp', '~> 4.5.0'
+  # pod 'BrainCloudCpp', :path => '~/git/braincloud-cpp/'
 end
