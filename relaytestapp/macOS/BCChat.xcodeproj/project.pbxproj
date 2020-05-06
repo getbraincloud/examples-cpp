@@ -1,0 +1,496 @@
+// !$*UTF8*$!
+{
+	archiveVersion = 1;
+	classes = {
+	};
+	objectVersion = 50;
+	objects = {
+
+/* Begin PBXBuildFile section */
+		06D5A5B7C379D53BEBB8FA44 /* libPods-BCChat.a in Frameworks */ = {isa = PBXBuildFile; fileRef = B2A414F5888172DCB4373B99 /* libPods-BCChat.a */; };
+		DB7A490E215A6427009DD6B0 /* SDL2.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB7A490D215A6427009DD6B0 /* SDL2.framework */; };
+		DB7A4920215A657F009DD6B0 /* app.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4910215A657E009DD6B0 /* app.cpp */; };
+		DB7A4921215A657F009DD6B0 /* chat.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4911215A657E009DD6B0 /* chat.cpp */; };
+		DB7A4922215A657F009DD6B0 /* globals.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4912215A657E009DD6B0 /* globals.cpp */; };
+		DB7A4924215A657F009DD6B0 /* askForName.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4916215A657E009DD6B0 /* askForName.cpp */; };
+		DB7A4925215A657F009DD6B0 /* loading.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4918215A657E009DD6B0 /* loading.cpp */; };
+		DB7A4926215A657F009DD6B0 /* menuBar.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4919215A657F009DD6B0 /* menuBar.cpp */; };
+		DB7A4927215A657F009DD6B0 /* BCCallback.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A491A215A657F009DD6B0 /* BCCallback.cpp */; };
+		DB7A4928215A657F009DD6B0 /* login.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A491D215A657F009DD6B0 /* login.cpp */; };
+		DB7A4937215A6639009DD6B0 /* imgui_impl_opengl2.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A492A215A6638009DD6B0 /* imgui_impl_opengl2.cpp */; };
+		DB7A4938215A6639009DD6B0 /* imgui.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A492D215A6638009DD6B0 /* imgui.cpp */; };
+		DB7A4939215A6639009DD6B0 /* imgui_impl_sdl.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A492E215A6638009DD6B0 /* imgui_impl_sdl.cpp */; };
+		DB7A493A215A6639009DD6B0 /* imgui_demo.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A492F215A6638009DD6B0 /* imgui_demo.cpp */; };
+		DB7A493B215A6639009DD6B0 /* imgui_draw.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DB7A4930215A6638009DD6B0 /* imgui_draw.cpp */; };
+		DB7A493E215A6682009DD6B0 /* OpenGL.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB7A493D215A6682009DD6B0 /* OpenGL.framework */; };
+		DB7A4A66215A6A0A009DD6B0 /* GameKit.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB7A4A65215A6A0A009DD6B0 /* GameKit.framework */; };
+		DB7A4A68215A6A13009DD6B0 /* CoreFoundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB7A4A67215A6A13009DD6B0 /* CoreFoundation.framework */; };
+		DB7A4A6A215A6A20009DD6B0 /* Foundation.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB7A4A69215A6A20009DD6B0 /* Foundation.framework */; };
+		DB7A4A6C215A6A28009DD6B0 /* SystemConfiguration.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB7A4A6B215A6A28009DD6B0 /* SystemConfiguration.framework */; };
+		DB7A4A6E215A6A30009DD6B0 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB7A4A6D215A6A30009DD6B0 /* Security.framework */; };
+		DBE3B93021B963DF00228D69 /* mainSDL.cpp in Sources */ = {isa = PBXBuildFile; fileRef = DBE3B92F21B963DF00228D69 /* mainSDL.cpp */; };
+/* End PBXBuildFile section */
+
+/* Begin PBXCopyFilesBuildPhase section */
+		DB15261D215A60870005F27A /* CopyFiles */ = {
+			isa = PBXCopyFilesBuildPhase;
+			buildActionMask = 2147483647;
+			dstPath = /usr/share/man/man1/;
+			dstSubfolderSpec = 0;
+			files = (
+			);
+			runOnlyForDeploymentPostprocessing = 1;
+		};
+/* End PBXCopyFilesBuildPhase section */
+
+/* Begin PBXFileReference section */
+		B1A939E3436DF47A67397EA6 /* Pods-BCChat.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-BCChat.release.xcconfig"; path = "Pods/Target Support Files/Pods-BCChat/Pods-BCChat.release.xcconfig"; sourceTree = "<group>"; };
+		B2A414F5888172DCB4373B99 /* libPods-BCChat.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-BCChat.a"; sourceTree = BUILT_PRODUCTS_DIR; };
+		DB15261F215A60870005F27A /* BCChat */ = {isa = PBXFileReference; explicitFileType = "compiled.mach-o.executable"; includeInIndex = 0; path = BCChat; sourceTree = BUILT_PRODUCTS_DIR; };
+		DB7A490D215A6427009DD6B0 /* SDL2.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SDL2.framework; path = ../../../../../Library/Frameworks/SDL2.framework; sourceTree = "<group>"; };
+		DB7A490F215A657E009DD6B0 /* chat.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = chat.h; path = ../../src/chat.h; sourceTree = "<group>"; };
+		DB7A4910215A657E009DD6B0 /* app.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = app.cpp; path = ../../src/app.cpp; sourceTree = "<group>"; };
+		DB7A4911215A657E009DD6B0 /* chat.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = chat.cpp; path = ../../src/chat.cpp; sourceTree = "<group>"; };
+		DB7A4912215A657E009DD6B0 /* globals.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = globals.cpp; path = ../../src/globals.cpp; sourceTree = "<group>"; };
+		DB7A4913215A657E009DD6B0 /* login.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = login.h; path = ../../src/login.h; sourceTree = "<group>"; };
+		DB7A4915215A657E009DD6B0 /* globals.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = globals.h; path = ../../src/globals.h; sourceTree = "<group>"; };
+		DB7A4916215A657E009DD6B0 /* askForName.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = askForName.cpp; path = ../../src/askForName.cpp; sourceTree = "<group>"; };
+		DB7A4917215A657E009DD6B0 /* BCCallback.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = BCCallback.h; path = ../../src/BCCallback.h; sourceTree = "<group>"; };
+		DB7A4918215A657E009DD6B0 /* loading.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = loading.cpp; path = ../../src/loading.cpp; sourceTree = "<group>"; };
+		DB7A4919215A657F009DD6B0 /* menuBar.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = menuBar.cpp; path = ../../src/menuBar.cpp; sourceTree = "<group>"; };
+		DB7A491A215A657F009DD6B0 /* BCCallback.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = BCCallback.cpp; path = ../../src/BCCallback.cpp; sourceTree = "<group>"; };
+		DB7A491B215A657F009DD6B0 /* loading.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = loading.h; path = ../../src/loading.h; sourceTree = "<group>"; };
+		DB7A491C215A657F009DD6B0 /* askForName.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = askForName.h; path = ../../src/askForName.h; sourceTree = "<group>"; };
+		DB7A491D215A657F009DD6B0 /* login.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = login.cpp; path = ../../src/login.cpp; sourceTree = "<group>"; };
+		DB7A491E215A657F009DD6B0 /* app.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = app.h; path = ../../src/app.h; sourceTree = "<group>"; };
+		DB7A491F215A657F009DD6B0 /* menuBar.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = menuBar.h; path = ../../src/menuBar.h; sourceTree = "<group>"; };
+		DB7A492A215A6638009DD6B0 /* imgui_impl_opengl2.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_impl_opengl2.cpp; path = ../../../src/imgui/imgui_impl_opengl2.cpp; sourceTree = "<group>"; };
+		DB7A492B215A6638009DD6B0 /* imgui_impl_opengl2.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = imgui_impl_opengl2.h; path = ../../../src/imgui/imgui_impl_opengl2.h; sourceTree = "<group>"; };
+		DB7A492C215A6638009DD6B0 /* stb_truetype.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stb_truetype.h; path = ../../../src/imgui/stb_truetype.h; sourceTree = "<group>"; };
+		DB7A492D215A6638009DD6B0 /* imgui.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = imgui.cpp; path = ../../../src/imgui/imgui.cpp; sourceTree = "<group>"; };
+		DB7A492E215A6638009DD6B0 /* imgui_impl_sdl.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_impl_sdl.cpp; path = ../../../src/imgui/imgui_impl_sdl.cpp; sourceTree = "<group>"; };
+		DB7A492F215A6638009DD6B0 /* imgui_demo.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_demo.cpp; path = ../../../src/imgui/imgui_demo.cpp; sourceTree = "<group>"; };
+		DB7A4930215A6638009DD6B0 /* imgui_draw.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = imgui_draw.cpp; path = ../../../src/imgui/imgui_draw.cpp; sourceTree = "<group>"; };
+		DB7A4931215A6638009DD6B0 /* stb_rect_pack.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stb_rect_pack.h; path = ../../../src/imgui/stb_rect_pack.h; sourceTree = "<group>"; };
+		DB7A4932215A6638009DD6B0 /* imconfig.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = imconfig.h; path = ../../../src/imgui/imconfig.h; sourceTree = "<group>"; };
+		DB7A4933215A6638009DD6B0 /* imgui_internal.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = imgui_internal.h; path = ../../../src/imgui/imgui_internal.h; sourceTree = "<group>"; };
+		DB7A4934215A6638009DD6B0 /* imgui.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = imgui.h; path = ../../../src/imgui/imgui.h; sourceTree = "<group>"; };
+		DB7A4935215A6639009DD6B0 /* stb_textedit.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = stb_textedit.h; path = ../../../src/imgui/stb_textedit.h; sourceTree = "<group>"; };
+		DB7A4936215A6639009DD6B0 /* imgui_impl_sdl.h */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.c.h; name = imgui_impl_sdl.h; path = ../../../src/imgui/imgui_impl_sdl.h; sourceTree = "<group>"; };
+		DB7A493D215A6682009DD6B0 /* OpenGL.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = OpenGL.framework; path = System/Library/Frameworks/OpenGL.framework; sourceTree = SDKROOT; };
+		DB7A4A65215A6A0A009DD6B0 /* GameKit.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = GameKit.framework; path = System/Library/Frameworks/GameKit.framework; sourceTree = SDKROOT; };
+		DB7A4A67215A6A13009DD6B0 /* CoreFoundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = CoreFoundation.framework; path = System/Library/Frameworks/CoreFoundation.framework; sourceTree = SDKROOT; };
+		DB7A4A69215A6A20009DD6B0 /* Foundation.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Foundation.framework; path = System/Library/Frameworks/Foundation.framework; sourceTree = SDKROOT; };
+		DB7A4A6B215A6A28009DD6B0 /* SystemConfiguration.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = SystemConfiguration.framework; path = System/Library/Frameworks/SystemConfiguration.framework; sourceTree = SDKROOT; };
+		DB7A4A6D215A6A30009DD6B0 /* Security.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; name = Security.framework; path = System/Library/Frameworks/Security.framework; sourceTree = SDKROOT; };
+		DBE3B92F21B963DF00228D69 /* mainSDL.cpp */ = {isa = PBXFileReference; fileEncoding = 4; lastKnownFileType = sourcecode.cpp.cpp; name = mainSDL.cpp; path = ../../src/mainSDL.cpp; sourceTree = "<group>"; };
+		E0C0AB062665AB158A31AAA1 /* Pods-BCChat.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-BCChat.debug.xcconfig"; path = "Pods/Target Support Files/Pods-BCChat/Pods-BCChat.debug.xcconfig"; sourceTree = "<group>"; };
+/* End PBXFileReference section */
+
+/* Begin PBXFrameworksBuildPhase section */
+		DB15261C215A60870005F27A /* Frameworks */ = {
+			isa = PBXFrameworksBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DB7A4A6E215A6A30009DD6B0 /* Security.framework in Frameworks */,
+				DB7A4A6C215A6A28009DD6B0 /* SystemConfiguration.framework in Frameworks */,
+				DB7A4A6A215A6A20009DD6B0 /* Foundation.framework in Frameworks */,
+				DB7A4A68215A6A13009DD6B0 /* CoreFoundation.framework in Frameworks */,
+				DB7A4A66215A6A0A009DD6B0 /* GameKit.framework in Frameworks */,
+				DB7A493E215A6682009DD6B0 /* OpenGL.framework in Frameworks */,
+				DB7A490E215A6427009DD6B0 /* SDL2.framework in Frameworks */,
+				06D5A5B7C379D53BEBB8FA44 /* libPods-BCChat.a in Frameworks */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXFrameworksBuildPhase section */
+
+/* Begin PBXGroup section */
+		5B0AF685E80F6461989DE02A /* Pods */ = {
+			isa = PBXGroup;
+			children = (
+				E0C0AB062665AB158A31AAA1 /* Pods-BCChat.debug.xcconfig */,
+				B1A939E3436DF47A67397EA6 /* Pods-BCChat.release.xcconfig */,
+			);
+			name = Pods;
+			sourceTree = "<group>";
+		};
+		DB152616215A60870005F27A = {
+			isa = PBXGroup;
+			children = (
+				DB152621215A60870005F27A /* BCChat */,
+				DB7A493C215A664B009DD6B0 /* thirdparty */,
+				DB152620215A60870005F27A /* Products */,
+				DB7A490C215A6426009DD6B0 /* Frameworks */,
+				5B0AF685E80F6461989DE02A /* Pods */,
+			);
+			sourceTree = "<group>";
+		};
+		DB152620215A60870005F27A /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				DB15261F215A60870005F27A /* BCChat */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		DB152621215A60870005F27A /* BCChat */ = {
+			isa = PBXGroup;
+			children = (
+				DB7A4910215A657E009DD6B0 /* app.cpp */,
+				DB7A491E215A657F009DD6B0 /* app.h */,
+				DB7A4916215A657E009DD6B0 /* askForName.cpp */,
+				DB7A491C215A657F009DD6B0 /* askForName.h */,
+				DB7A491A215A657F009DD6B0 /* BCCallback.cpp */,
+				DB7A4917215A657E009DD6B0 /* BCCallback.h */,
+				DB7A4911215A657E009DD6B0 /* chat.cpp */,
+				DB7A490F215A657E009DD6B0 /* chat.h */,
+				DB7A4912215A657E009DD6B0 /* globals.cpp */,
+				DB7A4915215A657E009DD6B0 /* globals.h */,
+				DB7A4918215A657E009DD6B0 /* loading.cpp */,
+				DB7A491B215A657F009DD6B0 /* loading.h */,
+				DBE3B92F21B963DF00228D69 /* mainSDL.cpp */,
+				DB7A491D215A657F009DD6B0 /* login.cpp */,
+				DB7A4913215A657E009DD6B0 /* login.h */,
+				DB7A4919215A657F009DD6B0 /* menuBar.cpp */,
+				DB7A491F215A657F009DD6B0 /* menuBar.h */,
+			);
+			path = BCChat;
+			sourceTree = "<group>";
+		};
+		DB7A490C215A6426009DD6B0 /* Frameworks */ = {
+			isa = PBXGroup;
+			children = (
+				DB7A4A6D215A6A30009DD6B0 /* Security.framework */,
+				DB7A4A6B215A6A28009DD6B0 /* SystemConfiguration.framework */,
+				DB7A4A69215A6A20009DD6B0 /* Foundation.framework */,
+				DB7A4A67215A6A13009DD6B0 /* CoreFoundation.framework */,
+				DB7A4A65215A6A0A009DD6B0 /* GameKit.framework */,
+				DB7A493D215A6682009DD6B0 /* OpenGL.framework */,
+				DB7A490D215A6427009DD6B0 /* SDL2.framework */,
+				B2A414F5888172DCB4373B99 /* libPods-BCChat.a */,
+			);
+			name = Frameworks;
+			sourceTree = "<group>";
+		};
+		DB7A4929215A661F009DD6B0 /* imgui */ = {
+			isa = PBXGroup;
+			children = (
+				DB7A4932215A6638009DD6B0 /* imconfig.h */,
+				DB7A492F215A6638009DD6B0 /* imgui_demo.cpp */,
+				DB7A4930215A6638009DD6B0 /* imgui_draw.cpp */,
+				DB7A492A215A6638009DD6B0 /* imgui_impl_opengl2.cpp */,
+				DB7A492B215A6638009DD6B0 /* imgui_impl_opengl2.h */,
+				DB7A492E215A6638009DD6B0 /* imgui_impl_sdl.cpp */,
+				DB7A4936215A6639009DD6B0 /* imgui_impl_sdl.h */,
+				DB7A4933215A6638009DD6B0 /* imgui_internal.h */,
+				DB7A492D215A6638009DD6B0 /* imgui.cpp */,
+				DB7A4934215A6638009DD6B0 /* imgui.h */,
+				DB7A4931215A6638009DD6B0 /* stb_rect_pack.h */,
+				DB7A4935215A6639009DD6B0 /* stb_textedit.h */,
+				DB7A492C215A6638009DD6B0 /* stb_truetype.h */,
+			);
+			path = imgui;
+			sourceTree = "<group>";
+		};
+		DB7A493C215A664B009DD6B0 /* thirdparty */ = {
+			isa = PBXGroup;
+			children = (
+				DB7A4929215A661F009DD6B0 /* imgui */,
+			);
+			path = thirdparty;
+			sourceTree = "<group>";
+		};
+/* End PBXGroup section */
+
+/* Begin PBXNativeTarget section */
+		DB15261E215A60870005F27A /* BCChat */ = {
+			isa = PBXNativeTarget;
+			buildConfigurationList = DB152626215A60870005F27A /* Build configuration list for PBXNativeTarget "BCChat" */;
+			buildPhases = (
+				DF53DE7A35C1DEFA08216A3E /* [CP] Check Pods Manifest.lock */,
+				DB15261B215A60870005F27A /* Sources */,
+				DB15261C215A60870005F27A /* Frameworks */,
+				DB15261D215A60870005F27A /* CopyFiles */,
+				86EA8941C3366B5A01BF3CB7 /* [CP] Copy Pods Resources */,
+			);
+			buildRules = (
+			);
+			dependencies = (
+			);
+			name = BCChat;
+			productName = BCChat;
+			productReference = DB15261F215A60870005F27A /* BCChat */;
+			productType = "com.apple.product-type.tool";
+		};
+/* End PBXNativeTarget section */
+
+/* Begin PBXProject section */
+		DB152617215A60870005F27A /* Project object */ = {
+			isa = PBXProject;
+			attributes = {
+				LastUpgradeCheck = 0940;
+				ORGANIZATIONNAME = "David St-Louis";
+				TargetAttributes = {
+					DB15261E215A60870005F27A = {
+						CreatedOnToolsVersion = 9.4.1;
+					};
+				};
+			};
+			buildConfigurationList = DB15261A215A60870005F27A /* Build configuration list for PBXProject "BCChat" */;
+			compatibilityVersion = "Xcode 9.3";
+			developmentRegion = en;
+			hasScannedForEncodings = 0;
+			knownRegions = (
+				en,
+			);
+			mainGroup = DB152616215A60870005F27A;
+			productRefGroup = DB152620215A60870005F27A /* Products */;
+			projectDirPath = "";
+			projectRoot = "";
+			targets = (
+				DB15261E215A60870005F27A /* BCChat */,
+			);
+		};
+/* End PBXProject section */
+
+/* Begin PBXShellScriptBuildPhase section */
+		86EA8941C3366B5A01BF3CB7 /* [CP] Copy Pods Resources */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${SRCROOT}/Pods/Target Support Files/Pods-BCChat/Pods-BCChat-resources.sh",
+				"${PODS_ROOT}/SSKeychain/Support/SSKeychain.bundle",
+			);
+			name = "[CP] Copy Pods Resources";
+			outputPaths = (
+				"${TARGET_BUILD_DIR}/${UNLOCALIZED_RESOURCES_FOLDER_PATH}/SSKeychain.bundle",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "\"${SRCROOT}/Pods/Target Support Files/Pods-BCChat/Pods-BCChat-resources.sh\"\n";
+			showEnvVarsInLog = 0;
+		};
+		DF53DE7A35C1DEFA08216A3E /* [CP] Check Pods Manifest.lock */ = {
+			isa = PBXShellScriptBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+			);
+			inputPaths = (
+				"${PODS_PODFILE_DIR_PATH}/Podfile.lock",
+				"${PODS_ROOT}/Manifest.lock",
+			);
+			name = "[CP] Check Pods Manifest.lock";
+			outputPaths = (
+				"$(DERIVED_FILE_DIR)/Pods-BCChat-checkManifestLockResult.txt",
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+			shellPath = /bin/sh;
+			shellScript = "diff \"${PODS_PODFILE_DIR_PATH}/Podfile.lock\" \"${PODS_ROOT}/Manifest.lock\" > /dev/null\nif [ $? != 0 ] ; then\n    # print error to STDERR\n    echo \"error: The sandbox is not in sync with the Podfile.lock. Run 'pod install' or update your CocoaPods installation.\" >&2\n    exit 1\nfi\n# This output is used by Xcode 'outputs' to avoid re-running this script phase.\necho \"SUCCESS\" > \"${SCRIPT_OUTPUT_FILE_0}\"\n";
+			showEnvVarsInLog = 0;
+		};
+/* End PBXShellScriptBuildPhase section */
+
+/* Begin PBXSourcesBuildPhase section */
+		DB15261B215A60870005F27A /* Sources */ = {
+			isa = PBXSourcesBuildPhase;
+			buildActionMask = 2147483647;
+			files = (
+				DB7A4925215A657F009DD6B0 /* loading.cpp in Sources */,
+				DB7A493B215A6639009DD6B0 /* imgui_draw.cpp in Sources */,
+				DB7A4927215A657F009DD6B0 /* BCCallback.cpp in Sources */,
+				DB7A4926215A657F009DD6B0 /* menuBar.cpp in Sources */,
+				DBE3B93021B963DF00228D69 /* mainSDL.cpp in Sources */,
+				DB7A493A215A6639009DD6B0 /* imgui_demo.cpp in Sources */,
+				DB7A4924215A657F009DD6B0 /* askForName.cpp in Sources */,
+				DB7A4928215A657F009DD6B0 /* login.cpp in Sources */,
+				DB7A4939215A6639009DD6B0 /* imgui_impl_sdl.cpp in Sources */,
+				DB7A4938215A6639009DD6B0 /* imgui.cpp in Sources */,
+				DB7A4922215A657F009DD6B0 /* globals.cpp in Sources */,
+				DB7A4920215A657F009DD6B0 /* app.cpp in Sources */,
+				DB7A4937215A6639009DD6B0 /* imgui_impl_opengl2.cpp in Sources */,
+				DB7A4921215A657F009DD6B0 /* chat.cpp in Sources */,
+			);
+			runOnlyForDeploymentPostprocessing = 0;
+		};
+/* End PBXSourcesBuildPhase section */
+
+/* Begin XCBuildConfiguration section */
+		DB152624215A60870005F27A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = dwarf;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				ENABLE_TESTABILITY = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_DYNAMIC_NO_PIC = NO;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_OPTIMIZATION_LEVEL = 0;
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					"DEBUG=1",
+					"$(inherited)",
+				);
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MTL_ENABLE_DEBUG_INFO = YES;
+				ONLY_ACTIVE_ARCH = YES;
+				SDKROOT = macosx;
+			};
+			name = Debug;
+		};
+		DB152625215A60870005F27A /* Release */ = {
+			isa = XCBuildConfiguration;
+			buildSettings = {
+				ALWAYS_SEARCH_USER_PATHS = NO;
+				CLANG_ANALYZER_NONNULL = YES;
+				CLANG_ANALYZER_NUMBER_OBJECT_CONVERSION = YES_AGGRESSIVE;
+				CLANG_CXX_LANGUAGE_STANDARD = "gnu++14";
+				CLANG_CXX_LIBRARY = "libc++";
+				CLANG_ENABLE_MODULES = YES;
+				CLANG_ENABLE_OBJC_ARC = YES;
+				CLANG_ENABLE_OBJC_WEAK = YES;
+				CLANG_WARN_BLOCK_CAPTURE_AUTORELEASING = YES;
+				CLANG_WARN_BOOL_CONVERSION = YES;
+				CLANG_WARN_COMMA = YES;
+				CLANG_WARN_CONSTANT_CONVERSION = YES;
+				CLANG_WARN_DEPRECATED_OBJC_IMPLEMENTATIONS = YES;
+				CLANG_WARN_DIRECT_OBJC_ISA_USAGE = YES_ERROR;
+				CLANG_WARN_DOCUMENTATION_COMMENTS = YES;
+				CLANG_WARN_EMPTY_BODY = YES;
+				CLANG_WARN_ENUM_CONVERSION = YES;
+				CLANG_WARN_INFINITE_RECURSION = YES;
+				CLANG_WARN_INT_CONVERSION = YES;
+				CLANG_WARN_NON_LITERAL_NULL_CONVERSION = YES;
+				CLANG_WARN_OBJC_IMPLICIT_RETAIN_SELF = YES;
+				CLANG_WARN_OBJC_LITERAL_CONVERSION = YES;
+				CLANG_WARN_OBJC_ROOT_CLASS = YES_ERROR;
+				CLANG_WARN_RANGE_LOOP_ANALYSIS = YES;
+				CLANG_WARN_STRICT_PROTOTYPES = YES;
+				CLANG_WARN_SUSPICIOUS_MOVE = YES;
+				CLANG_WARN_UNGUARDED_AVAILABILITY = YES_AGGRESSIVE;
+				CLANG_WARN_UNREACHABLE_CODE = YES;
+				CLANG_WARN__DUPLICATE_METHOD_MATCH = YES;
+				CODE_SIGN_IDENTITY = "-";
+				COPY_PHASE_STRIP = NO;
+				DEBUG_INFORMATION_FORMAT = "dwarf-with-dsym";
+				ENABLE_NS_ASSERTIONS = NO;
+				ENABLE_STRICT_OBJC_MSGSEND = YES;
+				GCC_C_LANGUAGE_STANDARD = gnu11;
+				GCC_NO_COMMON_BLOCKS = YES;
+				GCC_WARN_64_TO_32_BIT_CONVERSION = YES;
+				GCC_WARN_ABOUT_RETURN_TYPE = YES_ERROR;
+				GCC_WARN_UNDECLARED_SELECTOR = YES;
+				GCC_WARN_UNINITIALIZED_AUTOS = YES_AGGRESSIVE;
+				GCC_WARN_UNUSED_FUNCTION = YES;
+				GCC_WARN_UNUSED_VARIABLE = YES;
+				MACOSX_DEPLOYMENT_TARGET = 10.13;
+				MTL_ENABLE_DEBUG_INFO = NO;
+				SDKROOT = macosx;
+			};
+			name = Release;
+		};
+		DB152627215A60870005F27A /* Debug */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = E0C0AB062665AB158A31AAA1 /* Pods-BCChat.debug.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+				);
+				GCC_PREPROCESSOR_DEFINITIONS = (
+					DEBUG,
+					_DEBUG,
+					USE_MAXOS_SDL_FRAMEWORK,
+				);
+				HEADER_SEARCH_PATHS = (
+					../src/,
+					../src/imgui/,
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				USER_HEADER_SEARCH_PATHS = "";
+			};
+			name = Debug;
+		};
+		DB152628215A60870005F27A /* Release */ = {
+			isa = XCBuildConfiguration;
+			baseConfigurationReference = B1A939E3436DF47A67397EA6 /* Pods-BCChat.release.xcconfig */;
+			buildSettings = {
+				CODE_SIGN_STYLE = Automatic;
+				FRAMEWORK_SEARCH_PATHS = (
+					"$(inherited)",
+					"$(LOCAL_LIBRARY_DIR)/Frameworks",
+				);
+				GCC_PREPROCESSOR_DEFINITIONS = USE_MAXOS_SDL_FRAMEWORK;
+				HEADER_SEARCH_PATHS = (
+					../src/,
+					../src/imgui/,
+				);
+				PRODUCT_NAME = "$(TARGET_NAME)";
+				USER_HEADER_SEARCH_PATHS = "";
+			};
+			name = Release;
+		};
+/* End XCBuildConfiguration section */
+
+/* Begin XCConfigurationList section */
+		DB15261A215A60870005F27A /* Build configuration list for PBXProject "BCChat" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DB152624215A60870005F27A /* Debug */,
+				DB152625215A60870005F27A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+		DB152626215A60870005F27A /* Build configuration list for PBXNativeTarget "BCChat" */ = {
+			isa = XCConfigurationList;
+			buildConfigurations = (
+				DB152627215A60870005F27A /* Debug */,
+				DB152628215A60870005F27A /* Release */,
+			);
+			defaultConfigurationIsVisible = 0;
+			defaultConfigurationName = Release;
+		};
+/* End XCConfigurationList section */
+	};
+	rootObject = DB152617215A60870005F27A /* Project object */;
+}
