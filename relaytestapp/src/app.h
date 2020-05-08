@@ -49,3 +49,6 @@ void app_changeUserColor(int colorIndex);
 
 // User moved mouse in the play area
 void app_mouseMoved(const Point& pos);
+
+// User clicked mouse in the play area
+void app_shockwave(const Point& pos);

@@ -49,6 +49,8 @@ void game_update()
         {
             ImVec2 framePos = ImGui::GetCursorScreenPos();
             ImDrawList* pDrawList = ImGui::GetWindowDrawList();
+
+            // Check if moved
             static ImVec2 lastMousePos;
             ImVec2 mousePos = ImGui::GetMousePos();
             mousePos.x -= framePos.x;
@@ -63,6 +65,19 @@ void game_update()
                 }
             }
             lastMousePos = mousePos;
+
+            // Check if clicked
+            static bool lastMouseDown = false;
+            auto mouseDown = ImGui::IsMouseDown(0);
+            if (mouseDown && !lastMouseDown)
+            {
+                if (mousePos.x >= 0.0f && mousePos.x <= 800.0f &&
+                    mousePos.y >= 0.0f && mousePos.y <= 600.0f)
+                {
+                    app_shockwave({ (int)mousePos.x, (int)mousePos.y });
+                }
+            }
+            lastMouseDown = mouseDown;
 
             // Shockwaves
             auto now = std::chrono::high_resolution_clock::now();

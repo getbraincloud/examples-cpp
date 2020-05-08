@@ -120,7 +120,7 @@ public:
         Json::Reader reader;
         std::string str((const char*)bytes, size);
         reader.parse(str, json);
-        std::cout << str << std::endl;
+        std::cout << "App Relay: " << str << std::endl;
         onRelayMessage(netId, json);
     }
 };
@@ -315,7 +315,7 @@ void app_update()
         BCCallback::destroyAll();
     }
 
-    // Display the proper scree
+    // Display the proper screen
     switch (state.screenState)
     {
         case ScreenState::Login:
@@ -628,4 +628,31 @@ void app_mouseMoved(const Point& pos)
         false, // Unreliable
         true, // Ordered
         BrainCloud::eRelayChannel::HighPriority1);
+}
+
+// User clicked mouse in the play area
+void app_shockwave(const Point& pos)
+{
+    // Send to other players
+    Json::Value json;
+    json["op"] = "shockwave";
+    json["data"]["x"] = pos.x;
+    json["data"]["y"] = pos.y;
+
+    Json::FastWriter writer;
+    auto str = writer.write(json);
+
+    pBCWrapper->getRelayService()->send(
+        (const uint8_t*)str.data(), (int)str.length(), 
+        BrainCloud::RELAY_TO_ALL_PLAYERS, 
+        true, // Reliable
+        false, // Unordered
+        BrainCloud::eRelayChannel::HighPriority1);
+
+    // Create a local shockwave so we can see it
+    Shockwave shockwave;
+    shockwave.pos = pos;
+    shockwave.colorIndex = state.user.colorIndex;
+    shockwave.startTime = std::chrono::high_resolution_clock::now();
+    state.shockwaves.push_back(shockwave);
 }
