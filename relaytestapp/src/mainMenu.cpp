@@ -47,7 +47,7 @@ void mainMenu_update()
             ImGuiWindowFlags_NoResize);
 
         // Protocol choice
-        ImGui::Combo("Protocol", (int*)&protocol, "UDP\0TCP\0WS");
+        ImGui::Combo("Protocol", (int*)&protocol, "UDP\0TCP\0WS\0");
 
         // Join a game
         if (ImGui::Button("Play"))
