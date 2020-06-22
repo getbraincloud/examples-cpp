@@ -315,6 +315,26 @@ void app_update()
         BCCallback::destroyAll();
     }
 
+    // Add a menu at the top with an exit option to cleanly quit the app,
+    // so we can test for exit crashes at any point
+    if (ImGui::BeginMainMenuBar())
+    {
+        if (ImGui::BeginMenu("App"))
+        {
+            if (ImGui::MenuItem("Log Out"))
+            {
+                app_logOut();
+            }
+            ImGui::Separator();
+            if (ImGui::MenuItem("Exit"))
+            {
+                app_exit();
+            }
+            ImGui::EndMenu();
+        }
+    }
+    ImGui::EndMainMenuBar();
+
     // Display the proper screen
     switch (state.screenState)
     {
@@ -365,11 +385,13 @@ void app_logOut()
 // Shutdowns the application
 void app_exit()
 {
-#if defined(RELAYTESTAPP_UWP)
-    Windows::ApplicationModel::Core::CoreApplication::Exit();
-#else
-    exit(0);
-#endif
+    extern bool done;
+    done = true;
+//#if defined(RELAYTESTAPP_UWP)
+//    Windows::ApplicationModel::Core::CoreApplication::Exit();
+//#else
+//    exit(0);
+//#endif
 }
 
 // Attempt login with the specific username/password

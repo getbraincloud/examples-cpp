@@ -41,6 +41,7 @@
 #include "login.h"
 
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+bool done = false;
 
 int main()
 {
@@ -87,7 +88,6 @@ int main()
     loadConfigs();
 
     // Main loop
-    bool done = false;
     while (!done)
     {
         // Poll window events
