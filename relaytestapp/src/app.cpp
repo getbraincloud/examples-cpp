@@ -120,7 +120,7 @@ public:
         Json::Reader reader;
         std::string str((const char*)bytes, size);
         reader.parse(str, json);
-        std::cout << "App Relay: " << str << std::endl;
+        //std::cout << "App Relay: " << str << std::endl;
         onRelayMessage(netId, json);
     }
 };
@@ -145,7 +145,6 @@ static BrainCloud::BrainCloudWrapper *pBCWrapper = nullptr;
 static std::string errorMessage;
 static bool dead = false;
 static bool isDisconnecting = false;
-static BrainCloud::eRelayConnectionType protocol;
 
 static RTTConnectCallback bcRTTConnectCallback;
 static RTTCallback bcRTTCallback;
@@ -180,7 +179,7 @@ static void handlePlayerState(const Json::Value& result)
     const auto& userName = result["data"]["playerName"].asString();
     if (userName.empty())
     {
-        submitName(userName.c_str());
+        submitName(settings.username);
     }
     else
     {
@@ -201,7 +200,7 @@ void onRTTConnected()
 {
     // Find lobby
     pBCWrapper->getLobbyService()->findOrCreateLobby(
-        "CursorParty",  // lobby type
+        "CursorPartyV2",// lobby type
         0,              // rating
         1,              // max steps
         "{\"strategy\":\"ranged-absolute\",\"alignment\":\"center\",\"ranges\":[1000]}", // algorithm
@@ -332,6 +331,46 @@ void app_update()
             }
             ImGui::EndMenu();
         }
+        if (state.screenState == ScreenState::Game)
+        {
+            if (ImGui::BeginMenu("Game"))
+            {
+                if (ImGui::BeginMenu("Scale"))
+                {
+                    {
+                        bool selected = settings.gameUIIScale == 0;
+                        if (ImGui::MenuItem("0.25x", 0, &selected))
+                        {
+                            settings.gameUIIScale = 0;
+                            saveConfigs();
+                        }
+                    }
+                    {
+                        bool selected = settings.gameUIIScale == 1;
+                        if (ImGui::MenuItem("0.5x", 0, &selected))
+                        {
+                            settings.gameUIIScale = 1;
+                            saveConfigs();
+                        }
+                    }
+                    {
+                        bool selected = settings.gameUIIScale == 2;
+                        if (ImGui::MenuItem("1x", 0, &selected))
+                        {
+                            settings.gameUIIScale = 2;
+                            saveConfigs();
+                        }
+                    }
+                    ImGui::EndMenu();
+                }
+                ImGui::Separator();
+                if (ImGui::MenuItem("Leave"))
+                {
+                    app_closeGame();
+                }
+                ImGui::EndMenu();
+            }
+        }
     }
     ImGui::EndMainMenuBar();
 
@@ -444,9 +483,9 @@ static void submitName(const char* username)
 // Start finding a lobby
 void app_play(BrainCloud::eRelayConnectionType in_protocol)
 {
-    protocol = in_protocol;
+    settings.protocol = in_protocol;
     isDisconnecting = false;
-    state.user.colorIndex = colorIndex;
+    state.user.colorIndex = settings.colorIndex;
 
     // Show loading screen
     loading_text = "Joining lobby ...";
@@ -471,6 +510,7 @@ static Lobby parseLobby(const Json::Value& lobbyJson, const std::string& lobbyId
         user.id = jsonMember["profileId"].asString();
         user.name = jsonMember["name"].asString();
         user.colorIndex = jsonMember["extra"]["colorIndex"].asInt();
+        if (user.id == state.user.id) user.allowSendTo = false;
         lobby.members.push_back(user);
     }
 
@@ -528,7 +568,7 @@ static void onLobbyEvent(const Json::Value& eventJson)
     else if (operation == "STARTING")
     {
         // Save our picked color index
-        colorIndex = state.user.colorIndex;
+        settings.colorIndex = state.user.colorIndex;
         saveConfigs();
 
         // Go to loading screen
@@ -544,8 +584,8 @@ static void onLobbyEvent(const Json::Value& eventJson)
 // Connect to the Relay server and start the game
 static void startGame()
 {
-    pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
-    pBCWrapper->getRTTService()->disableRTT();
+    //pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
+    //pBCWrapper->getRTTService()->disableRTT();
 
     state.screenState = ScreenState::Starting;
 
@@ -553,7 +593,7 @@ static void startGame()
     pBCWrapper->getRelayService()->registerSystemCallback(&bcRelaySystemCallback);
 
     int port = 0;
-    switch (protocol)
+    switch (settings.protocol)
     {
         case BrainCloud::eRelayConnectionType::WS:
             port = state.server.wsPort;
@@ -566,7 +606,7 @@ static void startGame()
             break;
     }
 
-    pBCWrapper->getRelayService()->connect(protocol, state.server.host, port, state.server.passcode, state.server.lobbyId, &bcRelayConnectCallback);
+    pBCWrapper->getRelayService()->connect(settings.protocol, state.server.host, port, state.server.passcode, state.server.lobbyId, &bcRelayConnectCallback);
 }
 
 // Cleanly close the game. Go back to main menu but don't log 
@@ -620,6 +660,20 @@ void app_changeUserColor(int colorIndex)
     );
 }
 
+static uint64_t getPlayerMask()
+{
+    uint64_t playerMask = 0;
+
+    for (const auto& user : state.lobby.members)
+    {
+        if (!user.allowSendTo) continue;
+        auto netId = pBCWrapper->getRelayService()->getNetIdForProfileId(user.id);
+        playerMask |= (uint64_t)1 << (uint64_t)netId;
+    }
+
+    return playerMask;
+}
+
 // User moved mouse in the play area
 void app_mouseMoved(const Point& pos)
 {
@@ -644,12 +698,11 @@ void app_mouseMoved(const Point& pos)
     Json::FastWriter writer;
     auto str = writer.write(json);
 
-    pBCWrapper->getRelayService()->send(
+    pBCWrapper->getRelayService()->sendToAll(
         (const uint8_t*)str.data(), (int)str.length(), 
-        BrainCloud::RELAY_TO_ALL_PLAYERS, 
-        false, // Unreliable
-        true, // Ordered
-        BrainCloud::eRelayChannel::HighPriority1);
+        settings.sendReliable, // Unreliable
+        settings.sendOrdered, // Ordered
+        (BrainCloud::eRelayChannel)settings.sendChannel);
 }
 
 // User clicked mouse in the play area
@@ -664,12 +717,12 @@ void app_shockwave(const Point& pos)
     Json::FastWriter writer;
     auto str = writer.write(json);
 
-    pBCWrapper->getRelayService()->send(
+    pBCWrapper->getRelayService()->sendToPlayers(
         (const uint8_t*)str.data(), (int)str.length(), 
-        BrainCloud::RELAY_TO_ALL_PLAYERS, 
+        getPlayerMask(),
         true, // Reliable
         false, // Unordered
-        BrainCloud::eRelayChannel::HighPriority1);
+        (BrainCloud::eRelayChannel)settings.sendChannel);
 
     // Create a local shockwave so we can see it
     Shockwave shockwave;

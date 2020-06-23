@@ -28,9 +28,7 @@
 
 // Login dialog dimensions
 #define DIALOG_WIDTH 400.0f
-#define DIALOG_HEIGHT 350.0f
-
-static BrainCloud::eRelayConnectionType protocol = BrainCloud::eRelayConnectionType::WS;
+#define DIALOG_HEIGHT 150.0f
 
 // Draws a login dialog and update its logic
 void mainMenu_update()
@@ -47,12 +45,15 @@ void mainMenu_update()
             ImGuiWindowFlags_NoResize);
 
         // Protocol choice
-        ImGui::Combo("Protocol", (int*)&protocol, "UDP\0TCP\0WS\0");
+        if (ImGui::Combo("Protocol", (int*)&settings.protocol, "UDP\0TCP\0WS\0"))
+        {
+            saveConfigs();
+        }
 
         // Join a game
-        if (ImGui::Button("Play"))
+        if (ImGui::Button("Play") || settings.autoJoin)
         {
-            app_play(protocol);
+            app_play(settings.protocol);
         }
 
         ImGui::End();

@@ -18,6 +18,8 @@
 // Author: David St-Louis
 //-----------------------------------------------------------------------------
 
+#define RESEND_AT_60_FPS 1
+
 // App includes
 #include "app.h"
 #include "globals.h"
@@ -25,27 +27,96 @@
 // C/C++ includes
 #include <imgui.h>
 #include <stdio.h>
+#include <chrono>
 
-// Login dialog dimensions
-#define DIALOG_WIDTH 900.0f
-#define DIALOG_HEIGHT 700.0f
 
 // Draws a game dialog and update its logic
 void game_update()
 {
+    const auto& style = ImGui::GetStyle();
+
+    // Send options
+    {
+        ImGui::Begin("Settings", 0, 
+                     ImGuiWindowFlags_NoCollapse |
+                     ImGuiWindowFlags_NoResize |
+                     ImGuiWindowFlags_AlwaysAutoResize);
+
+        ImGui::Text("Player mask");
+        {
+            ImGui::Indent();
+            ImGui::TextDisabled("Only affect shockwaves");
+            for (auto& user : state.lobby.members)
+            {
+                auto color = COLORS[user.colorIndex];
+                ImGui::PushStyleColor(ImGuiCol_Text, color);
+                if (user.id == state.user.id)
+                {
+                    ImGui::Checkbox((user.name + " (Echo)").c_str(), &user.allowSendTo);
+                }
+                else
+                {
+                    ImGui::Checkbox(user.name.c_str(), &user.allowSendTo);
+                }
+                ImGui::PopStyleColor();
+            }
+            ImGui::Unindent();
+        }
+
+        ImGui::Separator();
+        ImGui::Text("Reliable options");
+        {
+            ImGui::Indent();
+            ImGui::TextDisabled("Only affect position");
+            ImGui::Text("Channel");
+            {
+                ImGui::Indent();
+                ImGui::BeginGroup();
+                for (int i = 0; i < 4; ++i)
+                {
+                    bool active = settings.sendChannel == i;
+                    if (ImGui::RadioButton(std::to_string(i).c_str(), active))
+                    {
+                        settings.sendChannel = i;
+                    }
+                    if (i % 2 == 0) ImGui::SameLine();
+                }
+                ImGui::EndGroup();
+                ImGui::Unindent();
+            }
+            ImGui::Checkbox("Reliable", &settings.sendReliable);
+            ImGui::Checkbox("Ordered", &settings.sendOrdered);
+            ImGui::Unindent();
+        }
+
+        ImGui::End();
+    }
+
     // Main menu window, centered
     {
+        float gameWidth = 800;
+        float gameHeight = 600;
+        float scale = 1.0f;
+        if (settings.gameUIIScale == 0)
+        {
+            scale = 0.25f;
+        }
+        if (settings.gameUIIScale == 1)
+        {
+            scale = 0.5f;
+        }
+        gameWidth *= scale;
+        gameHeight *= scale;
         ImGui::SetNextWindowPos(ImVec2(
-            (float)width / 2.0f - DIALOG_WIDTH / 2.0f,
-            (float)height / 2.0f - DIALOG_HEIGHT / 2.0f));
-        ImGui::SetNextWindowSize(ImVec2(DIALOG_WIDTH, DIALOG_HEIGHT));
+            (float)width / 5.0f * 3.0f - gameWidth / 2.0f,
+            (float)height / 2.0f - gameHeight / 2.0f));
         ImGui::Begin("Game", nullptr,
             ImGuiWindowFlags_NoCollapse |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoResize);
+            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_AlwaysAutoResize);
 
         // Play area
-        ImGui::BeginChildFrame(1, ImVec2(800, 600));
+        ImGui::BeginChildFrame(1, ImVec2(gameWidth, gameHeight));
         {
             ImVec2 framePos = ImGui::GetCursorScreenPos();
             ImDrawList* pDrawList = ImGui::GetWindowDrawList();
@@ -58,10 +129,14 @@ void game_update()
             if (mousePos.x != lastMousePos.x ||
                 mousePos.y != lastMousePos.y)
             {
-                if (mousePos.x >= 0.0f && mousePos.x <= 800.0f &&
-                    mousePos.y >= 0.0f && mousePos.y <= 600.0f)
+                if (mousePos.x >= 0.0f && mousePos.x <= gameWidth &&
+                    mousePos.y >= 0.0f && mousePos.y <= gameHeight)
                 {
-                    app_mouseMoved({ (int)mousePos.x, (int)mousePos.y });
+                    state.mouseX = (int)(mousePos.x / scale);
+                    state.mouseY = (int)(mousePos.y / scale);
+#if !RESEND_AT_60_FPS
+                    app_mouseMoved({state.mouseX, state.mouseY});
+#endif
                 }
             }
             lastMousePos = mousePos;
@@ -74,7 +149,7 @@ void game_update()
                 if (mousePos.x >= 0.0f && mousePos.x <= 800.0f &&
                     mousePos.y >= 0.0f && mousePos.y <= 600.0f)
                 {
-                    app_shockwave({ (int)mousePos.x, (int)mousePos.y });
+                    app_shockwave({ (int)(mousePos.x / scale), (int)(mousePos.y / scale) });
                 }
             }
             lastMouseDown = mouseDown;
@@ -107,8 +182,8 @@ void game_update()
                 auto color = COLORS[shockwave.colorIndex];
                 color.w = 1.0f - percent;
                 pDrawList->AddCircleFilled(
-                    ImVec2(framePos.x + (float)shockwave.pos.x, framePos.y + (float)shockwave.pos.y),
-                    size, ImColor(color), 64);
+                    ImVec2(framePos.x + (float)shockwave.pos.x * scale, framePos.y + (float)shockwave.pos.y * scale),
+                    size * scale, ImColor(color), 64);
 
                 ++it;
             }
@@ -120,20 +195,27 @@ void game_update()
                 {
                     pDrawList->AddImage(
                         ARROWS[member.colorIndex],
-                        ImVec2(framePos.x + (float)member.pos.x, framePos.y + (float)member.pos.y),
-                        ImVec2(framePos.x + (float)member.pos.x + 64, framePos.y + (float)member.pos.y + 64));
+                        ImVec2(framePos.x + (float)member.pos.x * scale, 
+                               framePos.y + (float)member.pos.y * scale),
+                        ImVec2(framePos.x + (float)member.pos.x * scale + 64 * scale, 
+                               framePos.y + (float)member.pos.y * scale + 64 * scale));
                 }
             }
         }
         ImGui::EndChildFrame();
         ImGui::IsMouseDown(0);
 
-        // Leave game
-        if (ImGui::Button("Leave"))
-        {
-            app_closeGame();
-        }
-
         ImGui::End();
     }
+
+#if RESEND_AT_60_FPS
+    // Send mouse position at 60 fps
+    static auto lastTime = std::chrono::high_resolution_clock::now();
+    auto now = std::chrono::high_resolution_clock::now();;
+    if (now - lastTime >= std::chrono::microseconds(1000000 / 60))
+    {
+        lastTime = now;
+        app_mouseMoved({state.mouseX, state.mouseY});
+    }
+#endif
 }
