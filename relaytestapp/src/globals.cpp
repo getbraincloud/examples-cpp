@@ -42,9 +42,7 @@
 State state;
 
 // Credentials
-char username[MAX_CREDENTIAL_CHAR] = { '\0' };
-char password[MAX_CREDENTIAL_CHAR] = { '\0' };
-int colorIndex = 0;
+Settings settings;
 
 // Main window's dimensions
 int width = 1280;
@@ -66,15 +64,23 @@ void loadConfigs()
         {
             if (strcmp(key, "username") == 0)
             {
-                strcpy(username, value);
+                strcpy(settings.username, value);
             }
             else if (strcmp(key, "password") == 0)
             {
-                strcpy(password, value);
+                strcpy(settings.password, value);
             }
             else if (strcmp(key, "colorIndex") == 0)
             {
-                colorIndex = std::stoi(value);
+                settings.colorIndex = std::stoi(value);
+            }
+            else if (strcmp(key, "gameUIIScale") == 0)
+            {
+                settings.gameUIIScale = std::stoi(value);
+            }
+            else if (strcmp(key, "protocol") == 0)
+            {
+                settings.protocol = (BrainCloud::eRelayConnectionType)std::stoi(value);
             }
         }
         fclose(pFile);
@@ -112,12 +118,16 @@ void loadConfigs()
 // Save configuration file to disk (./config.txt)
 void saveConfigs()
 {
+    if (settings.instanceIndex != 0) return; // Only first instance will save
+
     auto pFile = fopen("configs.txt", "w");
     if (pFile)
     {
-        fprintf(pFile, "username = %s\n", username);
-        fprintf(pFile, "password = %s\n", password);
-        fprintf(pFile, "colorIndex = %i\n", colorIndex);
+        fprintf(pFile, "username = %s\n", settings.username);
+        fprintf(pFile, "password = %s\n", settings.password);
+        fprintf(pFile, "colorIndex = %i\n", settings.colorIndex);
+        fprintf(pFile, "gameUIIScale = %i\n", settings.gameUIIScale);
+        fprintf(pFile, "protocol = %i\n", (int)settings.protocol);
         fclose(pFile);
     }
 }

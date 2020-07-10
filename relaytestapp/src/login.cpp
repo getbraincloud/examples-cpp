@@ -28,7 +28,7 @@
 
 // Login dialog dimensions
 #define DIALOG_WIDTH 400.0f
-#define DIALOG_HEIGHT 350.0f
+#define DIALOG_HEIGHT 150.0f
 
 // Draws a login dialog and update its logic
 void login_update()
@@ -44,27 +44,28 @@ void login_update()
             ImGuiWindowFlags_NoMove |
             ImGuiWindowFlags_NoResize);
         ImGui::Text("A new user will be created if it doesn't exist.");
-        ImGui::InputText("Username", username, MAX_CREDENTIAL_CHAR);
-        ImGui::InputText("Password", password, MAX_CREDENTIAL_CHAR,
+        ImGui::InputText("Username", settings.username, MAX_CREDENTIAL_CHAR);
+        ImGui::InputText("Password", settings.password, MAX_CREDENTIAL_CHAR,
             ImGuiInputTextFlags_Password);
 
         // Greyed out login button if user/pass not yet entered
-        auto canLogin = strlen(username) && strlen(password);
+        auto canLogin = strlen(settings.username) && strlen(settings.password);
         if (!canLogin)
         {
+            settings.autoJoin = false;
             ImGui::PushStyleVar(
                 ImGuiStyleVar_Alpha,
                 ImGui::GetStyle().Alpha * 0.5f);
         }
 
         // Login button
-        if (ImGui::Button("Login") && canLogin)
+        if ((ImGui::Button("Login") || settings.autoJoin) && canLogin)
         {
             // Save user/pass locally for next time
             saveConfigs();
 
             // Attempt login
-            app_login(username, password);
+            app_login(settings.username, settings.password);
         }
 
         // Restore style for grayed out button
