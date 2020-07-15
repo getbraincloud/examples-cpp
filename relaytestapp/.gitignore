@@ -1,0 +1,7 @@
+build/
+.vscode/
+.DS_Store
+Pods/
+xcuserdata/
+ids.h
+configs.txt
