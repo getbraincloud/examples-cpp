@@ -11,6 +11,15 @@ git submodule update --init
 * [Build with CMake](#build-with-cmake)
 * [Use brainCloud cocoapods](#use-braincloud-cocoapods)
 
+Then, create a file into /src folder called `ids.h`, and put 3 defines in it:
+```
+#define BRAINCLOUD_SERVER_URL "https://sharedprod.braincloudservers.com/dispatcherV2"
+#define BRAINCLOUD_APP_ID ""
+#define BRAINCLOUD_APP_SECRET ""
+```
+
+Fill in values for BRAINCLOUD_APP_ID and BRAINCLOUD_APP_SECRET.
+
 ### Build with CMake
 
 1. Download and install cmake from: https://cmake.org.
