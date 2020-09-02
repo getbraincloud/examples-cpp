@@ -27,8 +27,8 @@
 #include <stdio.h>
 
 // Login dialog dimensions
-#define DIALOG_WIDTH 400.0f
-#define DIALOG_HEIGHT 350.0f
+#define DIALOG_WIDTH 275.0f
+#define DIALOG_HEIGHT 150.0f
 
 // Draws a login dialog and update its logic
 void lobby_update()
@@ -37,12 +37,29 @@ void lobby_update()
     {
         ImGui::SetNextWindowPos(ImVec2(
             (float)width / 2.0f - DIALOG_WIDTH / 2.0f,
-            (float)height / 2.0f - DIALOG_HEIGHT / 2.0f));
+            (float)height / 2.0f - DIALOG_HEIGHT / 2.0f + 10.0f));
         ImGui::SetNextWindowSize(ImVec2(DIALOG_WIDTH, DIALOG_HEIGHT));
         ImGui::Begin("Lobby", nullptr,
             ImGuiWindowFlags_NoCollapse |
             ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoResize);
+            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_NoTitleBar);
+        
+        // Leave game
+        if (ImGui::Button("Leave"))
+        {
+            app_closeGame();
+        }
+
+        // We're the boss, so we can start the game
+        if (state.user.id == state.lobby.ownerId)
+        {
+            ImGui::SameLine();
+            if (ImGui::Button("Start"))
+            {
+                app_startGame();
+            }
+        }
 
         // Color picker buttons
         for (int i = 0; i < 8; ++i)
@@ -55,25 +72,19 @@ void lobby_update()
         }
 
         // Draw users
+        int i = 0;
+        ImGui::Columns(4, 0, true);
         for (const auto& member : state.lobby.members)
         {
+            auto pos = ImGui::GetCursorPos();
+            ImGui::SetCursorPos({pos.x + 1, pos.y + 1});
+            ImGui::TextColored(ImVec4(0, 0, 0, 0.75f), "%s", member.name.c_str());
+            ImGui::SetCursorPos(pos);
             ImGui::TextColored(COLORS[member.colorIndex], "%s", member.name.c_str());
+            ImGui::NextColumn();
+            ++i;
         }
-
-        // Leave game
-        if (ImGui::Button("Leave"))
-        {
-            app_closeGame();
-        }
-        if (state.user.id == state.lobby.ownerId)
-        {
-            // We're the boss, so we can start the game
-            ImGui::SameLine();
-            if (ImGui::Button("Start"))
-            {
-                app_startGame();
-            }
-        }
+        ImGui::Columns();
 
         ImGui::End();
     }

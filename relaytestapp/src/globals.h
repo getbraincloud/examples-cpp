@@ -21,6 +21,9 @@
 // Imgui
 #include <imgui/imgui.h>
 
+// brainCloud
+#include <braincloud/RelayConnectionType.h>
+
 // C/C++ includes
 #include <chrono>
 #include <string>
@@ -74,6 +77,7 @@ struct User
     int colorIndex = 7;
     bool isReady = false;
     bool isAlive = false;
+    bool allowSendTo = true;
     Point pos = {0, 0};
 };
 
@@ -112,7 +116,25 @@ struct State
     Lobby lobby;                                    /* Lobby with its members as received from brainCloud Lobby Service */
     Server server;                                  /* Server info (IP, port, protocol, passcode) */
     std::vector<Shockwave> shockwaves;              /* Players' created shockwaves */
+    int mouseX = 0;
+    int mouseY = 0;
 };
+
+struct Settings
+{
+    char username[MAX_CREDENTIAL_CHAR] = {'\0'};
+    char password[MAX_CREDENTIAL_CHAR] = {'\0'};
+    int colorIndex = 0;
+    int gameUIIScale = 2;
+    int sendChannel = 0;
+    bool sendReliable = false;
+    bool sendOrdered = true;
+    int instanceIndex = 0;
+    bool autoJoin = false;
+    BrainCloud::eRelayConnectionType protocol = BrainCloud::eRelayConnectionType::UDP;
+};
+
+extern Settings settings;
 
 // Load/Save configuration file from/to disk (./config.txt)
 void loadConfigs();
@@ -120,11 +142,6 @@ void saveConfigs();
 
 // Main application state instance
 extern State state;
-
-// Credentials
-extern char username[MAX_CREDENTIAL_CHAR];
-extern char password[MAX_CREDENTIAL_CHAR];
-extern int colorIndex;
 
 // Main window's dimensions
 extern int width;

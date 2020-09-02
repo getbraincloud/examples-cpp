@@ -40,10 +40,12 @@
 #include "globals.h"
 #include "login.h"
 
+#include <cmath>
+
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 bool done = false;
 
-int main()
+int main(int argc, char *argv[])
 {
     // Make command prompt faster
     static char stdOutBuffer[8192];
@@ -55,6 +57,31 @@ int main()
         printf("Error: %s\n", SDL_GetError());
         return -1;
     }
+    
+    SDL_DisplayMode current;
+    SDL_Rect usable_bounds;
+    SDL_GetDesktopDisplayMode(0, &current);
+    SDL_GetDisplayUsableBounds(0, &usable_bounds);
+    int x = SDL_WINDOWPOS_CENTERED;
+    int y = SDL_WINDOWPOS_CENTERED;
+    Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
+    if (argc > 2)
+    {
+        settings.instanceIndex = std::atoi(argv[argc - 2]);
+        auto count = std::atoi(argv[argc - 1]);
+        if (count > 1) settings.autoJoin = true;
+        auto count_per_col = (int)std::sqrt((double)count);
+        auto count_per_row = (int)std::ceil((double)count / (double)count_per_col);
+        auto col_index = settings.instanceIndex % count_per_row;
+        auto row_index = settings.instanceIndex / count_per_row;
+
+        width = usable_bounds.w / count_per_row;
+        height = usable_bounds.h / count_per_col;
+        x = col_index * width;
+        y = row_index * height;
+
+        flags |= SDL_WINDOW_BORDERLESS;
+    }
 
     // Setup window
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -62,14 +89,7 @@ int main()
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-    SDL_DisplayMode current;
-    SDL_GetCurrentDisplayMode(0, &current);
-    SDL_Window* window = SDL_CreateWindow(
-        "brainCloud Relay Test App",
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
-        width, height,
-        SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
+    SDL_Window* window = SDL_CreateWindow("brainCloud Relay Test App", x, y, width, height, flags);
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     SDL_GL_SetSwapInterval(1); // Enable vsync
 
@@ -86,6 +106,16 @@ int main()
 
     // Load app related stuff
     loadConfigs();
+    if (settings.autoJoin)
+    {
+        if (settings.instanceIndex > 0)
+        {
+            std::string newName(settings.username);
+            newName += std::to_string(settings.instanceIndex + 1);
+            strcpy(settings.username, newName.c_str());
+        }
+        settings.colorIndex = settings.instanceIndex % 8;
+    }
 
     // Main loop
     while (!done)
