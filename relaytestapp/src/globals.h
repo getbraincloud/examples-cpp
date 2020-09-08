@@ -34,7 +34,7 @@
 #include "ids.h"
 
 // Application's version
-#define VERSION "4.5.0"
+#define VERSION "4.5.6"
 
 // Max character count that can be used for username and password
 #define MAX_CREDENTIAL_CHAR 32
