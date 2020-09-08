@@ -5,3 +5,4 @@ Pods/
 xcuserdata/
 ids.h
 configs.txt
+*.exe
