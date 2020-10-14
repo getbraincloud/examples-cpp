@@ -120,9 +120,9 @@ int main(int argc, char** argv)
     return 0;
 }
 
-//---------------------------------------------------------------------------
+//--------------------------------------------------------------------------
 // Callback implementations
-//---------------------------------------------------------------------------
+//--------------------------------------------------------------------------
 
 void AuthCallback::serverCallback(ServiceName serviceName, 
                                   ServiceOperation serviceOperation, 
@@ -143,7 +143,7 @@ void RTTConnectCallback::rttConnectSuccess()
     string algo = "{\"strategy\":\"ranged-absolute\","
                   "\"alignment\":\"center\",\"ranges\":[1000]}";
     string filter = "{}";
-    Json::Value::Members otherUsers = {};
+    vector<string> otherUsers = {};
     string settings = "{}";
     bool startReady = true;
     string extra = "{}";
@@ -166,15 +166,12 @@ void LobbyCallback::rttCallback(const std::string& jsonData)
     if (operation == "ROOM_READY")
     {
         serverConnectionInfo = json["data"];
+        connectToServer();
     }
 
     if (operation == "DISBANDED")
     {
-        if (json["data"]["reason"]["code"].asInt() == RTT_ROOM_READY)
-        {
-            connectToServer();
-        }
-        else
+        if (json["data"]["reason"]["code"].asInt() != RTT_ROOM_READY)
         {
             // This means the room was disbanded for the wrong reasons
             isGameRunning = false;

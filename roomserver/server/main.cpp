@@ -53,7 +53,7 @@ int main(int argc, char** argv)
     { 
         printf("bind failed\n"); 
         exit(EXIT_FAILURE); 
-    } 
+    }
 
     // Set the socket for listening
     if (listen(serverSocket, 1) < 0)
@@ -63,7 +63,7 @@ int main(int argc, char** argv)
     }
     
     // Notify brainCloud that we are ready
-    roomServer.ready();
+    roomServer.readyUp();
 
     // Accept new connections
     auto clientSocket = accept(serverSocket, (struct sockaddr *)&address, 

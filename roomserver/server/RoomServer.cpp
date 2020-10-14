@@ -2,6 +2,34 @@
 #include <sstream>
 #include "RoomServer.h"
 
+bool RoomServer::init()
+{
+    if (!loadEnvironmentVariables())
+        return false;
+
+    createS2S();
+
+    if (!loadLobbyJson())
+        return false;
+
+    return true;
+}
+
+void RoomServer::readyUp()
+{
+    m_s2s->request(buildRequest("SYS_ROOM_READY"));
+}
+
+bool RoomServer::validatePasscode(const char* passcode)
+{
+    for (const auto& memberJson : m_lobbyJson["data"]["members"])
+    {
+        if (memberJson["passcode"].asString() == passcode) return true;
+    }
+
+    return false;
+}
+
 bool RoomServer::loadEnvironmentVariables()
 {
     // Get environement variables passed from brainCloud to our container.
@@ -79,28 +107,4 @@ bool RoomServer::loadLobbyJson()
     ss >> m_lobbyJson;
 
     return (m_lobbyJson["status"].asInt() == 200);
-}
-
-bool RoomServer::init()
-{
-    if (!loadEnvironmentVariables()) return false;
-    createS2S();
-    if (!loadLobbyJson()) return false;
-
-    return true;
-}
-
-void RoomServer::ready()
-{
-    m_s2s->request(buildRequest("SYS_ROOM_READY"), nullptr);
-}
-
-bool RoomServer::validatePasscode(const char* passcode)
-{
-    for (const auto& memberJson : m_lobbyJson["data"]["members"])
-    {
-        if (memberJson["passcode"].asString() == passcode) return true;
-    }
-
-    return false;
 }

@@ -7,7 +7,7 @@ RUN apt-get update -y --fix-missing && apt-get install -y \
     libcurl4-openssl-dev \
     libjsoncpp-dev
 
-# Create app directoryg+
+# Create app directory
 RUN mkdir -p /usr/src/app
 RUN mkdir -p /usr/src/app/build
 WORKDIR /usr/src/app/build
@@ -39,4 +39,3 @@ COPY --from=builder /usr/src/app/build/MyRoomServer .
 
 # Execute
 ENTRYPOINT ["./MyRoomServer"]
-CMD ["room"]

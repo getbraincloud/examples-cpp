@@ -8,7 +8,7 @@ class RoomServer
 {
 public:
     bool init();
-    void ready();
+    void readyUp();
     bool validatePasscode(const char* passcode);
 
 private:
