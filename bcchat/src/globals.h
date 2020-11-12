@@ -27,7 +27,7 @@
 #include "ids.h"
 
 // Application's version
-#define VERSION "4.5.6"
+#define VERSION "4.6.0"
 
 // Max message count to be fetched and displayed per channel
 #define MAX_HISTORY 100
