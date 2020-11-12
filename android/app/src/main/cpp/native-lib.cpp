@@ -63,8 +63,6 @@ public:
     {
         status += "ERROR: channelConnect: " + jsonError + "\n\n";
     }
-
-    void serverWarning(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, int numRetries, const std::string &statusMessage) override {}
 };
 static ChannelConnectCallback channelConnectCallback;
 
@@ -89,8 +87,6 @@ public:
     {
         status += "ERROR: getChannelId: " + jsonError + "\n\n";
     }
-
-    void serverWarning(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, int numRetries, const std::string &statusMessage) override {}
 };
 static GetChannelIdCallback getChannelIdCallback;
 
@@ -127,8 +123,6 @@ public:
     {
         status += "ERROR: authenticateUniversal: " + jsonError + "\n\n";
     }
-
-    void serverWarning(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, int numRetries, const std::string &statusMessage) override {}
 };
 static AuthCallback authCallback;
 
