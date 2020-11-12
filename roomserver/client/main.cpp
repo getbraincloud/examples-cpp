@@ -38,11 +38,6 @@ class AuthCallback : public IServerCallback
         isGameRunning = false;
     }
 
-    void serverWarning(ServiceName serviceName, 
-                       ServiceOperation serviceOperation, 
-                       int statusCode, int reasonCode, int numRetries, 
-                       const string& statusMessage) override {}
-
     void serverCallback(ServiceName serviceName, 
                         ServiceOperation serviceOperation, 
                         const string& jsonData) override;
@@ -58,11 +53,6 @@ class FindLobbyCallback : public IServerCallback
         printf("Find lobby error: %s\n", jsonError.c_str());
         isGameRunning = false;
     }
-
-    void serverWarning(ServiceName serviceName, 
-                       ServiceOperation serviceOperation, 
-                       int statusCode, int reasonCode, int numRetries, 
-                       const string& statusMessage) override {}
 
     void serverCallback(ServiceName serviceName, 
                         ServiceOperation serviceOperation, 

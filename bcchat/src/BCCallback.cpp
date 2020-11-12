@@ -94,14 +94,3 @@ void BCCallback::serverError(BrainCloud::ServiceName serviceName,
     }
     destroy();
 }
-
-void BCCallback::serverWarning(BrainCloud::ServiceName serviceName, 
-                    BrainCloud::ServiceOperation serviceOperation, 
-                    int statusCode,
-                    int reasonCode,
-                    int numRetries, 
-                    const std::string& statusMessage)
-{
-    // Do nothing
-}
-

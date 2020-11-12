@@ -64,12 +64,6 @@ private:
                      int statusCode, 
                      int reasonCode, 
                      const std::string& jsonError) override;
-    void serverWarning(BrainCloud::ServiceName serviceName, 
-                       BrainCloud::ServiceOperation serviceOperation, 
-                       int statusCode,
-                       int reasonCode,
-                       int numRetries, 
-                       const std::string& statusMessage) override;
 
     std::function<void(const Json::Value&)> m_success;
     std::function<void(const std::string&)> m_error;
