@@ -86,7 +86,7 @@ LobbyCallback lobbyCallback;
 
 int main(int argc, char** argv)
 {
-    printf("-- Room Server Example Client 4.6.0 --\n");
+    printf("-- Room Server Example Client 4.7.0 --\n");
 
     // Create our brainCloud client
     bc = make_shared<BrainCloudWrapper>("MyGame");
