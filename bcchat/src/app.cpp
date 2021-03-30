@@ -633,7 +633,7 @@ void app_submitName(const char* firstName, const char* lastName)
     state.screenState = ScreenState::Loading;
 
     // Update name
-    pBCWrapper->getPlayerStateService()->updateName(
+    pBCWrapper->getPlayerStateService()->updateUserName(
         state.user.name.c_str(),
         new BCCallback(
         [](const Json::Value& result) // Success
