@@ -493,7 +493,7 @@ void app_play(BrainCloud::eRelayConnectionType in_protocol)
 
     // Enable RTT
     pBCWrapper->getRTTService()->registerRTTLobbyCallback(&bcRTTCallback);
-    pBCWrapper->getRTTService()->enableRTT(&bcRTTConnectCallback, true);
+    pBCWrapper->getRTTService()->enableRTT(&bcRTTConnectCallback, false);
 }
 
 // Take in lobby json and id and build a lobby object

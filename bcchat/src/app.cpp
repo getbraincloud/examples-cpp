@@ -166,7 +166,7 @@ void onLoggedIn()
 {
     pBCWrapper->getBCClient()->getRTTService()->registerRTTChatCallback(&bcRTTCallback);
     pBCWrapper->getBCClient()->getRTTService()->registerRTTPresenceCallback(&bcRTTCallback);
-    pBCWrapper->getBCClient()->getRTTService()->enableRTT(&bcRTTConnectCallback, true);
+    pBCWrapper->getBCClient()->getRTTService()->enableRTT(&bcRTTConnectCallback, false);
 }
 
 // RTT connected. Go to main chat screen and fetch channels data.
