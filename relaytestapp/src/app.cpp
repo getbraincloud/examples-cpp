@@ -555,11 +555,7 @@ static void onLobbyEvent(const Json::Value& eventJson)
 
     if (operation == "DISBANDED")
     {
-        if (jsonData["reason"]["code"].asInt() == RTT_ROOM_READY)
-        {
-            startGame();
-        }
-        else
+        if (jsonData["reason"]["code"].asInt() != RTT_ROOM_READY)
         {
             // Disbanded for any other reason than ROOM_READY, means we failed to launch the game.
             app_closeGame();
@@ -578,6 +574,7 @@ static void onLobbyEvent(const Json::Value& eventJson)
     else if (operation == "ROOM_READY")
     {
         state.server = parseServer(jsonData);
+        startGame();
     }
 }
 
