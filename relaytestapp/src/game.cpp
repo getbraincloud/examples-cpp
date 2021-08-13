@@ -50,7 +50,7 @@ void game_update()
             {
                 auto color = COLORS[user.colorIndex];
                 ImGui::PushStyleColor(ImGuiCol_Text, color);
-                if (user.id == state.user.id)
+                if (user.cxId == state.user.cxId)
                 {
                     ImGui::Checkbox((user.name + " (Echo)").c_str(), &user.allowSendTo);
                 }

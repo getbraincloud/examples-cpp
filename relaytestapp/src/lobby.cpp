@@ -1,5 +1,5 @@
 //-----------------------------------------------------------------------------
-// Copyright 2018 bitHeads inc.
+// Copyright 2021 bitHeads inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -52,7 +52,7 @@ void lobby_update()
         }
 
         // We're the boss, so we can start the game
-        if (state.user.id == state.lobby.ownerId)
+        if (state.user.cxId == state.lobby.ownerCxId)
         {
             ImGui::SameLine();
             if (ImGui::Button("Start"))
