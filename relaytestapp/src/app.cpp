@@ -200,7 +200,7 @@ void onRTTConnected()
 
     // Find lobby
     pBCWrapper->getLobbyService()->findOrCreateLobby(
-        "CursorPartyV2",// lobby type
+        settings.lobbyType, // lobby type
         0,              // rating
         1,              // max steps
         "{\"strategy\":\"ranged-absolute\",\"alignment\":\"center\",\"ranges\":[1000]}", // algorithm
@@ -581,9 +581,6 @@ static void onLobbyEvent(const Json::Value& eventJson)
 // Connect to the Relay server and start the game
 static void startGame()
 {
-    //pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
-    //pBCWrapper->getRTTService()->disableRTT();
-
     state.screenState = ScreenState::Starting;
 
     pBCWrapper->getRelayService()->registerRelayCallback(&bcRelayCallback);

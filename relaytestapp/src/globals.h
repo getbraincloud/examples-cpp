@@ -132,6 +132,7 @@ struct Settings
     int instanceIndex = 0;
     bool autoJoin = false;
     BrainCloud::eRelayConnectionType protocol = BrainCloud::eRelayConnectionType::UDP;
+    std::string lobbyType = "CursorPartyV2";
 };
 
 extern Settings settings;
