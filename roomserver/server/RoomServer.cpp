@@ -17,7 +17,7 @@ bool RoomServer::init()
 
 void RoomServer::readyUp()
 {
-    m_s2s->request(buildRequest("SYS_ROOM_READY"));
+    m_s2s->request(buildRequest("SYS_ROOM_READY"), [](const std::string& result){});
 }
 
 bool RoomServer::validatePasscode(const char* passcode)
@@ -78,7 +78,7 @@ void RoomServer::createS2S()
     auto s2sUrl = getS2SUrl();
     printf("S2S URL: %s\n", s2sUrl.c_str());
 
-    m_s2s = S2SContext::create(m_appId, m_serverName, m_serverSecret, s2sUrl);
+    m_s2s = S2SContext::create(m_appId, m_serverName, m_serverSecret, s2sUrl, true);
     m_s2s->setLogEnabled(true);
 }
 

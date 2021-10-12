@@ -35,7 +35,7 @@ RUN mkdir -p /usr/src/app/build
 WORKDIR /usr/src/app/build
 
 # Copy the pre-built server from the other image << THIS IS THE MAGIC TRICK
-COPY --from=builder /usr/src/app/build/MyRoomServer .
+COPY --from=builder /usr/src/app/build/RoomServerExampleServer .
 
 # Execute
-ENTRYPOINT ["./MyRoomServer"]
+ENTRYPOINT ["./RoomServerExampleServer"]

@@ -1,5 +1,5 @@
 //-----------------------------------------------------------------------------
-// Copyright 2018 bitHeads inc.
+// Copyright 2021 bitHeads inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -120,7 +120,6 @@ public:
         Json::Reader reader;
         std::string str((const char*)bytes, size);
         reader.parse(str, json);
-        //std::cout << "App Relay: " << str << std::endl;
         onRelayMessage(netId, json);
     }
 };
@@ -173,7 +172,6 @@ static void initBC()
 static void handlePlayerState(const Json::Value& result)
 {
     state.user = User();
-    state.user.id = result["data"]["profileId"].asString();
 
     // If no username is set for this user, ask for it
     const auto& userName = result["data"]["playerName"].asString();
@@ -198,9 +196,11 @@ void onLoggedIn()
 // RTT connected. Go to main menu screen
 void onRTTConnected()
 {
+    state.user.cxId = pBCWrapper->getRTTService()->getRTTConnectionId();
+
     // Find lobby
     pBCWrapper->getLobbyService()->findOrCreateLobby(
-        "CursorPartyV2",// lobby type
+        settings.lobbyType, // lobby type
         0,              // rating
         1,              // max steps
         "{\"strategy\":\"ranged-absolute\",\"alignment\":\"center\",\"ranges\":[1000]}", // algorithm
@@ -256,10 +256,10 @@ static void onRelaySystemMessage(const Json::Value& json)
 {
     if (json["op"].asString() == "DISCONNECT") // A member has disconnected from the game
     {
-        const auto& profileId = json["profileId"].asString();
+        const auto& cxId = json["cxId"].asString();
         for (auto& member : state.lobby.members)
         {
-            if (member.id == profileId)
+            if (member.cxId == cxId)
             {
                 member.isAlive = false; // This will stop displaying this member
                 break;
@@ -270,10 +270,10 @@ static void onRelaySystemMessage(const Json::Value& json)
 
 static void onRelayMessage(int netId, const Json::Value& json)
 {
-    const auto& memberProfileId = pBCWrapper->getRelayService()->getProfileIdForNetId(netId);
+    const auto& memberCxId = pBCWrapper->getRelayService()->getCxIdForNetId(netId);
     for (auto& member : state.lobby.members)
     {
-        if (member.id == memberProfileId)
+        if (member.cxId == memberCxId)
         {
             auto op = json["op"].asString();
             if (op == "move")
@@ -493,7 +493,7 @@ void app_play(BrainCloud::eRelayConnectionType in_protocol)
 
     // Enable RTT
     pBCWrapper->getRTTService()->registerRTTLobbyCallback(&bcRTTCallback);
-    pBCWrapper->getRTTService()->enableRTT(&bcRTTConnectCallback, true);
+    pBCWrapper->getRTTService()->enableRTT(&bcRTTConnectCallback, false);
 }
 
 // Take in lobby json and id and build a lobby object
@@ -502,15 +502,15 @@ static Lobby parseLobby(const Json::Value& lobbyJson, const std::string& lobbyId
     Lobby lobby;
 
     lobby.lobbyId = lobbyId;
-    lobby.ownerId = lobbyJson["owner"].asString();
+    lobby.ownerCxId = lobbyJson["ownerCxId"].asString();
     const auto& jsonMembers = lobbyJson["members"];
     for (const auto& jsonMember : jsonMembers)
     {
         User user;
-        user.id = jsonMember["profileId"].asString();
+        user.cxId = jsonMember["cxId"].asString();
         user.name = jsonMember["name"].asString();
         user.colorIndex = jsonMember["extra"]["colorIndex"].asInt();
-        if (user.id == state.user.id) user.allowSendTo = false;
+        if (user.cxId == state.user.cxId) user.allowSendTo = false;
         lobby.members.push_back(user);
     }
 
@@ -555,11 +555,7 @@ static void onLobbyEvent(const Json::Value& eventJson)
 
     if (operation == "DISBANDED")
     {
-        if (jsonData["reason"]["code"].asInt() == RTT_ROOM_READY)
-        {
-            startGame();
-        }
-        else
+        if (jsonData["reason"]["code"].asInt() != RTT_ROOM_READY)
         {
             // Disbanded for any other reason than ROOM_READY, means we failed to launch the game.
             app_closeGame();
@@ -578,15 +574,13 @@ static void onLobbyEvent(const Json::Value& eventJson)
     else if (operation == "ROOM_READY")
     {
         state.server = parseServer(jsonData);
+        startGame();
     }
 }
 
 // Connect to the Relay server and start the game
 static void startGame()
 {
-    //pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
-    //pBCWrapper->getRTTService()->disableRTT();
-
     state.screenState = ScreenState::Starting;
 
     pBCWrapper->getRelayService()->registerRelayCallback(&bcRelayCallback);
@@ -606,7 +600,12 @@ static void startGame()
             break;
     }
 
-    pBCWrapper->getRelayService()->connect(settings.protocol, state.server.host, port, state.server.passcode, state.server.lobbyId, &bcRelayConnectCallback);
+    pBCWrapper->getRelayService()->connect(settings.protocol, 
+                                           state.server.host,
+                                           port, 
+                                           state.server.passcode, 
+                                           state.server.lobbyId, 
+                                           &bcRelayConnectCallback);
 }
 
 // Cleanly close the game. Go back to main menu but don't log 
@@ -646,7 +645,7 @@ void app_changeUserColor(int colorIndex)
     state.user.colorIndex = colorIndex;
     for (auto& member : state.lobby.members)
     {
-        if (state.user.id == member.id)
+        if (state.user.cxId == member.cxId)
         {
             member.colorIndex = colorIndex;
             break;
@@ -667,7 +666,7 @@ static uint64_t getPlayerMask()
     for (const auto& user : state.lobby.members)
     {
         if (!user.allowSendTo) continue;
-        auto netId = pBCWrapper->getRelayService()->getNetIdForProfileId(user.id);
+        auto netId = pBCWrapper->getRelayService()->getNetIdForCxId(user.cxId);
         playerMask |= (uint64_t)1 << (uint64_t)netId;
     }
 
@@ -681,7 +680,7 @@ void app_mouseMoved(const Point& pos)
     state.user.pos = pos;
     for (auto& member : state.lobby.members)
     {
-        if (state.user.id == member.id)
+        if (state.user.cxId == member.cxId)
         {
             member.isAlive = true;
             member.pos = pos;

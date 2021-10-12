@@ -1,5 +1,5 @@
 //-----------------------------------------------------------------------------
-// Copyright 2018 bitHeads inc.
+// Copyright 2021 bitHeads inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -45,9 +45,22 @@ void mainMenu_update()
             ImGuiWindowFlags_NoResize);
 
         // Protocol choice
-        if (ImGui::Combo("Protocol", (int*)&settings.protocol, "UDP\0TCP\0WS\0"))
+        if (ImGui::Combo("Protocol", (int*)&settings.protocol, "UDP\0TCP\0"))
         {
             saveConfigs();
+        }
+
+        // Lobby type
+        int currentChoice = 0;
+        if (settings.lobbyType == "CursorPartyV2") currentChoice = 0;
+        else if (settings.lobbyType == "CursorPartyV2Backfill") currentChoice = 1;
+        if (ImGui::Combo("Lobby Type", &currentChoice, "Normal\0Backfill\0"))
+        {
+            switch (currentChoice)
+            {
+                case 0: settings.lobbyType = "CursorPartyV2"; break;
+                case 1: settings.lobbyType = "CursorPartyV2Backfill"; break;
+            }
         }
 
         // Join a game

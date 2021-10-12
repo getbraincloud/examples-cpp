@@ -1,5 +1,5 @@
 //-----------------------------------------------------------------------------
-// Copyright 2018 bitHeads inc.
+// Copyright 2021 bitHeads inc.
 //
 // Licensed under the Apache License, Version 2.0 (the "License");
 // you may not use this file except in compliance with the License.
@@ -34,7 +34,7 @@
 #include "ids.h"
 
 // Application's version
-#define VERSION "4.7.0"
+#define VERSION "4.9.0"
 
 // Max character count that can be used for username and password
 #define MAX_CREDENTIAL_CHAR 32
@@ -72,7 +72,7 @@ struct Point
 // A brainCloud user
 struct User
 {
-    std::string id;         /* Profile Id */
+    std::string cxId;       /* RTT Connection Id */
     std::string name;       /* User name */
     int colorIndex = 7;
     bool isReady = false;
@@ -85,7 +85,7 @@ struct User
 struct Lobby
 {
     std::string lobbyId;
-    std::string ownerId;
+    std::string ownerCxId;
     std::vector<User> members;
 };
 
@@ -132,6 +132,7 @@ struct Settings
     int instanceIndex = 0;
     bool autoJoin = false;
     BrainCloud::eRelayConnectionType protocol = BrainCloud::eRelayConnectionType::UDP;
+    std::string lobbyType = "CursorPartyV2";
 };
 
 extern Settings settings;
