@@ -13,7 +13,7 @@ git submodule update --init
 
 Then, create a file into /src folder called `ids.h`, and put 3 defines in it:
 ```
-#define BRAINCLOUD_SERVER_URL "https://sharedprod.braincloudservers.com/dispatcherV2"
+#define BRAINCLOUD_SERVER_URL "https://api.braincloudservers.com/dispatcherV2"
 #define BRAINCLOUD_APP_ID ""
 #define BRAINCLOUD_APP_SECRET ""
 ```

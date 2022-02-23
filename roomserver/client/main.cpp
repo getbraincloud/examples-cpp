@@ -90,7 +90,7 @@ int main(int argc, char** argv)
 
     // Create our brainCloud client
     bc = make_shared<BrainCloudWrapper>("MyGame");
-    bc->initialize("https://sharedprod.braincloudservers.com/dispatcherv2", 
+    bc->initialize("https://api.braincloudservers.com/dispatcherv2", 
                     APP_SECRET, APP_ID, "1.0", "MyCompany", "MyGame");
     bc->getBCClient()->enableLogging(true);
 
