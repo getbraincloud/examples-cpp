@@ -1,41 +1,44 @@
 package com.bitheads.braincloud.android;
 
-import android.support.v7.app.AppCompatActivity;
+import androidx.appcompat.app.AppCompatActivity;
+
 import android.os.Bundle;
 import android.text.method.ScrollingMovementMethod;
 import android.widget.TextView;
 
+import com.bitheads.braincloud.android.databinding.ActivityMainBinding;
+
 public class MainActivity extends AppCompatActivity {
 
-    private MainLoop thread;
-
-    // Used to load the 'native-lib' library on application startup.
+    // Used to load the 'android' library on application startup.
     static {
-        System.loadLibrary("native-lib");
+        System.loadLibrary("android");
     }
 
     @Override
     protected void onCreate(Bundle savedInstanceState) {
         super.onCreate(savedInstanceState);
-        setContentView(R.layout.activity_main);
+
+        ActivityMainBinding binding = ActivityMainBinding.inflate(getLayoutInflater());
+        setContentView(binding.getRoot());
 
         // Example of a call to a native method
-        TextView tv = (TextView) findViewById(R.id.sample_text);
+        TextView tv = binding.sampleText;
         tv.setMovementMethod(new ScrollingMovementMethod());
-        tv.setText("Initializing...\n");
+        tv.setText("Welcome to BrainCloud C++ for Android");
 
-        thread = new MainLoop(tv);
+        MainLoop thread = new MainLoop(tv);
         thread.start();
     }
 
     /**
-     * A native method that is implemented by the 'native-lib' native library,
+     * A native method that is implemented by the 'android' native library,
      * which is packaged with this application.
      */
-    public native String mainLoopJNI();
+    public native String stringFromJNI();
 
     class MainLoop extends Thread {
-        private TextView tv;
+        private final TextView tv;
 
         public MainLoop(TextView in_tv) {
             tv = in_tv;
@@ -43,7 +46,6 @@ public class MainActivity extends AppCompatActivity {
 
         @Override
         public void run() {
-            int frameId = 0;
             while(true) {
                 try {
                     Thread.sleep(200);
@@ -52,16 +54,13 @@ public class MainActivity extends AppCompatActivity {
                     return;
                 }
 
-                tv.post(new Runnable() {
-                    public void run() {
-                        String newText = mainLoopJNI();
-                        if (!("".equals(newText))) {
-                            tv.setText(tv.getText() + newText);
-                        }
+                tv.post(() -> {
+                    String newText = stringFromJNI();
+                    if (!("".equals(newText)) && (newText.length() != tv.getText().length())) {
+                        tv.setText(newText);
+                        //tv.scrollTo(0, tv.getHeight());
                     }
                 });
-
-                ++frameId;
             }
         }
     }
