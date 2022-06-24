@@ -9,12 +9,13 @@
 #include "braincloud/BrainCloudWrapper.h"
 #include "braincloud/IRTTCallback.h"
 
+#include "braincloud/internal/android/AndroidGlobals.h" // to store java native interface env and context for app
 #include "ids.h"
 
 using namespace BrainCloud;
 
 static BrainCloud::BrainCloudWrapper *pBCWrapper = nullptr;
-static std::string status = "Authenticating...\n\n";
+static std::string status;
 static std::string channelId;
 
 class ConsoleStream : public std::stringbuf
@@ -36,9 +37,10 @@ ConsoleStream consoleStream;
 class ChatCallback final : public IRTTCallback
 {
 public:
-    void rttCallback(const Json::Value& eventJson) override
+    void rttCallback(const std::string& jsonData) override
     {
         Json::FastWriter fastWriter;
+        Json::Value eventJson(jsonData);
         std::string output = fastWriter.write(eventJson);
 
         status += "RTT message callback: " + output + "\n\n";
@@ -55,7 +57,7 @@ public:
     {
         status += "Connected to channel\n\n";
 
-        pBCWrapper->getBCClient()->registerRTTChatCallback(&chatCallback);
+        pBCWrapper->getBCClient()->getRTTService()->registerRTTChatCallback(&chatCallback);
         pBCWrapper->getChatService()->postChatMessageSimple(channelId, "Hello from Android", true);
     }
 
@@ -116,7 +118,18 @@ public:
     void serverCallback(ServiceName serviceName, ServiceOperation serviceOperation, const std::string &jsonData) override
     {
         status += "Authenticated\n\n";
-        pBCWrapper->getBCClient()->enableRTT(&rttConnectCallback, true);
+        Json::Reader reader;
+        Json::Value data;
+        reader.parse(jsonData, data);
+
+        std::string profileId = data["data"]["profileId"].asString();
+
+        std::string isNew = data["data"]["newUser"].asString();
+        if(isNew.compare("true")==0) status += "Created new profile: " + profileId;
+        else status += "Logged in existing profile: " + profileId;
+
+        // TODO: make RTT work
+        //pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, false);
     }
 
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
@@ -128,27 +141,40 @@ static AuthCallback authCallback;
 
 //##############################################################################
 
-extern "C" JNIEXPORT jstring JNICALL Java_com_bitheads_braincloud_android_MainActivity_mainLoopJNI(JNIEnv *env, jobject /* this */)
-{
-    status = "";
+extern "C" JNIEXPORT jstring JNICALL
+Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
+        JNIEnv* env,
+        jobject /* this */ context) {
+
+    // these are passed in from MainActivity.java
+    // we need them for SaveDataHelper to access SharedPreferences
+    // context may change while running callbacks so set each time
+    if(appEnv != env)
+        appEnv = env;
+    if(appContext != context)
+        appContext = context;
 
     // Initialize brainCloud
-    if (!pBCWrapper)
-    {
+    if (!pBCWrapper) {
         std::cout.rdbuf(&consoleStream);
+        status += "Initializing BrainCloud...\n";
 
-        pBCWrapper = new BrainCloud::BrainCloudWrapper("TestApp");
+        // Initialize
+        pBCWrapper = new BrainCloud::BrainCloudWrapper("");
+
         pBCWrapper->initialize(
                 BRAINCLOUD_SERVER_URL,
                 BRAINCLOUD_APP_SECRET,
                 BRAINCLOUD_APP_ID,
-                "1.0",
+                pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str(),
                 "bitHeads inc.",
-                "TestApp");
+                "AndroidSaveData");
+
         pBCWrapper->getBCClient()->enableLogging(true);
 
         // Authenticate
-        pBCWrapper->authenticateUniversal("testAndroidUser", "qwertY123", true, &authCallback);
+        //pBCWrapper->authenticateEmailPassword("testAndroidUser", "qwertY123", true, &authCallback);
+        pBCWrapper->authenticateAnonymous(&authCallback);
 
         status += "Authenticating...\n\n";
     }
