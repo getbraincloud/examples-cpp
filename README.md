@@ -64,11 +64,11 @@ To generate an xcode project to open and build:
    ```
    
 To generate, build and run makefile project at command prompt:
-    ```
-    mkdir build
-    cd ./build
-    cmake ..
-    make
+   ```
+   mkdir build
+   cd ./build
+   cmake ..
+   make
    ./BCChat
    ```
    
