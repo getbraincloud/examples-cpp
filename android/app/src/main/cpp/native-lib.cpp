@@ -3,7 +3,6 @@
 #include <sstream>
 #include <iostream>
 #include <android/log.h>
-
 #include <json/json.h>
 
 #include "braincloud/BrainCloudWrapper.h"
@@ -125,8 +124,12 @@ public:
         std::string profileId = data["data"]["profileId"].asString();
 
         std::string isNew = data["data"]["newUser"].asString();
-        if(isNew.compare("true")==0) status += "Created new profile: " + profileId;
-        else status += "Logged in existing profile: " + profileId;
+        if(isNew.compare("true")==0) status += "Created new profile: " + profileId + "\n";
+        else status += "Logged in existing profile: " + profileId + "\n";
+
+        status += "Login count: ";
+        status += data["data"]["loginCount"].asString();
+        status += "\n";
 
         // TODO: make RTT work
         //pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, false);
@@ -157,7 +160,6 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
     // Initialize brainCloud
     if (!pBCWrapper) {
         std::cout.rdbuf(&consoleStream);
-        status += "Initializing BrainCloud...\n";
 
         // Initialize
         pBCWrapper = new BrainCloud::BrainCloudWrapper("");
@@ -170,13 +172,16 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
                 "bitHeads inc.",
                 "AndroidSaveData");
 
+        status += "Initialized BrainCloud version ";
+        status += pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str();
+        status += "\n\n";
+
         pBCWrapper->getBCClient()->enableLogging(true);
 
         // Authenticate
+        status += "Authenticating...\n";
         //pBCWrapper->authenticateEmailPassword("testAndroidUser", "qwertY123", true, &authCallback);
         pBCWrapper->authenticateAnonymous(&authCallback);
-
-        status += "Authenticating...\n\n";
     }
 
     // Update braincloud
