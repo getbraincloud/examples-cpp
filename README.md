@@ -74,7 +74,9 @@ To generate, build and run makefile project at command prompt:
    
 See BCChat [Readme](https://github.com/getbraincloud/examples-cpp/blob/develop/bcchat/README.md).
 
-## Gamelift
+## GameLift
+
+This is a non-functionnal piece of code provided as an example for a GameLift server using brainCloud's Lobbies.
 
 ## Relay Test App
 
