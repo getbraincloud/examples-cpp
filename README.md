@@ -22,23 +22,57 @@ $ cd examples-cpp
 $ git submodule update --init --recursive
 ```
 
-### ids.h
+### Setup
 
-Most examples require the header file ** ids.h ** which defines the server url, app id and app secret. This file is not included with the examples and needs to be copied from somewhere else or created.
+Most examples require the header file ** ids.h ** which defines the server url, app id and app secret. This file is not included with the examples. Create a file into source code folder called `ids.h`, and put 3 defines in it:
+
+```
+#define BRAINCLOUD_SERVER_URL "https://api.braincloudservers.com/dispatcherV2"
+#define BRAINCLOUD_APP_ID ""
+#define BRAINCLOUD_APP_SECRET ""
+```
+
+Fill in values for BRAINCLOUD_APP_ID and BRAINCLOUD_APP_SECRET.
+
+Further information about the brainCloud API, including example Tutorials can be found here:
+
+http://getbraincloud.com/apidocs/
+
+If you haven't signed up or you want to log into the brainCloud portal, you can do that here:
+
+https://portal.braincloudservers.com/
 
 ## Android
 
-In Android Studio, open the folder ** examples-cpp/android **. Run in emulator or on device.
+In Android Studio, open the folder **examples-cpp/android**. Run in emulator or on device.
 
-Files to note:
-
-- android/app/src/main/AndroidManifest.xml
-- android/app/src/main/java/com/bitheads/braincloud/android/MainActivity.java
-- android/app/src/main/cpp/CMakeLists.txt
-- android/app/src/main/cpp/native-lib.cpp
-
+See Android [Readme] (https://github.com/getbraincloud/examples-cpp/blob/master/android/README.md).
 
 ## BC Chat
+
+To build with cocoapods using **examples-cpp/bcchat/MacOS/BCChat.xcworkspace**: 
+   ```
+   cd ./macOS/
+   pod install
+   ```
+
+To generate an xcode project to open and build: 
+   ```
+   mkdir build
+   cd ./build
+   cmake -G Xcode ..
+   ```
+   
+To generate, build and run makefile project at command prompt:
+      ```
+   mkdir build
+   cd ./build
+      cmake ..
+      make
+   ./BCChat
+   ```
+   
+See BCChat [Readme] (https://github.com/getbraincloud/examples-cpp/blob/master/bcchat/README.md).
 
 ## Gamelift
 
