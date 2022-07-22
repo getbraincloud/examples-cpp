@@ -64,17 +64,19 @@ To generate an xcode project to open and build:
    ```
    
 To generate, build and run makefile project at command prompt:
-    ```
-    mkdir build
-    cd ./build
-    cmake ..
-    make
+   ```
+   mkdir build
+   cd ./build
+   cmake ..
+   make
    ./BCChat
    ```
    
 See BCChat [Readme](https://github.com/getbraincloud/examples-cpp/blob/develop/bcchat/README.md).
 
-## Gamelift
+## GameLift
+
+This is a non-functionnal piece of code provided as an example for a GameLift server using brainCloud's Lobbies.
 
 ## Relay Test App
 
