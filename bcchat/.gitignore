@@ -4,5 +4,8 @@ build/
 Pods/
 xcuserdata/
 ids.h
-BCChat.xcworkspace
 Podfile.lock
+generated/
+.idea/
+*.xcworkspacedata
+xcshareddata/
