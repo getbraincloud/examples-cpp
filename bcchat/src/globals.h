@@ -26,9 +26,6 @@
 // brainCloud App settings. Create ids.h and define BRAINCLOUD_SERVER_URL, BRAINCLOUD_APP_ID and BRAINCLOUD_APP_SECRET
 #include "ids.h"
 
-// Application's version
-#define VERSION "4.11.0"
-
 // Max message count to be fetched and displayed per channel
 #define MAX_HISTORY 100
 
