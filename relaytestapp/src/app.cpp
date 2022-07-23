@@ -162,7 +162,7 @@ static void initBC()
     pBCWrapper->initialize(BRAINCLOUD_SERVER_URL, 
                            BRAINCLOUD_APP_SECRET, 
                            BRAINCLOUD_APP_ID, 
-                           VERSION, 
+                           pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str(), 
                            "bitHeads inc.", 
                            "RelayTestApp");
     pBCWrapper->getBCClient()->enableLogging(true);
@@ -465,7 +465,7 @@ static void submitName(const char* username)
     state.user.name = username;
 
     // Update name
-    pBCWrapper->getPlayerStateService()->updateName(
+    pBCWrapper->getPlayerStateService()->updateUserName(
         state.user.name.c_str(),
         new BCCallback(
         [](const Json::Value& result) // Success
@@ -597,6 +597,8 @@ static void startGame()
             break;
         case BrainCloud::eRelayConnectionType::UDP:
             port = state.server.udpPort;
+            break;
+        case BrainCloud::eRelayConnectionType::WSS:
             break;
     }
 
