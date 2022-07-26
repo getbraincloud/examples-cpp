@@ -7,3 +7,8 @@ ids.h
 configs.txt
 *.exe
 imgui.ini
+Podfile.lock
+generated/
+.idea/
+*.xcworkspacedata
+xcshareddata/

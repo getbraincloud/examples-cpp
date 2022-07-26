@@ -9,6 +9,7 @@ First you'll need to properly clone the project's submodules.
 git submodule update --init
 ```
 * [Build with CMake](#build-with-cmake)
+* [Generate Xcode Project](#generate-xcode-project)
 * [Use brainCloud cocoapods](#use-braincloud-cocoapods)
 
 Then, create a file into /src folder called `ids.h`, and put 3 defines in it:
@@ -43,15 +44,27 @@ Fill in values for BRAINCLOUD_APP_ID and BRAINCLOUD_APP_SECRET.
    ```
    cmake ..
    ```
-   To generate an XCode project, add the `Xcode` generator:
-   ```
-   cmake -G Xcode ..
-   ```
+   
 4. Open the project then compile and run. If makefiles were used (Default CMake on non-windows), do this:
    ```
    make
    ./BCChat
    ```
+
+### Generate Xcode Project
+
+1. Create a `generated` directory, then `cd` to it.
+   ```
+   mkdir generated
+   cd ./generated
+   ```
+   
+2.   To generate an XCode project, use the cmake `Xcode` generator:
+   ```
+   cmake -G Xcode ..
+   ```
+
+3. Open the generated file BCChat.xcodeproj in Xcode, build and run.
 
 ### Use brainCloud cocoapods
 
@@ -69,4 +82,4 @@ Fill in values for BRAINCLOUD_APP_ID and BRAINCLOUD_APP_SECRET.
    ```
    pod install
    ```
-6. Open the pre-made Xcode project `./macOS/BCChat.xcodeproj` and run it.
+6. Open the pre-made Xcode project `./macOS/BCChat.xcworkspace` and run it.

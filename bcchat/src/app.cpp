@@ -136,7 +136,7 @@ void initBC()
     pBCWrapper->initialize(BRAINCLOUD_SERVER_URL, 
                            BRAINCLOUD_APP_SECRET, 
                            BRAINCLOUD_APP_ID, 
-                           VERSION, 
+                           pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str(),
                            "bitHeads inc.", 
                            "BCChat");
     pBCWrapper->getBCClient()->enableLogging(true);

@@ -33,9 +33,6 @@
 // brainCloud App settings. Create ids.h and define BRAINCLOUD_SERVER_URL, BRAINCLOUD_APP_ID and BRAINCLOUD_APP_SECRET
 #include "ids.h"
 
-// Application's version
-#define VERSION "4.11.0"
-
 // Max character count that can be used for username and password
 #define MAX_CREDENTIAL_CHAR 32
 

@@ -10,7 +10,7 @@
 #include <braincloud/internal/IRelayTCPSocket.h>
 
 // Create this file in examples-cpp/roomserver/client/ids.h
-// which should contain 2 constants, APP_ID and APP_SECRET
+// which should define BRAINCLOUD_SERVER_URL, BRAINCLOUD_APP_ID and BRAINCLOUD_APP_SECRET
 #include "ids.h"
 
 using namespace BrainCloud;
@@ -86,12 +86,18 @@ LobbyCallback lobbyCallback;
 
 int main(int argc, char** argv)
 {
-    printf("-- Room Server Example Client 4.11.0 --\n");
-
     // Create our brainCloud client
     bc = make_shared<BrainCloudWrapper>("MyGame");
-    bc->initialize("https://api.braincloudservers.com/dispatcherv2", 
-                    APP_SECRET, APP_ID, "1.0", "MyCompany", "MyGame");
+    bc->initialize(BRAINCLOUD_SERVER_URL,
+                   BRAINCLOUD_APP_SECRET,
+                   BRAINCLOUD_APP_ID,
+                   bc->getBCClient()->getBrainCloudClientVersion().c_str(),
+                   "MyCompany", "MyGame");
+ 
+    
+    printf("-- Room Server Example Client %s --\n", bc->getBCClient()->getBrainCloudClientVersion().c_str());
+
+    
     bc->getBCClient()->enableLogging(true);
 
     // Authenticate

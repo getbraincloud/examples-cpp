@@ -13,7 +13,7 @@ git submodule update --init
 
 Then, create a file into /src folder called `ids.h`, and put 3 defines in it:
 ```
-#define BRAINCLOUD_SERVER_URL "https://sharapiedprod.braincloudservers.com/dispatcherV2"
+#define BRAINCLOUD_SERVER_URL "https://api.braincloudservers.com/dispatcherV2"
 #define BRAINCLOUD_APP_ID ""
 #define BRAINCLOUD_APP_SECRET ""
 ```
@@ -55,18 +55,4 @@ Fill in values for BRAINCLOUD_APP_ID and BRAINCLOUD_APP_SECRET.
 
 ### Use brainCloud cocoapods
 
-1. Install cocoapods
-   ```
-   brew install cocoapods
-   ```
-2. Download SDL2 for Mac OS X from here https://www.libsdl.org/
-3. Copy `SDL2.framework` to `/Library/Frameworks/`. (Command+Shift+G in finder)
-4. `cd` to the Xcode project.
-   ```
-   cd ./macOS/
-   ```
-5. Install pods dependencies for this project.
-   ```
-   pod install
-   ```
-6. Open the pre-made Xcode project `./macOS/RelayTestApp.xcodeproj` and run it.
+Not currently set up for this project. See BCChat.
