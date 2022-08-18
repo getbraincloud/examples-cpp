@@ -132,7 +132,7 @@ public:
         status += "\n";
 
         // TODO: make RTT work
-        pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
+        //pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
     }
 
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
