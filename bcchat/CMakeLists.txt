@@ -142,7 +142,7 @@ list(APPEND includes PUBLIC ./src/)
 
 # SDL
 if (NOT UWP)
-    set(HAVE_LIBC ON)
+    set(HAVE_LIBC OFF)
     set(SDL_MAIN_HANDLED ON)
     add_subdirectory(../thirdparties/SDL ./thirdparties/SDL)
     list(APPEND libs SDL2-static)

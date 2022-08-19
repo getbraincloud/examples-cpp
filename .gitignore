@@ -1,2 +1,5 @@
 .DS_Store
 build/
+gen/
+configs.txt
+imgui.ini
