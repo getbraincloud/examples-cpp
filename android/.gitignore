@@ -8,11 +8,11 @@
 /.idea/navEditor.xml
 /.idea/assetWizardSettings.xml
 /.idea/compiler.xml
+/.idea/jarRepositories.xml
 .DS_Store
 /build
 /captures
+**/.cxx
 .externalNativeBuild
-# ignore the braincloud ids file
-#ids.h
-.cxx
+ids.h
 local.properties

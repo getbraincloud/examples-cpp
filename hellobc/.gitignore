@@ -1,0 +1,15 @@
+build/
+.vs/
+.vscode/
+.DS_Store
+Pods/
+xcuserdata/
+ids.h
+Podfile.lock
+generated/
+.idea/
+*.xcworkspacedata
+xcshareddata/
+**/x64/
+**/thirdparties/
+*.dir/
