@@ -23,13 +23,13 @@ class RTTConnectCallback final : public IRTTConnectCallback
 public:
     void rttConnectSuccess() override
     {
-        status += "RTT enabled\n\n";
+        status += "---- RTT enabled\n\n";
         result = 0;
     }
 
     void rttConnectFailure(const std::string& errorMessage) override
     {
-        status += "ERROR: enableRTT: " + errorMessage  + "\n\n";
+        status += "---- ERROR: enableRTT: " + errorMessage  + "\n\n";
         result = 2;
     }
 };
@@ -42,7 +42,7 @@ class AuthCallback final : public IServerCallback
 public:
     void serverCallback(ServiceName serviceName, ServiceOperation serviceOperation, const std::string& jsonData) override
     {
-        status += "Authenticated\n\n";
+        status += "---- Authenticated\n\n";
         Json::Reader reader;
         Json::Value data;
         reader.parse(jsonData, data);
@@ -63,7 +63,7 @@ public:
 
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string& jsonError) override
     {
-        status += "ERROR: authenticateUniversal: " + jsonError + "\n\n";
+        status += "---- ERROR: authenticateUniversal: " + jsonError + "\n\n";
         
         result = 1;
     }
@@ -86,14 +86,14 @@ void app_update()
             status = "";
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // run callbacks loop every 1/10 second
-    } while(result<0);
+    } while(result < 0);
 }
 
 //##############################################################################
 // MAIN GAME LOOP
 int main()
 {
-    cout << "Welcome to BrainCloud!" << endl;
+    cout << "---- Welcome to BrainCloud!" << endl;
 
     // Initialize brainCloud
     if (!pBCWrapper) {
@@ -109,11 +109,11 @@ int main()
             "bitHeads inc.",
             "AndroidSaveData");
 
-        status += "Initialized BrainCloud version ";
+        status += "---- Initialized BrainCloud version ";
         status += pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str();
         status += "\n\n";
         
-        status += "Using libwebsocket version ";
+        status += "---- Using libwebsocket version ";
         status += std::to_string(LWS_LIBRARY_VERSION_MAJOR)
             + "." +std::to_string(LWS_LIBRARY_VERSION_MINOR)
             + "." + std::to_string(LWS_LIBRARY_VERSION_PATCH);
@@ -122,33 +122,55 @@ int main()
         pBCWrapper->getBCClient()->enableLogging(true);
 
     }
-
-    // create an update loop for RunCallbacks()
-    std::thread(app_update).detach();
     
-    // to make sure there's a fresh start for this test
-    pBCWrapper->resetStoredProfileId();
-
-    // Authenticate
-    status += "Authenticating...\n";
-    pBCWrapper->authenticateAnonymous(&authCallback);
+    if(pBCWrapper->getBCClient()->isInitialized())
+    {
+        // create an update loop for RunCallbacks()
+        std::thread(app_update).detach();
+        
+        // to make sure there's a fresh start for this test
+        pBCWrapper->resetStoredProfileId();
+        
+        // Authenticate
+        status += "---- Authenticating...\n";
+        pBCWrapper->authenticateAnonymous(&authCallback);
+        
+        // keep app alive
+        
+        auto t1 = std::chrono::high_resolution_clock::now();
+        std::chrono::duration<double, std::milli> fp_ms;
+        do {
+            
+            auto t2 = std::chrono::high_resolution_clock::now();
+            
+            // timeout just in case
+            fp_ms = t2 - t1;
+            
+            // callbacks will change this result value
+        } while (result < 0 && fp_ms.count() < 15000);
+        
+        
+        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // short sleep to wrap things up
+    }
+    else{
+        result = 3;
+    }
     
-    // keep app alive
-    do {
-    } while (result < 0); // callbacks will change this value
-
-
-    std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // short sleep to wrap things up
-
     switch(result){
         case 0:
-            cout << "Successful test run. Good-bye." << endl;
+            cout << "\n\n---- Successful test run. Good-bye." << endl;
             break;
         case 1:
-            cout << "Run failed in authentication callback." << endl;
+            cout << "\n\n---- Run failed in authentication callback." << endl;
             break;
         case 2:
-            cout << "Run failed in RTT callback." << endl;
+            cout << "\n\n---- Run failed in RTT callback." << endl;
+            break;
+        case 3:
+            cout << "\n\n---- Run failed in initialization." << endl;
+            break;
+        default:
+            cout << "\n\n---- Test ended. Probable timeout." << endl;
             break;
     }
 
