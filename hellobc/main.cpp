@@ -14,7 +14,7 @@ static BrainCloud::BrainCloudWrapper* pBCWrapper = nullptr;
 static std::string status("");
 static std::string prevStatus;
 static char input;
-static int result = 0;
+static int result = -1;
 
 //##############################################################################
 
@@ -24,13 +24,13 @@ public:
     void rttConnectSuccess() override
     {
         status += "RTT enabled\n\n";
-        result = 1;
+        result = 0;
     }
 
     void rttConnectFailure(const std::string& errorMessage) override
     {
         status += "ERROR: enableRTT: " + errorMessage  + "\n\n";
-        result = -2;
+        result = 2;
     }
 };
 static RTTConnectCallback rttConnectCallback;
@@ -58,12 +58,6 @@ public:
         status += "\n\n";
         
         // now try rtt
-        status += "Using websocket version ";
-        status += std::to_string(LWS_LIBRARY_VERSION_MAJOR)
-            + "." +std::to_string(LWS_LIBRARY_VERSION_MINOR)
-            + "." + std::to_string(LWS_LIBRARY_VERSION_PATCH);
-        status += "\n\n";
-        
         pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
     }
 
@@ -71,7 +65,7 @@ public:
     {
         status += "ERROR: authenticateUniversal: " + jsonError + "\n\n";
         
-        result = -1;
+        result = 1;
     }
 };
 
@@ -92,7 +86,7 @@ void app_update()
             status = "";
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // run callbacks loop every 1/10 second
-    } while(result==0);
+    } while(result<0);
 }
 
 //##############################################################################
@@ -118,7 +112,13 @@ int main()
         status += "Initialized BrainCloud version ";
         status += pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str();
         status += "\n\n";
-
+        
+        status += "Using libwebsocket version ";
+        status += std::to_string(LWS_LIBRARY_VERSION_MAJOR)
+            + "." +std::to_string(LWS_LIBRARY_VERSION_MINOR)
+            + "." + std::to_string(LWS_LIBRARY_VERSION_PATCH);
+        status += "\n\n";
+        
         pBCWrapper->getBCClient()->enableLogging(true);
 
     }
@@ -135,20 +135,20 @@ int main()
     
     // keep app alive
     do {
-    } while (result == 0); // callbacks will change this value
+    } while (result < 0); // callbacks will change this value
 
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // short sleep to wrap things up
 
     switch(result){
+        case 0:
+            cout << "Successful test run. Good-bye." << endl;
+            break;
         case 1:
-            cout << "Good-bye." << endl;
+            cout << "Run failed in authentication callback." << endl;
             break;
-        case -1:
-            cout << "Whoa! Authenticate failed." << endl;
-            break;
-        case -2:
-            cout << "Hold up! RTT failed." << endl;
+        case 2:
+            cout << "Run failed in RTT callback." << endl;
             break;
     }
 

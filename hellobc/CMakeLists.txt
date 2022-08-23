@@ -8,6 +8,7 @@ set(CMAKE_CXX_STANDARD 11)
 
 project ("hellobc")
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT hellobc)
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY XCODE_STARTUP_PROJECT hellobc)
 
 # Add source to this project's executable.
 list(APPEND src_files
