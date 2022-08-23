@@ -1,7 +1,7 @@
 # CMakeList.txt : CMake project for hellobc, include source and define
 # project specific logic here.
 #
-cmake_minimum_required (VERSION 3.8)
+cmake_minimum_required (VERSION 3.2)
 
 # Enable C++11 features
 set(CMAKE_CXX_STANDARD 11)
