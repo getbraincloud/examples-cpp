@@ -21,5 +21,5 @@ echo "#define BRAINCLOUD_SERVER_URL \"${serverurl:-$BRAINCLOUD_SERVER_URL}\"" >>
 echo "#define BRAINCLOUD_APP_ID \"${appid:-$BRAINCLOUD_APP_ID}\"" >>ids.h
 echo "#define BRAINCLOUD_APP_SECRET \"${secretkey:-$BRAINCLOUD_APP_SECRET}\"" >>ids.h
 
-echo "File ids.h created in $SRC_DIR"
+echo "File ids.h created in $project_source"
 cat ids.h
