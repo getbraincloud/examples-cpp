@@ -5,6 +5,7 @@
 #include <thread>
 #include "braincloud/BrainCloudWrapper.h"
 #include "ids.h"
+#include "lws_config.h"
 
 using namespace BrainCloud;
 using namespace std;
@@ -13,7 +14,7 @@ static BrainCloud::BrainCloudWrapper* pBCWrapper = nullptr;
 static std::string status("");
 static std::string prevStatus;
 static char input;
-static bool done = false;
+static int result = 0;
 
 //##############################################################################
 
@@ -23,13 +24,13 @@ public:
     void rttConnectSuccess() override
     {
         status += "RTT enabled\n\n";
-        done = true;
+        result = 1;
     }
 
     void rttConnectFailure(const std::string& errorMessage) override
     {
         status += "ERROR: enableRTT: " + errorMessage  + "\n\n";
-        done = true;
+        result = -2;
     }
 };
 static RTTConnectCallback rttConnectCallback;
@@ -54,18 +55,23 @@ public:
 
         status += "Login count: ";
         status += data["data"]["loginCount"].asString();
-        status += "\n";
+        status += "\n\n";
         
         // now try rtt
+        status += "Using websocket version ";
+        status += std::to_string(LWS_LIBRARY_VERSION_MAJOR)
+            + "." +std::to_string(LWS_LIBRARY_VERSION_MINOR)
+            + "." + std::to_string(LWS_LIBRARY_VERSION_PATCH);
+        status += "\n\n";
+        
         pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
-        //done = true;
     }
 
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string& jsonError) override
     {
         status += "ERROR: authenticateUniversal: " + jsonError + "\n\n";
         
-        done = true;
+        result = -1;
     }
 };
 
@@ -86,7 +92,7 @@ void app_update()
             status = "";
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // run callbacks loop every 1/10 second
-    } while(!done);
+    } while(result==0);
 }
 
 //##############################################################################
@@ -129,11 +135,22 @@ int main()
     
     // keep app alive
     do {
-    } while (!done); // callbacks will change this value
+    } while (result == 0); // callbacks will change this value
 
 
     std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // short sleep to wrap things up
-    cout << "Good-bye." << endl;
 
-	return 0;
+    switch(result){
+        case 1:
+            cout << "Good-bye." << endl;
+            break;
+        case -1:
+            cout << "Whoa! Authenticate failed." << endl;
+            break;
+        case -2:
+            cout << "Hold up! RTT failed." << endl;
+            break;
+    }
+
+	return result;
 }
