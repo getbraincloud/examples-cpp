@@ -19,7 +19,6 @@ list(APPEND src_files
 add_executable (hellobc ${src_files})
 
 # brainCloud
-option(SSL_ALLOW_SELFSIGNED "Will define BC_SSL_ALLOW_SELFSIGNED" ON)
 add_subdirectory(../thirdparties/braincloud-cpp ./thirdparties/braincloud-cpp)
 list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/include/)
 list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/lib/jsoncpp-1.0.0/)
