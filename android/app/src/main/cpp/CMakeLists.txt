@@ -36,7 +36,7 @@ find_library( # Sets the name of the path variable.
         # you want CMake to locate.
         log)
 
-option(USE_LIBWEBSOCKETS 1)
+#option(SSL_ALLOW_SELFSIGNED 1)
 
 #add brainClound subdir
 #add_subdirectory(./thirdparty/braincloud-cpp) # add plugin code under source code

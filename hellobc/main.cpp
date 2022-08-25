@@ -105,9 +105,9 @@ int main()
             BRAINCLOUD_SERVER_URL,
             BRAINCLOUD_APP_SECRET,
             BRAINCLOUD_APP_ID,
-            pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str(),
+            "1.0",
             "bitHeads inc.",
-            "AndroidSaveData");
+            "Hello BrainCloud");
 
         status += "---- Initialized BrainCloud version ";
         status += pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str();
