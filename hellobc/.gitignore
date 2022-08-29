@@ -4,7 +4,6 @@ build/
 .DS_Store
 Pods/
 xcuserdata/
-ids.h
 Podfile.lock
 generated/
 .idea/
