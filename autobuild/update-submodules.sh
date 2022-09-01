@@ -9,6 +9,7 @@ fi
 
 for i in thirdparties/braincloud-cpp roomserver/server/brainclouds2s-cpp
 do
+    echo
     STR=$(git config -f .gitmodules --get submodule.$i.branch)
 
     if [[ $(git submodule update --remote $i) ]];
@@ -22,5 +23,4 @@ do
     fi
 
 done
-
-
+echo
