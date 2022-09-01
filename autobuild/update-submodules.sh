@@ -14,7 +14,7 @@ do
     if [[ $(git submodule update --remote $i) ]];
     then
         echo "Submodule $i updated on branch $STR"
-        git add .
+        git add $i
         git commit -m "automatic submodules update"
         git push
     else
