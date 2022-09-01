@@ -13,12 +13,12 @@ do
 
     if [[ $(git submodule update --remote $i) ]];
     then
-        echo "Submodule $i updated on branch $STR"
         git add $i
-        git commit -m "automatic submodules update"
+        git commit -m "automatic submodules update" .
         git push
+        echo "--- Submodule $i updated on branch $STR"
     else
-        echo "Submodule $i is already up to date."
+        echo "--- Submodule $i is already up to date"
     fi
 
 done
