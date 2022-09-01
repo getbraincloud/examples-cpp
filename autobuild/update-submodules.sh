@@ -9,8 +9,17 @@ fi
 
 for i in thirdparties/braincloud-cpp roomserver/server/brainclouds2s-cpp
 do
+    STR=$(git config -f .gitmodules --get submodule.$i.branch)
 
-    git submodule update --remote $i
+    if [[$(git submodule update --remote $i)]];;
+    then
+        echo "Submodule $i updated on branch $STR"
+        git add .
+        git commit -m "automatic submodules update"
+        git push
+    else
+        echo "Submodule $i is already up to date."
+    fi
 
 done
 
