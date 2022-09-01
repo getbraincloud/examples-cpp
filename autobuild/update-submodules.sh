@@ -11,7 +11,7 @@ for i in thirdparties/braincloud-cpp roomserver/server/brainclouds2s-cpp
 do
     STR=$(git config -f .gitmodules --get submodule.$i.branch)
 
-    if [[$(git submodule update --remote $i)]];;
+    if [[$(git submodule update --remote $i)]];
     then
         echo "Submodule $i updated on branch $STR"
         git add .
