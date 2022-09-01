@@ -25,6 +25,8 @@ endif()
 
 # Project
 project(BCChat)
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT BCChat)
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY XCODE_STARTUP_PROJECT BCChat)
 
 # Enable C++11 features
 set(CMAKE_CXX_STANDARD 11)
@@ -151,6 +153,7 @@ endif()
 
 # OpenGL
 if (NOT UWP)
+    add_definitions(-DGL_SILENCE_DEPRECATION)
     find_package(OpenGL REQUIRED)
     list(APPEND includes PUBLIC ${OPENGL_INCLUDE_DIR})
     list(APPEND libs ${OPENGL_LIBRARIES})
