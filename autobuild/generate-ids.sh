@@ -8,18 +8,21 @@ do
     esac
 done
 
-cd $project_source
 
 if [ "$project_source" == "" ]; then
   echo "Must set arg -p project_source."
   exit 1
 fi
 
-echo "#pragma once" >ids.h
+echo "#pragma once" >$project_source/ids.h
 
-echo "#define BRAINCLOUD_SERVER_URL \"${serverurl:-$BRAINCLOUD_SERVER_URL}\"" >>ids.h
-echo "#define BRAINCLOUD_APP_ID \"${appid:-$BRAINCLOUD_APP_ID}\"" >>ids.h
-echo "#define BRAINCLOUD_APP_SECRET \"${secretkey:-$BRAINCLOUD_APP_SECRET}\"" >>ids.h
+echo "#define BRAINCLOUD_SERVER_URL \"${serverurl:-$BRAINCLOUD_SERVER_URL}\"" >>$project_source/ids.h
+echo "#define BRAINCLOUD_APP_ID \"${appid:-$BRAINCLOUD_APP_ID}\"" >>$project_source/ids.h
+echo "#define BRAINCLOUD_APP_SECRET \"${secretkey:-$BRAINCLOUD_APP_SECRET}\"" >>$project_source/ids.h
 
-echo "File ids.h created in $project_source"
-cat ids.h
+echo "-- File ids.h created in $project_source"
+cat $project_source/ids.h
+
+git update-index --skip-worktree $project_source/ids.h
+echo "-- File ids.h excluded from git worktree"
+
