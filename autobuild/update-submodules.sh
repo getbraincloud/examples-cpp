@@ -46,7 +46,7 @@ do
             git commit -m "automatic submodules update" .
             git push
             code=$?
-            if [[ $code ]];
+            if [[ $code != 0 ]];
             then
                 echo "--- Failure $i needs updating and cannot push"
                 continue
