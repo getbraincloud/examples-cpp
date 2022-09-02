@@ -45,7 +45,12 @@ do
             git add $i
             git commit -m "automatic submodules update" .
             git push
-        
+            code=$?
+            if [[ $code ]];
+            then
+                echo "--- Failure $i needs updating and cannot push"
+                continue
+            fi
             git submodule status $i
             echo "--- $i updated on branch $STR"
          else
@@ -57,3 +62,4 @@ do
     fi
 done
 echo
+exit $code
