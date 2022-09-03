@@ -13,6 +13,8 @@ then
     fi
 fi
 
+needspush=0
+
 for i in thirdparties/braincloud-cpp roomserver/server/brainclouds2s-cpp
 do
     echo
