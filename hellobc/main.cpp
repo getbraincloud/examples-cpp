@@ -15,6 +15,7 @@ static std::string status("");
 static std::string prevStatus;
 static char input;
 static int result = -1;
+static std::chrono::duration<double, std::milli> fp_ms;
 
 //##############################################################################
 
@@ -23,7 +24,9 @@ class RTTConnectCallback final : public IRTTConnectCallback
 public:
     void rttConnectSuccess() override
     {
-        status += "---- RTT enabled\n\n";
+        status += "---- RTT enabled ";
+        status += fp_ms.count();
+        status += "\n\n";
         result = 0;
     }
 
@@ -138,7 +141,6 @@ int main()
         // keep app alive
         
         auto t1 = std::chrono::high_resolution_clock::now();
-        std::chrono::duration<double, std::milli> fp_ms;
         do {
             
             auto t2 = std::chrono::high_resolution_clock::now();
