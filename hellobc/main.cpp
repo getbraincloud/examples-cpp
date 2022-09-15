@@ -24,9 +24,9 @@ class RTTConnectCallback final : public IRTTConnectCallback
 public:
     void rttConnectSuccess() override
     {
-        status += "---- RTT enabled ";
-        status += fp_ms.count();
-        status += "\n\n";
+        status += "---- RTT enabled after ";
+        status += std::to_string(fp_ms.count());
+        status += "ms\n\n";
         result = 0;
     }
 
