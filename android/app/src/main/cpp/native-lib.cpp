@@ -15,8 +15,16 @@
 using namespace BrainCloud;
 
 static BrainCloud::BrainCloudWrapper *pBCWrapper = nullptr;
-static std::string status;
+static std::string status = "";
+static int result = -1;
+bool done = false;
 static std::string channelId;
+static std::chrono::duration<double, std::milli> fp_ms; // to check elapsed time anywhere
+static std::chrono::time_point<std::chrono::high_resolution_clock> t1;
+static std::chrono::time_point<std::chrono::high_resolution_clock> t2;
+static double startwait = 0;
+static bool retry = false;
+static int attempts = 0;
 
 class ConsoleStream : public std::stringbuf
 {
@@ -34,6 +42,25 @@ ConsoleStream consoleStream;
 
 //##############################################################################
 
+class LogoutCallback final : public IServerCallback
+{
+public:
+    void serverCallback(ServiceName serviceName, ServiceOperation serviceOperation, const std::string &jsonData) override
+    {
+        status += "---- Logged out of BrainCloud\n\n";
+        done = true;
+    }
+
+    void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
+    {
+        status += "**** ERROR: logout: " + jsonError + "\n\n";
+        done = true;
+    }
+};
+static LogoutCallback logoutCallback;
+
+//##############################################################################
+
 class ChatCallback final : public IRTTCallback
 {
 public:
@@ -45,6 +72,9 @@ public:
         std::string message = root["data"]["content"]["text"].asString();
 
         status += "---- RTT message callback \n\n>> " + message + "\n\n";
+
+        // end of the test
+        result = 0;
     }
 };
 ChatCallback chatCallback;
@@ -65,6 +95,7 @@ public:
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
     {
         status += "**** ERROR: channelConnect: " + jsonError + "\n\n";
+        result = 4;
     }
 };
 static ChannelConnectCallback channelConnectCallback;
@@ -90,6 +121,7 @@ public:
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
     {
         status += "**** ERROR: getChannelId: " + jsonError + "\n\n";
+        result = 3;
     }
 };
 static GetChannelIdCallback getChannelIdCallback;
@@ -108,6 +140,7 @@ public:
     void rttConnectFailure(const std::string& errorMessage) override
     {
         status += "**** ERROR: enableRTT: " + errorMessage  + "\n\n";
+        result = 2;
     }
 };
 static RTTConnectCallback rttConnectCallback;
@@ -140,6 +173,7 @@ public:
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
     {
         status += "**** ERROR: authenticateUniversal: " + jsonError + "\n\n";
+        result = 1;
     }
 };
 static AuthCallback authCallback;
@@ -159,9 +193,12 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
     if(appContext != context)
         appContext = context;
 
+    int lastresult = result; // checking test results to quit on fail
+
     // Initialize brainCloud
     if (!pBCWrapper) {
         std::cout.rdbuf(&consoleStream);
+        t1 = std::chrono::high_resolution_clock::now();
 
         // Initialize
         pBCWrapper = new BrainCloud::BrainCloudWrapper("");
@@ -189,16 +226,54 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
 
             // Authenticate
             status += "Authenticating...\n\n";
-            pBCWrapper->authenticateEmailPassword("testAndroidUser", "qwertY123", true, &authCallback);
-            //pBCWrapper->authenticateAnonymous(&authCallback);
+            //pBCWrapper->authenticateEmailPassword("testAndroidUser", "qwertY123", true, &authCallback);
+            pBCWrapper->authenticateAnonymous(&authCallback);
         }
         else{
-            status += "**** Failed to initialize. Check header file ids.h ";
+            status += "**** Failed to initialize. Check header file ids.h \n\n";
+            result = 7;
         }
     }
 
     // Update braincloud
-    pBCWrapper->runCallbacks();
+    if(!done)
+        pBCWrapper->runCallbacks();
+
+    // check for timeout
+    t2 = std::chrono::high_resolution_clock::now();
+    fp_ms = t2 - t1;
+    double elapsed = fp_ms.count();
+
+    if(!done && result < 0 && elapsed > 180000) {
+        status += "**** ERROR: test is timing out after " + std::to_string(elapsed) + "ms \n\n";
+        result = 6; // timeout error
+    }
+
+    if(result == 2) {
+        if (!retry) {
+            startwait = elapsed;
+            retry = true;
+        }
+        if (elapsed - startwait > 5000) {
+            if (attempts++ < 3) {
+                result = -1;
+                status += "Attempting to connect #" + std::to_string(attempts) + "\n\n";
+                pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
+            }
+            retry = false;
+            lastresult = -1;
+        }
+    }
+
+    // check if done testing
+    if(!done && !retry && result >= 0 && lastresult != result){
+        if(result == 0)
+            status += "---- Successfully completed tests.\n\n";
+        else
+            status += "**** Failed with code " + std::to_string(result) + "\n\n";
+
+        pBCWrapper->getBCClient()->getPlayerStateService()->logout(&logoutCallback);
+    }
 
     return env->NewStringUTF(status.c_str());
 }
