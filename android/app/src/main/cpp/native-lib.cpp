@@ -255,7 +255,7 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
             retry = true;
         }
         if (elapsed - startwait > 5000) {
-            if (attempts++ < 3) {
+            if (++attempts < 1) {
                 result = -1;
                 status += "Attempting to connect #" + std::to_string(attempts) + "\n\n";
                 pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
