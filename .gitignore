@@ -3,3 +3,4 @@ build/
 gen/
 configs.txt
 imgui.ini
+vcs.xml

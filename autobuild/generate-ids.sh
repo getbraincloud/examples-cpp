@@ -1,13 +1,28 @@
-SRC_DIR=${1?Error: no src dir given}
-APP_ID=${2?Error: no app id given}
-SECRET_KEY=${3?Error: no secret key given}
+while getopts p:s:a:k: flag
+do
+    case "${flag}" in
+	p) project_source=${OPTARG};;
+        s) serverurl=${OPTARG};;
+        a) appid=${OPTARG};;
+        k) secretkey=${OPTARG};;
+    esac
+done
 
-cd $SRC_DIR
 
-echo "#pragma once" >ids.h
-echo "#define BRAINCLOUD_SERVER_URL \"https://api.internal.braincloudservers.com/dispatcherv2\"" >>ids.h
-echo "#define BRAINCLOUD_APP_ID \"$APP_ID\"" >>ids.h
-echo "#define BRAINCLOUD_APP_SECRET \"$SECRET_KEY\"" >>ids.h
+if [ "$project_source" == "" ]; then
+  echo "Must set arg -p project_source."
+  exit 1
+fi
 
-echo "File ids.h created in $SRC_DIR"
-cat ids.h
+echo "#pragma once" >$project_source/ids.h
+
+echo "#define BRAINCLOUD_SERVER_URL \"${serverurl:-$BRAINCLOUD_SERVER_URL}\"" >>$project_source/ids.h
+echo "#define BRAINCLOUD_APP_ID \"${appid:-$BRAINCLOUD_APP_ID}\"" >>$project_source/ids.h
+echo "#define BRAINCLOUD_APP_SECRET \"${secretkey:-$BRAINCLOUD_APP_SECRET}\"" >>$project_source/ids.h
+
+echo "-- File ids.h created in $project_source"
+cat $project_source/ids.h
+
+git update-index --skip-worktree $project_source/ids.h
+echo "-- File ids.h excluded from git worktree"
+
