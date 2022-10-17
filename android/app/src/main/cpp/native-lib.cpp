@@ -171,7 +171,7 @@ public:
         done = true;
 
         if(repeat-- > 0) {
-            status = "";
+            status += "Running test T-minus " + std::to_string(repeat) + "\n\n";
             result = -1;
             done = false;
             startwait = 0;
