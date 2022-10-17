@@ -25,6 +25,8 @@ static std::chrono::time_point<std::chrono::high_resolution_clock> t2;
 static double startwait = 0;
 static bool retry = false;
 static int attempts = 0;
+static int repeat = 25;
+static int max_attempts = 5;
 
 class ConsoleStream : public std::stringbuf
 {
@@ -39,25 +41,6 @@ std::streamsize ConsoleStream::xsputn(const char *_Ptr, std::streamsize _Count)
 }
 
 ConsoleStream consoleStream;
-
-//##############################################################################
-
-class LogoutCallback final : public IServerCallback
-{
-public:
-    void serverCallback(ServiceName serviceName, ServiceOperation serviceOperation, const std::string &jsonData) override
-    {
-        status += "---- Logged out of BrainCloud\n\n";
-        done = true;
-    }
-
-    void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
-    {
-        status += "**** ERROR: logout: " + jsonError + "\n\n";
-        done = true;
-    }
-};
-static LogoutCallback logoutCallback;
 
 //##############################################################################
 
@@ -177,7 +160,35 @@ public:
     }
 };
 static AuthCallback authCallback;
+//##############################################################################
 
+class LogoutCallback final : public IServerCallback
+{
+public:
+    void serverCallback(ServiceName serviceName, ServiceOperation serviceOperation, const std::string &jsonData) override
+    {
+        status += "---- Logged out of BrainCloud\n\n";
+        done = true;
+
+        if(repeat-- > 0) {
+            status = "";
+            result = -1;
+            done = false;
+            startwait = 0;
+            retry = false;
+            attempts = 0;
+
+            pBCWrapper->authenticateAnonymous(&authCallback);
+        }
+    }
+
+    void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
+    {
+        status += "**** ERROR: logout: " + jsonError + "\n\n";
+        done = true;
+    }
+};
+static LogoutCallback logoutCallback;
 //##############################################################################
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -255,7 +266,7 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
             retry = true;
         }
         if (elapsed - startwait > 5000) {
-            if (++attempts < 1) {
+            if (++attempts < max_attempts) {
                 result = -1;
                 status += "Attempting to connect #" + std::to_string(attempts) + "\n\n";
                 pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
