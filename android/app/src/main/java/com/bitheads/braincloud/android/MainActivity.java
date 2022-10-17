@@ -58,7 +58,13 @@ public class MainActivity extends AppCompatActivity {
                     String newText = stringFromJNI();
                     if (!("".equals(newText)) && (newText.length() != tv.getText().length())) {
                         tv.setText(newText);
-                        //tv.scrollTo(0, tv.getHeight());
+
+                        //automatically scroll as text is added
+                        int scrollAmount = tv.getLayout().getLineTop(tv.getLineCount()) - tv.getHeight();
+                        if (scrollAmount > 0)
+                            tv.scrollTo(0, scrollAmount);
+                        else
+                            tv.scrollTo(0, 0);
                     }
                 });
             }

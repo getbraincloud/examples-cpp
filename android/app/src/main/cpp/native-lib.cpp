@@ -237,8 +237,8 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
 
             // Authenticate
             status += "Authenticating...\n\n";
-            //pBCWrapper->authenticateEmailPassword("testAndroidUser", "qwertY123", true, &authCallback);
-            pBCWrapper->authenticateAnonymous(&authCallback);
+            pBCWrapper->authenticateEmailPassword("testAndroidUser", "qwertY123", true, &authCallback);
+            //pBCWrapper->authenticateAnonymous(&authCallback);
         }
         else{
             status += "**** Failed to initialize. Check header file ids.h \n\n";
