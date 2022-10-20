@@ -23,10 +23,11 @@ static std::chrono::duration<double, std::milli> fp_ms; // to check elapsed time
 static std::chrono::time_point<std::chrono::high_resolution_clock> t1;
 static std::chrono::time_point<std::chrono::high_resolution_clock> t2;
 static double startwait = 0;
+static double maxrun = 180000;
 static bool retry = false;
 static int attempts = 0;
-static int repeat = 25;
-static int max_attempts = 5;
+static int repeat = 12;
+static int max_attempts = 1;
 
 class ConsoleStream : public std::stringbuf
 {
@@ -170,7 +171,7 @@ public:
         status += "---- Logged out of BrainCloud\n\n";
         done = true;
 
-        if(repeat-- > 0) {
+        if(repeat-- > 0 && result != 6) {
             status += "Running test T-minus " + std::to_string(repeat) + "\n\n";
             result = -1;
             done = false;
@@ -255,7 +256,7 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
     fp_ms = t2 - t1;
     double elapsed = fp_ms.count();
 
-    if(!done && result < 0 && elapsed > 180000) {
+    if(!done && result < 0 && elapsed > maxrun) {
         status += "**** ERROR: test is timing out after " + std::to_string(elapsed) + "ms \n\n";
         result = 6; // timeout error
     }
