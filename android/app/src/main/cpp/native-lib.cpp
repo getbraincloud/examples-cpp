@@ -1,3 +1,5 @@
+#define RTTCOMMS_LOG_EVERY_METHODS 1
+
 #include <jni.h>
 #include <string>
 #include <sstream>
@@ -10,6 +12,7 @@
 
 #include "braincloud/internal/android/AndroidGlobals.h" // to store java native interface env and context for app
 #include "ids.h"
+#include <libwebsockets.h>
 #include "lws_config.h"
 
 using namespace BrainCloud;
@@ -23,10 +26,18 @@ static std::chrono::duration<double, std::milli> fp_ms; // to check elapsed time
 static std::chrono::time_point<std::chrono::high_resolution_clock> t1;
 static std::chrono::time_point<std::chrono::high_resolution_clock> t2;
 static double startwait = 0;
-static double maxrun = 180000;
 static bool retry = false;
 static int attempts = 0;
-static int repeat = 12;
+int count_success = 0;
+int count_fail = 0;
+
+
+// *** user-defined test parameters ***
+// set a timeout after n seconds
+static double maxrun = 180;
+// number of times to repeat (counts down to 0)
+static int repeat = 1;
+// how many attempts to try on rtt fail (at least 1)
 static int max_attempts = 1;
 
 class ConsoleStream : public std::stringbuf
@@ -37,7 +48,7 @@ public:
 
 std::streamsize ConsoleStream::xsputn(const char *_Ptr, std::streamsize _Count)
 {
-    __android_log_print(ANDROID_LOG_DEBUG, "NATIVE", "%.*s", (int)_Count, _Ptr);
+    __android_log_print(ANDROID_LOG_DEBUG, "brainCloudAPI", "%.*s", (int)_Count, _Ptr);
     return std::basic_streambuf<char, std::char_traits<char> >::xsputn(_Ptr,_Count);
 }
 
@@ -118,12 +129,16 @@ public:
     void rttConnectSuccess() override
     {
         status += "---- RTT service enabled\n\n";
-        pBCWrapper->getChatService()->getChannelId("gl", "valid", &getChannelIdCallback);
+
+        count_success ++;
+        result = 0;
+        //pBCWrapper->getChatService()->getChannelId("gl", "valid", &getChannelIdCallback);
     }
 
     void rttConnectFailure(const std::string& errorMessage) override
     {
         status += "**** ERROR: enableRTT: " + errorMessage  + "\n\n";
+        count_fail ++;
         result = 2;
     }
 };
@@ -168,11 +183,12 @@ class LogoutCallback final : public IServerCallback
 public:
     void serverCallback(ServiceName serviceName, ServiceOperation serviceOperation, const std::string &jsonData) override
     {
-        status += "---- Logged out of BrainCloud\n\n";
+        status += "---- Logged out of BrainCloud\n";
+        status += "Passed  " + std::to_string(count_success) + " Failed  " + std::to_string(count_fail) +"\n\n";
         done = true;
 
-        if(repeat-- > 0 && result != 6) {
-            status += "Running test T-minus " + std::to_string(repeat) + "\n\n";
+        if(--repeat > 0 && result != 6) {
+            status += "Repeat test T-minus " + std::to_string(repeat) + "\n\n";
             result = -1;
             done = false;
             startwait = 0;
@@ -236,6 +252,13 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
                       + "." + std::to_string(LWS_LIBRARY_VERSION_PATCH);
             status += "\n\n";
 
+            // logging options include: LLL_DEBUG | LLL_USER | LLL_ERR | LLL_WARN | LLL_NOTICE
+            lws_set_log_level(
+                    LLL_DEBUG, [](int level, const char* line)
+                    {
+                        __android_log_print(ANDROID_LOG_DEBUG, "brainCloudLWS", "%s", line);
+                    });
+
             // Authenticate
             status += "Authenticating...\n\n";
             pBCWrapper->authenticateEmailPassword("testAndroidUser", "qwertY123", true, &authCallback);
@@ -256,7 +279,7 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
     fp_ms = t2 - t1;
     double elapsed = fp_ms.count();
 
-    if(!done && result < 0 && elapsed > maxrun) {
+    if(!done && result < 0 && elapsed > maxrun * 1000) {
         status += "**** ERROR: test is timing out after " + std::to_string(elapsed) + "ms \n\n";
         result = 6; // timeout error
     }
@@ -269,7 +292,7 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
         if (elapsed - startwait > 5000) {
             if (++attempts < max_attempts) {
                 result = -1;
-                status += "Attempting to connect #" + std::to_string(attempts) + "\n\n";
+                status += "Attempting retry #" + std::to_string(attempts) + "\n\n";
                 pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
             }
             retry = false;
