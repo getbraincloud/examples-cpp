@@ -135,19 +135,23 @@ void initBC()
     // If ids.h is blank and environment variables are set
     if (*appId == '\0') {
         char* env = getenv("BC_BCCHAT_APP_ID");
-        if (env != NULL)
+        if (env != NULL) {
             appId = env;
+        }
     }
     if (*secretKey == '\0') {
         char* env = getenv("BC_BCCHAT_APP_SECRET");
-        if (env != NULL)
+        if (env != NULL) {
             secretKey = env;
+        }
     }
     if (*serverUrl == '\0') {
         char* env = getenv("BC_BRAINCLOUD_SERVER_URL");
-        if (env != NULL)
+        if (env != NULL) {
             serverUrl = env;
+        }
     }
+    
     
     if (!pBCWrapper)
     {
@@ -620,11 +624,17 @@ void app_exit()
 
 // Attempt login with the specific username/password
 void app_login(const char* username, const char* password)
-{
+{    
     initBC();
 
+    // Confirm successful initialization
+    if (pBCWrapper->getBCClient()->isInitialized() == true) {
+        loading_text = "Logging in ...";
+    }
+    else
+        loading_text = "Initialize failed. Check ids.";
+
     // Show loading screen
-    loading_text = "Logging in ...";
     state.screenState = ScreenState::Loading;
 
     // Authenticate with brainCloud
