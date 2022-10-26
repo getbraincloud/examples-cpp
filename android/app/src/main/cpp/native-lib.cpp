@@ -31,12 +31,11 @@ static int attempts = 0;
 int count_success = 0;
 int count_fail = 0;
 
-
 // *** user-defined test parameters ***
 // set a timeout after n seconds
 static double maxrun = 180;
 // number of times to repeat (counts down to 0)
-static int repeat = 1;
+static int repeat = 0;
 // how many attempts to try on rtt fail (at least 1)
 static int max_attempts = 1;
 
@@ -197,6 +196,9 @@ public:
 
             pBCWrapper->authenticateAnonymous(&authCallback);
         }
+        else if(repeat == 0){
+            status += "---- All runs have been executed.\n\n";
+        }
     }
 
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
@@ -249,65 +251,73 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
             status += "Using libwebsocket version ";
             status += std::to_string(LWS_LIBRARY_VERSION_MAJOR)
                       + "." + std::to_string(LWS_LIBRARY_VERSION_MINOR)
-                      + "." + std::to_string(LWS_LIBRARY_VERSION_PATCH);
-            status += "\n\n";
+                      + "." + std::to_string(LWS_LIBRARY_VERSION_PATCH)
+                      + "\n";
+
+#if defined(SSL_ALLOW_SELFSIGNED)
+            status += "RTT skipping certificates\n";
+#else
+            status += "RTT certificates included\n";
+#endif
+            status += "\n";
 
             // logging options include: LLL_DEBUG | LLL_USER | LLL_ERR | LLL_WARN | LLL_NOTICE
             lws_set_log_level(
-                    LLL_DEBUG, [](int level, const char* line)
-                    {
+                    LLL_ERR, [](int level, const char *line) {
                         __android_log_print(ANDROID_LOG_DEBUG, "brainCloudLWS", "%s", line);
                     });
 
             // Authenticate
             status += "Authenticating...\n\n";
-            pBCWrapper->authenticateEmailPassword("testAndroidUser", "qwertY123", true, &authCallback);
+            pBCWrapper->authenticateEmailPassword("testAndroidUser", "qwertY123", true,
+                                                  &authCallback);
             //pBCWrapper->authenticateAnonymous(&authCallback);
-        }
-        else{
+        } else {
             status += "**** Failed to initialize. Check header file ids.h \n\n";
             result = 7;
         }
     }
 
-    // Update braincloud
-    if(!done)
+    if (!done)
+    {
+        // Update braincloud
         pBCWrapper->runCallbacks();
 
-    // check for timeout
-    t2 = std::chrono::high_resolution_clock::now();
-    fp_ms = t2 - t1;
-    double elapsed = fp_ms.count();
+        // check for timeout
+        t2 = std::chrono::high_resolution_clock::now();
+        fp_ms = t2 - t1;
+        double elapsed = fp_ms.count();
 
-    if(!done && result < 0 && elapsed > maxrun * 1000) {
-        status += "**** ERROR: test is timing out after " + std::to_string(elapsed) + "ms \n\n";
-        result = 6; // timeout error
-    }
-
-    if(result == 2) {
-        if (!retry) {
-            startwait = elapsed;
-            retry = true;
+        if (result < 0 && elapsed > maxrun * 1000) {
+            status += "**** ERROR: test is timing out after " + std::to_string(elapsed) + "ms \n\n";
+            result = 6; // timeout error
         }
-        if (elapsed - startwait > 5000) {
-            if (++attempts < max_attempts) {
-                result = -1;
-                status += "Attempting retry #" + std::to_string(attempts) + "\n\n";
-                pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
+
+        if (result == 2 && max_attempts > 1) {
+            if (!retry) {
+                startwait = elapsed;
+                status += "Attempting retry #" + std::to_string(attempts + 1) + " in 5s\n\n";
+                retry = true;
             }
-            retry = false;
-            lastresult = -1;
+            if (elapsed - startwait > 5000) {
+                if (++attempts < max_attempts) {
+                    result = -1;
+                    pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
+                }
+                retry = false;
+                lastresult = -1;
+            }
         }
-    }
 
-    // check if done testing
-    if(!done && !retry && result >= 0 && lastresult != result){
-        if(result == 0)
-            status += "---- Successfully completed tests.\n\n";
-        else
-            status += "**** Failed with code " + std::to_string(result) + "\n\n";
+        // check if done testing
+        if (!retry && result >= 0 && lastresult != result) {
+            if (result == 0)
+                status += "---- Successfully completed test run.\n\n";
+            else
+                status += "**** Failed with code " + std::to_string(result) + "\n\n";
 
-        pBCWrapper->getBCClient()->getPlayerStateService()->logout(&logoutCallback);
+            pBCWrapper->getBCClient()->getPlayerStateService()->logout(&logoutCallback);
+        }
     }
 
     return env->NewStringUTF(status.c_str());
