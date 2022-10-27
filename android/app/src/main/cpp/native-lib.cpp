@@ -35,7 +35,7 @@ int count_fail = 0;
 // set a timeout after n seconds
 static double maxrun = 180;
 // number of times to repeat (counts down to 0)
-static int repeat = 0;
+static int repeat = 1;
 // how many attempts to try on rtt fail (at least 1)
 static int max_attempts = 1;
 
@@ -261,9 +261,11 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
 #endif
             status += "\n";
 
+            std::cout<<status<<std::endl;
+
             // logging options include: LLL_DEBUG | LLL_USER | LLL_ERR | LLL_WARN | LLL_NOTICE
             lws_set_log_level(
-                    LLL_ERR, [](int level, const char *line) {
+                    LLL_DEBUG, [](int level, const char *line) {
                         __android_log_print(ANDROID_LOG_DEBUG, "brainCloudLWS", "%s", line);
                     });
 
