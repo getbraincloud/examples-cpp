@@ -1,5 +1,3 @@
-#define RTTCOMMS_LOG_EVERY_METHODS 1
-
 #include <jni.h>
 #include <string>
 #include <sstream>
@@ -33,9 +31,9 @@ int count_fail = 0;
 
 // *** user-defined test parameters ***
 // set a timeout after n seconds
-static double maxrun = 180;
+static double maxrun = 360;
 // number of times to repeat (counts down to 0)
-static int repeat = 1;
+static int repeat = 100;
 // how many attempts to try on rtt fail (at least 1)
 static int max_attempts = 1;
 
@@ -265,8 +263,8 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
 
             // logging options include: LLL_DEBUG | LLL_USER | LLL_ERR | LLL_WARN | LLL_NOTICE
             lws_set_log_level(
-                    LLL_DEBUG, [](int level, const char *line) {
-                        __android_log_print(ANDROID_LOG_DEBUG, "brainCloudLWS", "%s", line);
+                    LLL_ERR, [](int level, const char *line) {
+                        __android_log_print(ANDROID_LOG_ERROR, "brainCloudLWS", "%s", line);
                     });
 
             // Authenticate
