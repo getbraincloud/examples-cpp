@@ -25,6 +25,7 @@ static std::chrono::time_point<std::chrono::high_resolution_clock> t1;
 static std::chrono::time_point<std::chrono::high_resolution_clock> t2;
 static double startwait = 0;
 static bool retry = false;
+static bool running_repeat = false;
 static int attempts = 0;
 int count_success = 0;
 int count_fail = 0;
@@ -36,6 +37,8 @@ static double maxrun = 360;
 static int repeat = 100;
 // how many attempts to try on rtt fail (at least 1)
 static int max_attempts = 1;
+// how long to wait seconds between repeat tests/retries
+static double spin = 3;
 
 class ConsoleStream : public std::stringbuf
 {
@@ -127,9 +130,7 @@ public:
     {
         status += "---- RTT service enabled\n\n";
 
-        count_success ++;
-        result = 0;
-        //pBCWrapper->getChatService()->getChannelId("gl", "valid", &getChannelIdCallback);
+        pBCWrapper->getChatService()->getChannelId("gl", "valid", &getChannelIdCallback);
     }
 
     void rttConnectFailure(const std::string& errorMessage) override
@@ -185,14 +186,15 @@ public:
         done = true;
 
         if(--repeat > 0 && result != 6) {
-            status += "Repeat test T-minus " + std::to_string(repeat) + "\n\n";
+            status += "Repeating test T-minus " + std::to_string(repeat) + "\n\n";
             result = -1;
             done = false;
-            startwait = 0;
+            //startwait = 0;
             retry = false;
             attempts = 0;
 
-            pBCWrapper->authenticateAnonymous(&authCallback);
+            running_repeat = true;
+
         }
         else if(repeat == 0){
             status += "---- All runs have been executed.\n\n";
@@ -269,9 +271,8 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
 
             // Authenticate
             status += "Authenticating...\n\n";
-            pBCWrapper->authenticateEmailPassword("testAndroidUser", "qwertY123", true,
-                                                  &authCallback);
-            //pBCWrapper->authenticateAnonymous(&authCallback);
+            //pBCWrapper->authenticateEmailPassword("testAndroidUser", "qwertY123", true, &authCallback);
+            pBCWrapper->authenticateAnonymous(&authCallback);
         } else {
             status += "**** Failed to initialize. Check header file ids.h \n\n";
             result = 7;
@@ -299,7 +300,7 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
                 status += "Attempting retry #" + std::to_string(attempts + 1) + " in 5s\n\n";
                 retry = true;
             }
-            if (elapsed - startwait > 5000) {
+            if (elapsed - startwait > spin * 1000) {
                 if (++attempts < max_attempts) {
                     result = -1;
                     pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
@@ -309,12 +310,22 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
             }
         }
 
+        if(running_repeat && (elapsed - startwait > spin * 1000)){
+            startwait = elapsed;
+            running_repeat = false;
+            pBCWrapper->authenticateAnonymous(&authCallback);
+        }
+
         // check if done testing
         if (!retry && result >= 0 && lastresult != result) {
-            if (result == 0)
+            if (result == 0) {
                 status += "---- Successfully completed test run.\n\n";
-            else
+                count_success ++;
+            }
+            else {
                 status += "**** Failed with code " + std::to_string(result) + "\n\n";
+                count_fail ++;
+            }
 
             pBCWrapper->getBCClient()->getPlayerStateService()->logout(&logoutCallback);
         }
