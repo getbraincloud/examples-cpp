@@ -96,33 +96,29 @@ void app_update()
 // MAIN GAME LOOP
 int main()
 {
-    std::string server = BRAINCLOUD_SERVER_URL;
-    std::string secret = BRAINCLOUD_APP_SECRET;
-    std::string id = BRAINCLOUD_APP_ID;
+    std::string serverUrl = BRAINCLOUD_SERVER_URL;
+    std::string secretKey = BRAINCLOUD_APP_SECRET;
+    std::string appId = BRAINCLOUD_APP_ID;
 
     // If ids.h is blank and environment variables are set
-    if (server.empty()) {
+    if (serverUrl.empty()) {
         char* env = getenv("BC_BRAINCLOUD_SERVER_URL");
         if (env != NULL) {
-            server = env;
+            serverUrl = env;
         }
     }
-    if (secret.empty()) {
+    if (secretKey.empty()) {
         char* env = getenv("BC_CLIENTUNIT_APP_SECRET");
         if (env != NULL) {
-            secret = env;
+            secretKey = env;
         }
     }
-    if (id.empty()) {
+    if (appId.empty()) {
         char* env = getenv("BC_CLIENTUNIT_APP_ID");
         if (env != NULL) {
-            id = env;
+            appId = env;
         }
     }
-
-    const char* serverUrl = server.c_str();
-    const char* secretKey = secret.c_str();
-    const char* appId = id.c_str();
     
     cout << "---- Welcome to BrainCloud!" << endl;
 
@@ -133,9 +129,9 @@ int main()
         pBCWrapper = new BrainCloud::BrainCloudWrapper("");
 
         pBCWrapper->initialize(
-            serverUrl,
-            secretKey,
-            appId,
+            serverUrl.c_str(),
+            secretKey.c_str(),
+            appId.c_str(),
             "1.0",
             "bitHeads inc.",
             "Hello BrainCloud");
