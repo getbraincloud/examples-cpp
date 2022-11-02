@@ -128,27 +128,27 @@ RTTCallback bcRTTCallback;
 // Initialize brainCloud
 void initBC()
 {
-    char* serverUrl = BRAINCLOUD_SERVER_URL;
-    char* secretKey = BRAINCLOUD_APP_SECRET;
-    char* appId = BRAINCLOUD_APP_ID;
+    std::string serverUrl = BRAINCLOUD_SERVER_URL;
+    std::string secretKey = BRAINCLOUD_APP_SECRET;
+    std::string appId = BRAINCLOUD_APP_ID;
 
     // If ids.h is blank and environment variables are set
-    if (*appId == '\0') {
-        char* env = getenv("BC_BCCHAT_APP_ID");
+    if (serverUrl.empty()) {
+        char* env = getenv("BC_BRAINCLOUD_SERVER_URL");
         if (env != NULL) {
-            appId = env;
+            serverUrl = env;
         }
     }
-    if (*secretKey == '\0') {
-        char* env = getenv("BC_BCCHAT_APP_SECRET");
+    if (secretKey.empty()) {
+        char* env = getenv("BC_CLIENTUNIT_APP_SECRET");
         if (env != NULL) {
             secretKey = env;
         }
     }
-    if (*serverUrl == '\0') {
-        char* env = getenv("BC_BRAINCLOUD_SERVER_URL");
+    if (appId.empty()) {
+        char* env = getenv("BC_CLIENTUNIT_APP_ID");
         if (env != NULL) {
-            serverUrl = env;
+            appId = env;
         }
     }
     
@@ -158,9 +158,9 @@ void initBC()
         pBCWrapper = new BrainCloud::BrainCloudWrapper("BCChat");
     }
     dead = false;
-    pBCWrapper->initialize(serverUrl,
-                           secretKey,
-                           appId,
+    pBCWrapper->initialize(serverUrl.c_str(),
+                           secretKey.c_str(),
+                           appId.c_str(),
                            pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str(),
                            "bitHeads inc.", 
                            "BCChat");
