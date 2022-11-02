@@ -37,8 +37,9 @@ find_library( # Sets the name of the path variable.
         log)
 
 #option(SSL_ALLOW_SELFSIGNED 1)
+#add_definitions(-DSSL_ALLOW_SELFSIGNED=ON)
 
-#add brainClound subdir
+#add brainCloud subdir
 #add_subdirectory(./thirdparty/braincloud-cpp) # add plugin code under source code
 add_subdirectory(../../../../../thirdparties/braincloud-cpp ./binary/braincloud) # add out-of-tree plugin code in project root
 

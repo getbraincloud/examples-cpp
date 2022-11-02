@@ -10,6 +10,7 @@
 
 #include "braincloud/internal/android/AndroidGlobals.h" // to store java native interface env and context for app
 #include "ids.h"
+#include <libwebsockets.h>
 #include "lws_config.h"
 
 using namespace BrainCloud;
@@ -24,7 +25,20 @@ static std::chrono::time_point<std::chrono::high_resolution_clock> t1;
 static std::chrono::time_point<std::chrono::high_resolution_clock> t2;
 static double startwait = 0;
 static bool retry = false;
+static bool running_repeat = false;
 static int attempts = 0;
+int count_success = 0;
+int count_fail = 0;
+
+// *** user-defined test parameters ***
+// set a timeout after n seconds
+static double maxrun = 360;
+// number of times to repeat (counts down to 0)
+static int repeat = 100;
+// how many attempts to try on rtt fail (at least 1)
+static int max_attempts = 1;
+// how long to wait seconds between repeat tests/retries
+static double spin = 3;
 
 class ConsoleStream : public std::stringbuf
 {
@@ -34,30 +48,11 @@ public:
 
 std::streamsize ConsoleStream::xsputn(const char *_Ptr, std::streamsize _Count)
 {
-    __android_log_print(ANDROID_LOG_DEBUG, "NATIVE", "%.*s", (int)_Count, _Ptr);
+    __android_log_print(ANDROID_LOG_DEBUG, "brainCloudAPI", "%.*s", (int)_Count, _Ptr);
     return std::basic_streambuf<char, std::char_traits<char> >::xsputn(_Ptr,_Count);
 }
 
 ConsoleStream consoleStream;
-
-//##############################################################################
-
-class LogoutCallback final : public IServerCallback
-{
-public:
-    void serverCallback(ServiceName serviceName, ServiceOperation serviceOperation, const std::string &jsonData) override
-    {
-        status += "---- Logged out of BrainCloud\n\n";
-        done = true;
-    }
-
-    void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
-    {
-        status += "**** ERROR: logout: " + jsonError + "\n\n";
-        done = true;
-    }
-};
-static LogoutCallback logoutCallback;
 
 //##############################################################################
 
@@ -134,12 +129,14 @@ public:
     void rttConnectSuccess() override
     {
         status += "---- RTT service enabled\n\n";
+
         pBCWrapper->getChatService()->getChannelId("gl", "valid", &getChannelIdCallback);
     }
 
     void rttConnectFailure(const std::string& errorMessage) override
     {
         status += "**** ERROR: enableRTT: " + errorMessage  + "\n\n";
+        count_fail ++;
         result = 2;
     }
 };
@@ -177,7 +174,40 @@ public:
     }
 };
 static AuthCallback authCallback;
+//##############################################################################
 
+class LogoutCallback final : public IServerCallback
+{
+public:
+    void serverCallback(ServiceName serviceName, ServiceOperation serviceOperation, const std::string &jsonData) override
+    {
+        status += "---- Logged out of BrainCloud\n";
+        status += "Passed  " + std::to_string(count_success) + " Failed  " + std::to_string(count_fail) +"\n\n";
+        done = true;
+
+        if(--repeat > 0 && result != 6) {
+            status += "Repeating test T-minus " + std::to_string(repeat) + "\n\n";
+            result = -1;
+            done = false;
+            //startwait = 0;
+            retry = false;
+            attempts = 0;
+
+            running_repeat = true;
+
+        }
+        else if(repeat == 0){
+            status += "---- All runs have been executed.\n\n";
+        }
+    }
+
+    void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
+    {
+        status += "**** ERROR: logout: " + jsonError + "\n\n";
+        done = true;
+    }
+};
+static LogoutCallback logoutCallback;
 //##############################################################################
 
 extern "C" JNIEXPORT jstring JNICALL
@@ -221,58 +251,84 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
             status += "Using libwebsocket version ";
             status += std::to_string(LWS_LIBRARY_VERSION_MAJOR)
                       + "." + std::to_string(LWS_LIBRARY_VERSION_MINOR)
-                      + "." + std::to_string(LWS_LIBRARY_VERSION_PATCH);
-            status += "\n\n";
+                      + "." + std::to_string(LWS_LIBRARY_VERSION_PATCH)
+                      + "\n";
+
+#if defined(SSL_ALLOW_SELFSIGNED)
+            status += "RTT skipping certificates\n";
+#else
+            status += "RTT certificates included\n";
+#endif
+            status += "\n";
+
+            std::cout<<status<<std::endl;
+
+            // logging options include: LLL_DEBUG | LLL_USER | LLL_ERR | LLL_WARN | LLL_NOTICE
+            lws_set_log_level(
+                    LLL_ERR, [](int level, const char *line) {
+                        __android_log_print(ANDROID_LOG_ERROR, "brainCloudLWS", "%s", line);
+                    });
 
             // Authenticate
             status += "Authenticating...\n\n";
             //pBCWrapper->authenticateEmailPassword("testAndroidUser", "qwertY123", true, &authCallback);
             pBCWrapper->authenticateAnonymous(&authCallback);
-        }
-        else{
+        } else {
             status += "**** Failed to initialize. Check header file ids.h \n\n";
             result = 7;
         }
     }
 
-    // Update braincloud
-    if(!done)
+    if (!done)
+    {
+        // Update braincloud
         pBCWrapper->runCallbacks();
 
-    // check for timeout
-    t2 = std::chrono::high_resolution_clock::now();
-    fp_ms = t2 - t1;
-    double elapsed = fp_ms.count();
+        // check for timeout
+        t2 = std::chrono::high_resolution_clock::now();
+        fp_ms = t2 - t1;
+        double elapsed = fp_ms.count();
 
-    if(!done && result < 0 && elapsed > 180000) {
-        status += "**** ERROR: test is timing out after " + std::to_string(elapsed) + "ms \n\n";
-        result = 6; // timeout error
-    }
-
-    if(result == 2) {
-        if (!retry) {
-            startwait = elapsed;
-            retry = true;
+        if (result < 0 && elapsed > maxrun * 1000) {
+            status += "**** ERROR: test is timing out after " + std::to_string(elapsed) + "ms \n\n";
+            result = 6; // timeout error
         }
-        if (elapsed - startwait > 5000) {
-            if (++attempts < 1) {
-                result = -1;
-                status += "Attempting to connect #" + std::to_string(attempts) + "\n\n";
-                pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
+
+        if (result == 2 && max_attempts > 1) {
+            if (!retry) {
+                startwait = elapsed;
+                status += "Attempting retry #" + std::to_string(attempts + 1) + " in 5s\n\n";
+                retry = true;
             }
-            retry = false;
-            lastresult = -1;
+            if (elapsed - startwait > spin * 1000) {
+                if (++attempts < max_attempts) {
+                    result = -1;
+                    pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
+                }
+                retry = false;
+                lastresult = -1;
+            }
         }
-    }
 
-    // check if done testing
-    if(!done && !retry && result >= 0 && lastresult != result){
-        if(result == 0)
-            status += "---- Successfully completed tests.\n\n";
-        else
-            status += "**** Failed with code " + std::to_string(result) + "\n\n";
+        if(running_repeat && (elapsed - startwait > spin * 1000)){
+            startwait = elapsed;
+            running_repeat = false;
+            pBCWrapper->authenticateAnonymous(&authCallback);
+        }
 
-        pBCWrapper->getBCClient()->getPlayerStateService()->logout(&logoutCallback);
+        // check if done testing
+        if (!retry && result >= 0 && lastresult != result) {
+            if (result == 0) {
+                status += "---- Successfully completed test run.\n\n";
+                count_success ++;
+            }
+            else {
+                status += "**** Failed with code " + std::to_string(result) + "\n\n";
+                count_fail ++;
+            }
+
+            pBCWrapper->getBCClient()->getPlayerStateService()->logout(&logoutCallback);
+        }
     }
 
     return env->NewStringUTF(status.c_str());
