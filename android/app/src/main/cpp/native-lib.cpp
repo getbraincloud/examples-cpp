@@ -34,7 +34,7 @@ int count_fail = 0;
 // set a timeout after n seconds
 static double maxrun = 360;
 // number of times to repeat (counts down to 0)
-static int repeat = 100;
+static int repeat = 1;
 // how many attempts to try on rtt fail (at least 1)
 static int max_attempts = 1;
 // how long to wait seconds between repeat tests/retries
@@ -163,6 +163,8 @@ public:
         status += "Login count: ";
         status += data["data"]["loginCount"].asString();
         status += "\n\n";
+
+        //result = 0; // this can stop the test at any point
 
         pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
     }
