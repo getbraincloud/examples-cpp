@@ -19,7 +19,7 @@
 //-----------------------------------------------------------------------------
 
 // Imgui
-#include <imgui/imgui.h>
+#include <imgui.h>
 
 // brainCloud
 #include <braincloud/RelayConnectionType.h>
