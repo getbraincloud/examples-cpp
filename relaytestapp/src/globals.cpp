@@ -30,13 +30,15 @@
 #endif
 #if defined(__APPLE__)
 #include <OpenGL/gl.h>
+#elif defined(__ANDROID__)
+#include <GLES/gl.h>
 #else
 #include <GL/gl.h>
 #endif
 
 // Stb image
 #define STB_IMAGE_IMPLEMENTATION
-#include <stb/stb_image.h>
+#include "stb/stb_image.h"
 
 // Main application state instance
 State state;
@@ -101,7 +103,7 @@ void loadConfigs()
         glBindTexture(GL_TEXTURE_2D, texture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        //glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
         // Cleanup
