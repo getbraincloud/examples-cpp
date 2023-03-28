@@ -318,7 +318,11 @@ void app_update()
     // so we can test for exit crashes at any point
     if (ImGui::BeginMainMenuBar())
     {
-        if (ImGui::BeginMenu("App"))
+        std::string app_text = "brainCloud ";
+        if(pBCWrapper && pBCWrapper->getBCClient()->isInitialized()) {
+            app_text += pBCWrapper->getBCClient()->getBrainCloudClientVersion();
+        }
+        if (ImGui::BeginMenu(app_text.c_str()))
         {
             if (ImGui::MenuItem("Log Out"))
             {

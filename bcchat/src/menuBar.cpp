@@ -28,11 +28,16 @@
 // Draws menu bar GUI and update its logic
 void menuBar_update()
 {
+    extern BrainCloud::BrainCloudWrapper *pBCWrapper;
     // Menu Bar
     ImGui::BeginMainMenuBar();
 
     // File
-    if (ImGui::BeginMenu("File"))
+    std::string app_text = "brainCloud ";
+    if(pBCWrapper && pBCWrapper->getBCClient()->isInitialized()) {
+        app_text += pBCWrapper->getBCClient()->getBrainCloudClientVersion();
+    }
+    if (ImGui::BeginMenu(app_text.c_str()))
     {
         if (ImGui::MenuItem("Exit", "ALT + F4"))
         {

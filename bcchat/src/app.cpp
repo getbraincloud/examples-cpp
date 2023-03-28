@@ -131,27 +131,6 @@ void initBC()
     std::string serverUrl = BRAINCLOUD_SERVER_URL;
     std::string secretKey = BRAINCLOUD_APP_SECRET;
     std::string appId = BRAINCLOUD_APP_ID;
-
-    // If ids.h is blank and environment variables are set
-    if (serverUrl.empty()) {
-        char* env = getenv("BC_BRAINCLOUD_SERVER_URL");
-        if (env != NULL) {
-            serverUrl = env;
-        }
-    }
-    if (secretKey.empty()) {
-        char* env = getenv("BC_BCCHAT_APP_SECRET");
-        if (env != NULL) {
-            secretKey = env;
-        }
-    }
-    if (appId.empty()) {
-        char* env = getenv("BC_BCCHAT_APP_ID");
-        if (env != NULL) {
-            appId = env;
-        }
-    }
-    
     
     if (!pBCWrapper)
     {
@@ -626,7 +605,7 @@ void app_exit()
 void app_login(const char* username, const char* password)
 {    
     initBC();
-
+    
     // Confirm successful initialization
     if (pBCWrapper->getBCClient()->isInitialized() == true) {
         loading_text = "Logging in ...";
