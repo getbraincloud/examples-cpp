@@ -23,10 +23,20 @@
 #include <Windows.h>
 #endif
 #include "imgui.h"
+
+#if defined(__ANDROID__)
+#include "imgui_impl_sdl2.h"
+#include "imgui_impl_opengl3.h"
+#include <jni.h>
+#include "braincloud/internal/android/AndroidGlobals.h" // to store java native interface env and context for app
+#else
 #include "imgui_impl_sdl.h"
 #include "imgui_impl_opengl2.h"
-#include <stdio.h>
 #define SDL_MAIN_HANDLED
+#endif
+
+#include <stdio.h>
+
 #if defined(USE_MAXOS_SDL_FRAMEWORK)
 #include <SDL2/SDL.h>
 #include <SDL2/SDL_opengl.h>
@@ -41,6 +51,7 @@
 #include "login.h"
 
 #include <cmath>
+
 
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 bool done = false;
@@ -57,7 +68,20 @@ int main(int argc, char *argv[])
         printf("Error: %s\n", SDL_GetError());
         return -1;
     }
-    
+#if defined(__ANDROID__)
+    // retrieve the JNI environment.
+    JNIEnv* env = (JNIEnv*)SDL_AndroidGetJNIEnv();
+
+    // retrieve the Java instance of the SDLActivity
+    jobject activity = (jobject)SDL_AndroidGetActivity();
+
+    // these are passed in from MainActivity.java
+    // we need them for SaveDataHelper to access SharedPreferences
+    // context may change while running callbacks so set each time
+    BrainCloud::appEnv = env;
+    BrainCloud::appContext = activity;
+#endif
+
     SDL_DisplayMode current;
     SDL_Rect usable_bounds;
     SDL_GetDesktopDisplayMode(0, &current);
@@ -89,6 +113,7 @@ int main(int argc, char *argv[])
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
+
     SDL_Window* window = SDL_CreateWindow("brainCloud Relay Test App", x, y, width, height, flags);
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     SDL_GL_SetSwapInterval(1); // Enable vsync
@@ -101,7 +126,11 @@ int main(int argc, char *argv[])
 
     // Init imgui GL renderer
     ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
+#if defined(__ANDROID__)
+    ImGui_ImplOpenGL3_Init();
+#else
     ImGui_ImplOpenGL2_Init();
+#endif
     ImGui::StyleColorsClassic();
 
     // Load app related stuff
@@ -137,7 +166,11 @@ int main(int argc, char *argv[])
         }
 
         // Start the Dear ImGui frame
+#if defined(__ANDROID__)
+        ImGui_ImplOpenGL3_NewFrame();
+#else
         ImGui_ImplOpenGL2_NewFrame();
+#endif
         ImGui_ImplSDL2_NewFrame(window);
         ImGui::NewFrame();
 
@@ -149,12 +182,20 @@ int main(int argc, char *argv[])
         glViewport(0, 0, (int)io.DisplaySize.x, (int)io.DisplaySize.y);
         glClearColor(clear_color.x, clear_color.y, clear_color.z, clear_color.w);
         glClear(GL_COLOR_BUFFER_BIT);
+#if defined(__ANDROID__)
+        ImGui_ImplOpenGL3_RenderDrawData(ImGui::GetDrawData());
+#else
         ImGui_ImplOpenGL2_RenderDrawData(ImGui::GetDrawData());
+#endif
         SDL_GL_SwapWindow(window);
     }
 
     // Cleanup
+#if defined(__ANDROID__)
+    ImGui_ImplOpenGL3_Shutdown();
+#else
     ImGui_ImplOpenGL2_Shutdown();
+#endif
     ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
 

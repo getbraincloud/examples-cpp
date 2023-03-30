@@ -143,7 +143,7 @@ list(APPEND includes PUBLIC ./src/)
 
 # SDL
 if (NOT UWP)
-    set(HAVE_LIBC ON)
+    set(HAVE_LIBC OFF)
     set(SDL_MAIN_HANDLED ON)
     add_subdirectory(../thirdparties/SDL ./thirdparties/SDL)
     list(APPEND libs SDL2-static)
@@ -169,3 +169,5 @@ list(APPEND includes PUBLIC ./src/imgui/)
 # Setup includes and linked libraries
 target_include_directories(RelayTestApp ${includes})
 target_link_libraries(RelayTestApp ${libs})
+
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT RelayTestApp)
