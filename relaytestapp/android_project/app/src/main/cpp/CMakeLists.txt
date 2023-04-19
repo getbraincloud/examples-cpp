@@ -27,8 +27,8 @@ add_library( # Sets the name of the library.
         SHARED
 
         ${IMGUI_FILES}
-        ${SRC_ROOT}/../thirdparties/imgui/backends/imgui_impl_sdl2.cpp
-        ${SRC_ROOT}/../thirdparties/imgui/backends/imgui_impl_sdl2.h
+        ${SRC_ROOT}/../thirdparties/imgui/backends/imgui_impl_sdl3.cpp
+        ${SRC_ROOT}/../thirdparties/imgui/backends/imgui_impl_sdl3.h
         ${SRC_ROOT}/../thirdparties/imgui/backends/imgui_impl_opengl3.cpp
         ${SRC_ROOT}/../thirdparties/imgui/backends/imgui_impl_opengl3.h
 
@@ -66,7 +66,7 @@ find_library( # Sets the name of the path variable.
         # you want CMake to locate.
         log)
 
-find_library(SDL2 SDL2)
+find_library(SDL3 SDL3)
 
 #add brainCloud subdir
 #add_subdirectory(./thirdparty/braincloud-cpp) # add plugin code under source code
@@ -91,7 +91,7 @@ target_link_libraries( # Specifies the target library.
 
         brainCloud
 
-        SDL2-static)
+        SDL3-static)
 
 target_include_directories(relaybot PRIVATE ${SRC_ROOT}/../thirdparties/imgui/)
 target_include_directories(relaybot PRIVATE ${SRC_ROOT}/../thirdparties/imgui/backends/)

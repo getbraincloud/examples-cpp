@@ -95,17 +95,10 @@ else()
 endif()
 
 # Third parties source files
-list(APPEND thirdparty_src_files
-    src/imgui/imconfig.h
-    src/imgui/imgui_demo.cpp
-    src/imgui/imgui_draw.cpp
-    src/imgui/imgui_internal.h
-    src/imgui/imgui.cpp
-    src/imgui/imgui.h
-    src/imgui/stb_rect_pack.h
-    src/imgui/stb_textedit.h
-    src/imgui/stb_truetype.h
-)
+file(GLOB thirdparty_src_files
+        ../thirdparties/imgui/*.cpp
+        ../thirdparties/imgui/*.h
+        )
 
 if (UWP)
     list(APPEND thirdparty_src_files
@@ -114,10 +107,10 @@ if (UWP)
     )
 else()
     list(APPEND thirdparty_src_files
-        src/imgui/imgui_impl_opengl2.cpp
-        src/imgui/imgui_impl_opengl2.h
-        src/imgui/imgui_impl_sdl.cpp
-        src/imgui/imgui_impl_sdl.h
+                ../thirdparties/imgui/backends/imgui_impl_opengl2.cpp
+                ../thirdparties/imgui/backends/imgui_impl_opengl2.h
+                ../thirdparties/imgui/backends/imgui_impl_sdl3.cpp
+                ../thirdparties/imgui/backends/imgui_impl_sdl3.h
     )
 endif()
 
@@ -146,7 +139,7 @@ if (NOT UWP)
     set(HAVE_LIBC OFF)
     set(SDL_MAIN_HANDLED ON)
     add_subdirectory(../thirdparties/SDL ./thirdparties/SDL)
-    list(APPEND libs SDL2-static)
+    list(APPEND libs SDL3-shared)
     list(APPEND includes PUBLIC ../thirdparties/SDL/include/)
 endif()
 
@@ -164,7 +157,8 @@ list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/lib/jsoncpp-1.0.0/)
 list(APPEND libs brainCloud)
 
 # ImGui
-list(APPEND includes PUBLIC ./src/imgui/)
+list(APPEND includes PUBLIC ../thirdparties/imgui/)
+list(APPEND includes PUBLIC ../thirdparties/imgui/backends)
 
 # Setup includes and linked libraries
 target_include_directories(RelayTestApp ${includes})

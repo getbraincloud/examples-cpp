@@ -4,7 +4,7 @@
 	branch = develop
 [submodule "thirdparties/SDL"]
 	path = thirdparties/SDL
-	url = https://github.com/SDL-mirror/SDL.git
+	url = https://github.com/libsdl-org/SDL
 [submodule "roomserver/server/brainclouds2s-cpp"]
 	path = roomserver/server/brainclouds2s-cpp
 	url = https://github.com/getbraincloud/brainclouds2s-cpp.git

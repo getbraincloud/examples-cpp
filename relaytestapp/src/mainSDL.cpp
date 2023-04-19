@@ -25,25 +25,20 @@
 #include "imgui.h"
 
 #if defined(__ANDROID__)
-#include "imgui_impl_sdl2.h"
+#include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
 #include <jni.h>
 #include "braincloud/internal/android/AndroidGlobals.h" // to store java native interface env and context for app
 #else
-#include "imgui_impl_sdl.h"
+#include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl2.h"
 #define SDL_MAIN_HANDLED
 #endif
 
 #include <stdio.h>
 
-#if defined(USE_MAXOS_SDL_FRAMEWORK)
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
-#else
-#include <SDL.h>
-#include <SDL_opengl.h>
-#endif
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_opengl.h>
 
 // App includes
 #include "app.h"
@@ -82,9 +77,9 @@ int main(int argc, char *argv[])
     BrainCloud::appContext = activity;
 #endif
 
-    SDL_DisplayMode current;
+    const SDL_DisplayMode *current;
     SDL_Rect usable_bounds;
-    SDL_GetDesktopDisplayMode(0, &current);
+    current = SDL_GetDesktopDisplayMode(0);
     SDL_GetDisplayUsableBounds(0, &usable_bounds);
     int x = SDL_WINDOWPOS_CENTERED;
     int y = SDL_WINDOWPOS_CENTERED;
@@ -114,7 +109,7 @@ int main(int argc, char *argv[])
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
-    SDL_Window* window = SDL_CreateWindow("brainCloud Relay Test App", x, y, width, height, flags);
+    SDL_Window* window = SDL_CreateWindow("brainCloud Relay Test App", width, height, flags);
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     SDL_GL_SetSwapInterval(1); // Enable vsync
 
@@ -125,7 +120,7 @@ int main(int argc, char *argv[])
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     // Init imgui GL renderer
-    ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
+    ImGui_ImplSDL3_InitForOpenGL(window, gl_context);
 #if defined(__ANDROID__)
     ImGui_ImplOpenGL3_Init();
 #else
@@ -153,12 +148,12 @@ int main(int argc, char *argv[])
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
-            ImGui_ImplSDL2_ProcessEvent(&event);
-            if (event.type == SDL_QUIT)
+            ImGui_ImplSDL3_ProcessEvent(&event);
+            if (event.type == SDL_EVENT_QUIT)
             {
                 done = true;
             }
-            if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+            if (event.type == SDL_EVENT_WINDOW_RESIZED)
             {
                 width = (int)event.window.data1;
                 height = (int)event.window.data2;
@@ -171,7 +166,7 @@ int main(int argc, char *argv[])
 #else
         ImGui_ImplOpenGL2_NewFrame();
 #endif
-        ImGui_ImplSDL2_NewFrame(window);
+        ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
 
         // Draw the app
@@ -196,7 +191,7 @@ int main(int argc, char *argv[])
 #else
     ImGui_ImplOpenGL2_Shutdown();
 #endif
-    ImGui_ImplSDL2_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
 
     SDL_GL_DeleteContext(gl_context);
