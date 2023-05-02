@@ -23,6 +23,6 @@ echo "#define BRAINCLOUD_APP_SECRET \"${secretkey:-$BRAINCLOUD_APP_SECRET}\"" >>
 echo "-- File ids.h created in $project_source"
 cat $project_source/ids.h
 
-git update-index --skip-worktree $project_source/ids.h
+git update-index --assume-unchanged $project_source/ids.h
 echo "-- File ids.h excluded from git worktree"
 

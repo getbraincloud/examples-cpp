@@ -157,6 +157,7 @@ list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/lib/jsoncpp-1.0.0/)
 list(APPEND libs brainCloud)
 
 # ImGui
+list(APPEND includes PUBLIC ../thirdparties/SDL/include/)
 list(APPEND includes PUBLIC ../thirdparties/imgui/)
 list(APPEND includes PUBLIC ../thirdparties/imgui/backends)
 

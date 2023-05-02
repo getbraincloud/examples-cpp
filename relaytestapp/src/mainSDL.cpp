@@ -25,20 +25,21 @@
 #include "imgui.h"
 
 #if defined(__ANDROID__)
-#include "imgui_impl_sdl3.h"
-#include "imgui_impl_opengl3.h"
 #include <jni.h>
 #include "braincloud/internal/android/AndroidGlobals.h" // to store java native interface env and context for app
+#include "imgui_impl_sdl2.h"
+#include "imgui_impl_opengl3.h"
+#include <SDL.h>
+#include <SDL_opengl.h>
 #else
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl2.h"
 #define SDL_MAIN_HANDLED
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_opengl.h>
 #endif
 
 #include <stdio.h>
-
-#include <SDL3/SDL.h>
-#include <SDL3/SDL_opengl.h>
 
 // App includes
 #include "app.h"
@@ -63,6 +64,7 @@ int main(int argc, char *argv[])
         printf("Error: %s\n", SDL_GetError());
         return -1;
     }
+
 #if defined(__ANDROID__)
     // retrieve the JNI environment.
     JNIEnv* env = (JNIEnv*)SDL_AndroidGetJNIEnv();
@@ -75,11 +77,16 @@ int main(int argc, char *argv[])
     // context may change while running callbacks so set each time
     BrainCloud::appEnv = env;
     BrainCloud::appContext = activity;
-#endif
 
+    // using SDL2
+    SDL_DisplayMode current;
+    SDL_GetDesktopDisplayMode(0, &current);
+#else
+    // using SDL3
     const SDL_DisplayMode *current;
-    SDL_Rect usable_bounds;
     current = SDL_GetDesktopDisplayMode(0);
+#endif
+    SDL_Rect usable_bounds;
     SDL_GetDisplayUsableBounds(0, &usable_bounds);
     int x = SDL_WINDOWPOS_CENTERED;
     int y = SDL_WINDOWPOS_CENTERED;
@@ -101,6 +108,10 @@ int main(int argc, char *argv[])
 
         flags |= SDL_WINDOW_BORDERLESS;
     }
+    else{
+        width = usable_bounds.w;
+        height = usable_bounds.h;
+    };
 
     // Setup window
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
@@ -108,8 +119,13 @@ int main(int argc, char *argv[])
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-
+#if defined(__ANDROID__)
+    // using SDL2
+    SDL_Window* window = SDL_CreateWindow("brainCloud Relay Test App", x, y, width, height, flags);
+#else
+    // using SDL3
     SDL_Window* window = SDL_CreateWindow("brainCloud Relay Test App", width, height, flags);
+#endif
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     SDL_GL_SetSwapInterval(1); // Enable vsync
 
@@ -120,10 +136,11 @@ int main(int argc, char *argv[])
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     // Init imgui GL renderer
-    ImGui_ImplSDL3_InitForOpenGL(window, gl_context);
 #if defined(__ANDROID__)
+    ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init();
 #else
+    ImGui_ImplSDL3_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL2_Init();
 #endif
     ImGui::StyleColorsClassic();
@@ -148,6 +165,18 @@ int main(int argc, char *argv[])
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
+#if defined(__ANDROID__)
+            ImGui_ImplSDL2_ProcessEvent(&event);
+            if (event.type == SDL_QUIT)
+            {
+                done = true;
+            }
+            if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+            {
+                width = (int)event.window.data1;
+                height = (int)event.window.data2;
+            }
+#else
             ImGui_ImplSDL3_ProcessEvent(&event);
             if (event.type == SDL_EVENT_QUIT)
             {
@@ -158,15 +187,17 @@ int main(int argc, char *argv[])
                 width = (int)event.window.data1;
                 height = (int)event.window.data2;
             }
+#endif
         }
 
         // Start the Dear ImGui frame
 #if defined(__ANDROID__)
         ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplSDL2_NewFrame();
 #else
         ImGui_ImplOpenGL2_NewFrame();
-#endif
         ImGui_ImplSDL3_NewFrame();
+#endif
         ImGui::NewFrame();
 
         // Draw the app
@@ -188,10 +219,11 @@ int main(int argc, char *argv[])
     // Cleanup
 #if defined(__ANDROID__)
     ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
 #else
     ImGui_ImplOpenGL2_Shutdown();
-#endif
     ImGui_ImplSDL3_Shutdown();
+#endif
     ImGui::DestroyContext();
 
     SDL_GL_DeleteContext(gl_context);
