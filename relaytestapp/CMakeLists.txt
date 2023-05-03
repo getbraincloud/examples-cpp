@@ -23,10 +23,6 @@ else()
     cmake_minimum_required(VERSION 3.0.0)
 endif()
 
-# for MacOS glInteger warnings
-add_definitions(
-        -DGL_SILENCE_DEPRECATION)
-
 # Project
 project(RelayTestApp)
 
@@ -43,6 +39,10 @@ if (UWP)
         -DRELAYTESTAPP_UWP
         -DIMGUI_DISABLE_WIN32_DEFAULT_CLIPBOARD_FUNCTIONS
         -DIMGUI_DISABLE_WIN32_DEFAULT_IME_FUNCTIONS)
+endif()
+# for MacOS glInteger warnings, however this adds multiple definition warning in imgui
+if (APPLE)
+    add_definitions(-DGL_SILENCE_DEPRECATION)
 endif()
 
 # Application source files
