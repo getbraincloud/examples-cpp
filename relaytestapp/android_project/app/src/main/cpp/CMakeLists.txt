@@ -93,5 +93,6 @@ target_link_libraries( # Specifies the target library.
 
         SDL2-static)
 
+target_include_directories(relaybot PUBLIC ${SRC_ROOT}/../thirdparties/SDL2/include/)
 target_include_directories(relaybot PRIVATE ${SRC_ROOT}/../thirdparties/imgui/)
 target_include_directories(relaybot PRIVATE ${SRC_ROOT}/../thirdparties/imgui/backends/)
