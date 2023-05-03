@@ -65,6 +65,10 @@ int main(int argc, char *argv[])
         return -1;
     }
 
+    // a note for android, uses openGL3 and SDL2
+    // imgui has build and runtime issues with SDL3
+    // build issue can be fixed by setting focused_window var in imgui_impl_sdl3.cpp
+    // runtime issue is libraries (.so) failing to load
 #if defined(__ANDROID__)
     // retrieve the JNI environment.
     JNIEnv* env = (JNIEnv*)SDL_AndroidGetJNIEnv();
@@ -80,39 +84,44 @@ int main(int argc, char *argv[])
 
     // using SDL2
     SDL_DisplayMode current;
-    SDL_GetDesktopDisplayMode(0, &current);
+    int displayID = 0; // assume display zero for android
+    SDL_GetDesktopDisplayMode(displayID, &current);
 #else
     // using SDL3
+    SDL_DisplayID displayID = SDL_GetPrimaryDisplay(); // in case of multiple displays
     const SDL_DisplayMode *current;
-    current = SDL_GetDesktopDisplayMode(0);
+    current = SDL_GetDesktopDisplayMode(displayID);
 #endif
     SDL_Rect usable_bounds;
-    SDL_GetDisplayUsableBounds(0, &usable_bounds);
+    int retval = SDL_GetDisplayUsableBounds(displayID, &usable_bounds);
     int x = SDL_WINDOWPOS_CENTERED;
     int y = SDL_WINDOWPOS_CENTERED;
     Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
-    if (argc > 2)
-    {
-        settings.instanceIndex = std::atoi(argv[argc - 2]);
-        auto count = std::atoi(argv[argc - 1]);
-        if (count > 1) settings.autoJoin = true;
-        auto count_per_col = (int)std::sqrt((double)count);
-        auto count_per_row = (int)std::ceil((double)count / (double)count_per_col);
-        auto col_index = settings.instanceIndex % count_per_row;
-        auto row_index = settings.instanceIndex / count_per_row;
-
-        width = usable_bounds.w / count_per_row;
-        height = usable_bounds.h / count_per_col;
-        x = col_index * width;
-        y = row_index * height;
-
-        flags |= SDL_WINDOW_BORDERLESS;
+    if(retval==0){ // only set window size if usable bounds ok
+        if (argc > 2)
+        {
+            settings.instanceIndex = std::atoi(argv[argc - 2]);
+            auto count = std::atoi(argv[argc - 1]);
+            if (count > 1) settings.autoJoin = true;
+            auto count_per_col = (int)std::sqrt((double)count);
+            auto count_per_row = (int)std::ceil((double)count / (double)count_per_col);
+            auto col_index = settings.instanceIndex % count_per_row;
+            auto row_index = settings.instanceIndex / count_per_row;
+            
+            width = usable_bounds.w / count_per_row;
+            height = usable_bounds.h / count_per_col;
+            x = col_index * width;
+            y = row_index * height;
+            
+            flags |= SDL_WINDOW_BORDERLESS;
+        }
+        else{
+            // when possible, use entire space
+            width = usable_bounds.w;
+            height = usable_bounds.h;
+        }
     }
-    else{
-        width = usable_bounds.w;
-        height = usable_bounds.h;
-    };
-
+    
     // Setup window
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
