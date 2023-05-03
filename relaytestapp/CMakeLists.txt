@@ -23,6 +23,10 @@ else()
     cmake_minimum_required(VERSION 3.0.0)
 endif()
 
+# for MacOS glInteger warnings
+add_definitions(
+        -DGL_SILENCE_DEPRECATION)
+
 # Project
 project(RelayTestApp)
 
