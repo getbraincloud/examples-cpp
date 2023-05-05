@@ -53,6 +53,11 @@ add_library( # Sets the name of the library.
         ${SRC_ROOT}/src/mainSDL.cpp
 )
 
+option(SDL_TEST "Descr" OFF)
+option(SDL_SHARED "Descr" ON)
+#option(SDL_STATIC "Descr" ON)
+#option(SDL_DLOPEN "Descr" OFF)
+
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by
 # default, you only need to specify the name of the public NDK library
