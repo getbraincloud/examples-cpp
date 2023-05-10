@@ -43,6 +43,7 @@ void login_update()
             ImGuiWindowFlags_NoCollapse |
             ImGuiWindowFlags_NoMove |
             ImGuiWindowFlags_NoResize);
+        ImGuiIO& io = ImGui::GetIO();
         ImGui::Text("A new user will be created if it doesn't exist.");
         ImGui::InputText("Username", settings.username, MAX_CREDENTIAL_CHAR);
         ImGui::InputText("Password", settings.password, MAX_CREDENTIAL_CHAR,

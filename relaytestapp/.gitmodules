@@ -1,6 +1,0 @@
-[submodule "SDL"]
-	path = SDL
-	url = https://github.com/SDL-mirror/SDL.git
-[submodule "braincloud-cpp"]
-	path = braincloud-cpp
-	url = https://github.com/getbraincloud/braincloud-cpp.git

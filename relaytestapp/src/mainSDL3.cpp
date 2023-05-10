@@ -27,10 +27,10 @@
 #if defined(__ANDROID__)
 #include <jni.h>
 #include "braincloud/internal/android/AndroidGlobals.h" // to store java native interface env and context for app
-#include "imgui_impl_sdl2.h"
+#include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl3.h"
-#include <SDL.h>
-#include <SDL_opengl.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_opengl.h>
 #else
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl2.h"
@@ -81,17 +81,12 @@ int main(int argc, char *argv[])
     // context may change while running callbacks so set each time
     BrainCloud::appEnv = env;
     BrainCloud::appContext = activity;
-
-    // using SDL2
-    SDL_DisplayMode current;
-    int displayID = 0; // assume display zero for android
-    SDL_GetDesktopDisplayMode(displayID, &current);
-#else
+#endif
     // using SDL3
     SDL_DisplayID displayID = SDL_GetPrimaryDisplay(); // in case of multiple displays
     const SDL_DisplayMode *current;
     current = SDL_GetDesktopDisplayMode(displayID);
-#endif
+
     SDL_Rect usable_bounds;
     int retval = SDL_GetDisplayUsableBounds(displayID, &usable_bounds);
     int x = SDL_WINDOWPOS_CENTERED;
@@ -128,13 +123,10 @@ int main(int argc, char *argv[])
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-#if defined(__ANDROID__)
-    // using SDL2
-    SDL_Window* window = SDL_CreateWindow("brainCloud Relay Test App", x, y, width, height, flags);
-#else
+
     // using SDL3
     SDL_Window* window = SDL_CreateWindow("brainCloud Relay Test App", width, height, flags);
-#endif
+
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     SDL_GL_SetSwapInterval(1); // Enable vsync
 
@@ -146,7 +138,7 @@ int main(int argc, char *argv[])
 
     // Init imgui GL renderer
 #if defined(__ANDROID__)
-    ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
+    ImGui_ImplSDL3_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init();
 #else
     ImGui_ImplSDL3_InitForOpenGL(window, gl_context);
@@ -174,23 +166,6 @@ int main(int argc, char *argv[])
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
-#if defined(__ANDROID__)
-            ImGui_ImplSDL2_ProcessEvent(&event);
-            if (event.type == SDL_QUIT)
-            {
-                done = true;
-            }
-            if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
-            {
-                width = (int)event.window.data1;
-                height = (int)event.window.data2;
-            }
-            if (event.window.event == SDL_TEXTINPUT)
-            {
-                int foo = 2;
-            }
-
-#else
             ImGui_ImplSDL3_ProcessEvent(&event);
             if (event.type == SDL_EVENT_QUIT)
             {
@@ -201,13 +176,12 @@ int main(int argc, char *argv[])
                 width = (int)event.window.data1;
                 height = (int)event.window.data2;
             }
-#endif
         }
 
         // Start the Dear ImGui frame
 #if defined(__ANDROID__)
         ImGui_ImplOpenGL3_NewFrame();
-        ImGui_ImplSDL2_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
 #else
         ImGui_ImplOpenGL2_NewFrame();
         ImGui_ImplSDL3_NewFrame();
@@ -233,7 +207,7 @@ int main(int argc, char *argv[])
     // Cleanup
 #if defined(__ANDROID__)
     ImGui_ImplOpenGL3_Shutdown();
-    ImGui_ImplSDL2_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
 #else
     ImGui_ImplOpenGL2_Shutdown();
     ImGui_ImplSDL3_Shutdown();

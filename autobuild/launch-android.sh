@@ -1,6 +1,11 @@
 #!/bin/bash
-
-
+#		$ANDROID_SDK/platform-tools/adb start-server 
+#		$ANDROID_SDK/emulator/emulator -list-avds
+#		$ANDROID_SDK/emulator/emulator -avd [name_of_the_device] -no-window -wipe-data -no-snapshot -no-audio -no-boot-anim & 
+#		launch-android.sh install  app-debug.apk
+#		launch-android.sh start
+#		launch-android.sh stop
+	
 case "$1" in
     devices)
         $ANDROID_SDK/platform-tools/adb devices
@@ -13,7 +18,7 @@ case "$1" in
         ;;
      
     install)
-        $ANDROID_SDK/platform-tools/adb install -t $2/app/build/outputs/apk/debug/app-debug.apk
+        $ANDROID_SDK/platform-tools/adb install -t $2
         ;;
     uninstall)
         $ANDROID_SDK/platform-tools/adb uninstall com.bitheads.braincloud.android.debug
@@ -28,4 +33,3 @@ case "$1" in
  
 esac
 exit 0
-
