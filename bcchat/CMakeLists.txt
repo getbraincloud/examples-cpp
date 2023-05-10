@@ -146,9 +146,9 @@ list(APPEND includes PUBLIC ./src/)
 if (NOT UWP)
     set(HAVE_LIBC OFF)
     set(SDL_MAIN_HANDLED ON)
-    add_subdirectory(../thirdparties/SDL ./thirdparties/SDL)
+    add_subdirectory(../thirdparties/SDL ./thirdparties/SDL2)
     list(APPEND libs SDL2-static)
-    list(APPEND includes PUBLIC ../thirdparties/SDL/include/)
+    list(APPEND includes PUBLIC ../thirdparties/SDL2/include/)
 endif()
 
 # OpenGL
