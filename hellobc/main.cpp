@@ -5,7 +5,6 @@
 #include <thread>
 #include "braincloud/BrainCloudWrapper.h"
 #include "ids.h"
-#include "lws_config.h"
 
 using namespace BrainCloud;
 using namespace std;
@@ -99,26 +98,6 @@ int main()
     std::string serverUrl = BRAINCLOUD_SERVER_URL;
     std::string secretKey = BRAINCLOUD_APP_SECRET;
     std::string appId = BRAINCLOUD_APP_ID;
-
-    // If ids.h is blank and environment variables are set
-    if (serverUrl.empty()) {
-        char* env = getenv("BC_BRAINCLOUD_SERVER_URL");
-        if (env != NULL) {
-            serverUrl = env;
-        }
-    }
-    if (secretKey.empty()) {
-        char* env = getenv("BC_CLIENTUNIT_APP_SECRET");
-        if (env != NULL) {
-            secretKey = env;
-        }
-    }
-    if (appId.empty()) {
-        char* env = getenv("BC_CLIENTUNIT_APP_ID");
-        if (env != NULL) {
-            appId = env;
-        }
-    }
     
     cout << "---- Welcome to BrainCloud!" << endl;
 
@@ -139,13 +118,7 @@ int main()
         status += "---- Initialized BrainCloud version ";
         status += pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str();
         status += "\n\n";
-        
-        status += "---- Using libwebsocket version ";
-        status += std::to_string(LWS_LIBRARY_VERSION_MAJOR)
-            + "." +std::to_string(LWS_LIBRARY_VERSION_MINOR)
-            + "." + std::to_string(LWS_LIBRARY_VERSION_PATCH);
-        status += "\n\n";
-        
+
         pBCWrapper->getBCClient()->enableLogging(true);
 
     }

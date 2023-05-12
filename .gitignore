@@ -5,3 +5,4 @@ configs.txt
 imgui.ini
 vcs.xml
 deploymentTargetDropDown.xml
+**/cmake-build-debug

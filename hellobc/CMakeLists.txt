@@ -19,9 +19,23 @@ list(APPEND src_files
 add_executable (hellobc ${src_files})
 
 # brainCloud
-add_subdirectory(../thirdparties/braincloud-cpp ./thirdparties/braincloud-cpp)
-list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/include/)
-list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/lib/jsoncpp-1.0.0/)
+#set(USE_BC_LIBRARY ON)
+if( USE_BC_LIBRARY )
+	add_library(brainCloud STATIC IMPORTED) # or STATIC instead of SHARED
+	set_target_properties(brainCloud PROPERTIES
+  		IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/../thirdparties/brainCloud/libs/libbrainCloud.a"
+  		INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/../thirdparties/brainCloud/include")
+
+	list(APPEND includes PUBLIC ../thirdparties/brainCloud/include/)
+	list(APPEND includes PUBLIC ../thirdparties/brainCloud/include/braincloud/internal/apple/)
+	list(APPEND includes PUBLIC ../thirdparties/brainCloud/thirdparty/jsoncpp-1.0.0/)
+	list(APPEND includes PUBLIC ../thirdparties/brainCloud/thirdparty/sskeychain/)
+else()
+	add_subdirectory(../thirdparties/braincloud-cpp ./thirdparties/braincloud-cpp)
+	list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/include/)
+	list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/libs/jsoncpp-1.0.0/)
+endif()
+
 list(APPEND libs brainCloud)
 
 # Setup includes and linked libraries
