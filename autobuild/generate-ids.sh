@@ -1,3 +1,4 @@
+#!/bin/bash
 while getopts p:s:a:k: flag
 do
     case "${flag}" in
@@ -7,6 +8,12 @@ do
         k) secretkey=${OPTARG};;
     esac
 done
+
+
+if [ "$project_source" == "" ]; then
+  echo "Must set arg -p project_source."
+  exit 1
+fi
 
 echo "#pragma once" >$project_source/ids.h
 
