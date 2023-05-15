@@ -8,12 +8,6 @@ do
     esac
 done
 
-
-if [ "$project_source" == "" ]; then
-  echo "Must set arg -p project_source."
-  exit 1
-fi
-
 echo "#pragma once" >$project_source/ids.h
 
 echo "#define BRAINCLOUD_SERVER_URL \"${serverurl:-$BRAINCLOUD_SERVER_URL}\"" >>$project_source/ids.h
