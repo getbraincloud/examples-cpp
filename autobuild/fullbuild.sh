@@ -1,3 +1,4 @@
+#!/bin/bash
 # usage:
 # ./autobuild/fullbuild.sh RelayTestApp relaytestapp/
 # executable:
