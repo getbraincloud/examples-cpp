@@ -16,6 +16,29 @@ list(APPEND src_files
 	ids.h
 	)
 
+# note: compiler ids only available after project() call
+if (CMAKE_CXX_COMPILER_ID MATCHES "Clang")
+	if (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "MSVC")
+		# using Clang with clang-cl front end
+		message("Building brainCloud using Clang with clang-cl front end")
+	elseif (CMAKE_CXX_COMPILER_FRONTEND_VARIANT STREQUAL "GNU")
+		# using Clang with regular front end
+		message("Building brainCloud using Clang with regular front end")
+	else ()
+		# using Clang or AppleClang
+		message("Building brainCloud using ${CMAKE_CXX_COMPILER_ID}")
+	endif()
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "GNU")
+	# using GCC
+	message("Building brainCloud using GCC")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "Intel")
+	# using Intel C++
+	message("Building brainCloud using Intel C++")
+elseif (CMAKE_CXX_COMPILER_ID STREQUAL "MSVC")
+	# using Visual Studio C++
+	message("Building brainCloud using Visual Studio C++")
+endif()
+
 add_executable (hellobc ${src_files})
 
 # brainCloud
