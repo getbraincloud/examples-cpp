@@ -55,7 +55,7 @@ if( USE_BC_LIBRARY )
 else()
 	add_subdirectory(../thirdparties/braincloud-cpp ./thirdparties/braincloud-cpp)
 	list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/include/)
-	list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/libs/jsoncpp/src)
+	list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/libs/jsoncpp-1.0.0)
 endif()
 
 list(APPEND libs brainCloud)

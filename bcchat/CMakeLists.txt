@@ -162,7 +162,7 @@ endif()
 # brainCloud
 add_subdirectory(../thirdparties/braincloud-cpp ./thirdparties/braincloud-cpp)
 list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/include/)
-list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/lib/jsoncpp/src/)
+list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/lib/jsoncpp-1.0.0/)
 list(APPEND libs brainCloud)
 
 # ImGui
