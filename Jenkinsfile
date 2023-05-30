@@ -24,8 +24,8 @@ pipeline {
             steps {
             	echo "Mac..."
 				sh '~/bin/setupexamplescpp.sh'
-				sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${params.BC_LIB}'
-				sh 'autobuild/runtests.sh thirdparties/braincloud-cpp ${params.TEST_NAME}'
+				sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
+				sh 'autobuild/runtests.sh thirdparties/braincloud-cpp ${TEST_NAME}'
             }
         }
     }
