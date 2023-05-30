@@ -11,6 +11,6 @@
 				cp ../${1:-thirdparties/braincloud-cpp}/ids.txt .
 
 				# Run tests
-				./tests/bctests --test_output=all --gtest_output=xml:${2:-tests/results.xml} --gtest_filter=*TestBC${3}*
+				./tests/bctests --test_output=all --gtest_output=xml:tests/results.xml --gtest_filter=*TestBC${2}*
 				
 				popd
