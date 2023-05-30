@@ -1,7 +1,7 @@
 [submodule "thirdparties/braincloud-cpp"]
 	path = thirdparties/braincloud-cpp
 	url = https://github.com/getbraincloud/braincloud-cpp.git
-	branch = develop
+	branch = build_interface
 [submodule "thirdparties/SDL"]
 	path = thirdparties/SDL
 	url = https://github.com/libsdl-org/SDL
