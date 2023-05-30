@@ -14,7 +14,7 @@ pipeline {
             	cleanWs()
 				sh 'git submodule update --init --recursive'
 				sh '~/bin/setupexamplescpp.sh'
-				sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
+				//sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
 				sh 'autobuild/runtests.sh thirdparties/braincloud-cpp ${TEST_NAME}'
             }
         }
