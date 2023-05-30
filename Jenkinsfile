@@ -23,7 +23,7 @@ pipeline {
             }
             steps {
             	echo "Mac..."
-				echo params.IDS.serverUrl >ids.txt
+				sh '~/bin/setupexamplescpp.sh'
             }
         }
     }
