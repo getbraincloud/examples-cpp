@@ -16,11 +16,6 @@ pipeline {
 				sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
 				sh 'autobuild/runtests.sh thirdparties/braincloud-cpp tests/results_mac.xml ${TEST_NAME}'
             }
-            post {
-	      		always {
-    	    		junit 'build/tests/results_mac.xml'
-      			}
-  			}	 
         }
         
         stage('Tests on Linux') {
@@ -37,11 +32,6 @@ pipeline {
 				sh 'bash autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
 				sh 'bash autobuild/runtests.sh thirdparties/braincloud-cpp tests/results_linux.xml ${TEST_NAME}'
             }
-            post {
-	      		always {
-    	    		junit 'build/tests/results_linux.xml'
-      			}
-  			}	 
         }
         
 //         stage('Tests on Windows') {
@@ -53,4 +43,10 @@ pipeline {
 //             }
 //         }
     }
+     post {
+	      		always {
+    	    		junit 'build/tests/*.xml'
+      			}
+  			}	 
+
 }
