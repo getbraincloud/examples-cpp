@@ -3,7 +3,7 @@
 				mkdir -p build
 				pushd build
 #				rm -rf *	
-				cmake -GNinja -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug ../${1:-thirdparties/braincloud-cpp}
+				cmake -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug ../${1:-thirdparties/braincloud-cpp}
 
 				# Build
 				cmake --build . --target bctests --config Debug
