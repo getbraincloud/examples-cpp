@@ -23,7 +23,7 @@ pipeline {
             }
             steps {
             	echo "Mac..."
-				echo IDS.serverUrl >ids.txt
+				echo params.IDS.serverUrl >ids.txt
             }
         }
     }
