@@ -16,6 +16,11 @@ pipeline {
 				sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
 				sh 'autobuild/runtests.sh thirdparties/braincloud-cpp ${TEST_NAME}'
             }
+            post {
+	      		always {
+    	    		junit 'build/tests/results.xml'
+      			}
+  			}	 
         }
         
 //         stage('Build on Linux') {
