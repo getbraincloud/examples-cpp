@@ -21,6 +21,9 @@ pipeline {
             agent {
                 label 'clientUnit'
             }
+            environment {
+			    PATH = "/Applications/CMake.app/Contents/bin::${env.PATH}"
+  			}
             steps {
             	echo "Mac..."
 				sh '~/bin/setupexamplescpp.sh'
