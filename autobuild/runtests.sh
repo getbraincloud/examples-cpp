@@ -2,7 +2,7 @@
 				# Generate makefiles
 				mkdir -p build
 				pushd build
-#				rm -rf *	
+				rm -rf *	
 				cmake -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug ../${1:-thirdparties/braincloud-cpp}
 
 				# Build
