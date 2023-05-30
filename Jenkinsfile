@@ -32,10 +32,10 @@ pipeline {
   			}
   			steps { 
             	echo 'Linux...'
-            	bash 'git submodule update --init --recursive'
-				bash '~/bin/setupexamplescpp.sh'
-				bash 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
-				bash 'autobuild/runtests.sh thirdparties/braincloud-cpp ${TEST_NAME}'
+            	sh 'git submodule update --init --recursive'
+				sh '~/bin/setupexamplescpp.sh'
+				sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
+				sh 'autobuild/runtests.sh thirdparties/braincloud-cpp ${TEST_NAME}'
             }
             post {
 	      		always {
