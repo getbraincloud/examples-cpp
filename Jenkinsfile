@@ -44,13 +44,20 @@ pipeline {
   			}	 
         }
         
-//         stage('Tests on Windows') {
-//             agent {
-//                 label 'Windows Build Agent (.34)'
-//             }
-//             steps {
-//             	echo "Windows..."
-//             }
-//         }
+         stage('Tests on Windows') {
+            agent {
+                label 'Windows Build Agent (.34)'
+            }
+            steps {
+            	echo "Windows..."
+            	bat 'git submodule update --init --recursive'
+            	bat 'autobuild\runtests.bat thirdparties\braincloud-cpp %TEST_NAME%'
+            }
+            post {
+	      		always {
+    	    		junit 'build/tests/results.xml'
+      			}
+  			}	 
+        }
     }
 }
