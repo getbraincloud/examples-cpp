@@ -52,7 +52,7 @@ pipeline {
             	echo "Windows..."
             	bat 'git submodule update --init --recursive'
             	bat 'C:\\Users\\buildmaster\\bin\\setupexamplescpp.bat'
-            	bat 'autobuild\\runtests.bat thirdparties\\braincloud-cpp ${TEST_NAME}'
+            	bat 'autobuild\\runtests.bat thirdparties\\braincloud-cpp %TEST_NAME%'
             }
             post {
 	      		always {
