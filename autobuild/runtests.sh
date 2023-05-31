@@ -6,7 +6,7 @@
 				cmake -GNinja -DBUILD_TESTS=ON -DCMAKE_BUILD_TYPE=Debug ../${1:-thirdparties/braincloud-cpp}
 
 				# Build
-				cmake --build . --target bctests --config Debug
+				cmake --build . --target bctests --config Debug -j 8
 
 				cp ../${1:-thirdparties/braincloud-cpp}/ids.txt .
 
