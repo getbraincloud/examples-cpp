@@ -15,7 +15,12 @@ pipeline {
 				sh '~/bin/setupexamplescpp.sh'
 				sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
 				sh 'bash autobuild/runbuild.sh hellobc'
+				sh 'touch artificats/test.log'
             }
+        	post{
+        	    always{
+        	        archiveArtifacts 'artifacts/*.log'
+        	}
         }
         
         stage('HelloBC on Linux') {
