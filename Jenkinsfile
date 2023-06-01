@@ -15,11 +15,12 @@ pipeline {
 				sh '~/bin/setupexamplescpp.sh'
 				sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
 				sh 'bash autobuild/runbuild.sh hellobc'
-				sh 'touch artificats/test.txt'
+				sh 'mkdir -p artifacts'
+				fileZipOperation folderPath: 'hellobc/build/hellobc', outputFolderPath: 'artifacts/theexe.zip'
             }
         	post{
         	    always{
-        	        archiveArtifacts 'artifacts/*.*'
+        	        archiveArtifacts 'artifacts/*.zip'
         		}
         	}
         }
