@@ -5,7 +5,6 @@
 #include <thread>
 #include "braincloud/BrainCloudWrapper.h"
 #include "ids.h"
-#include "lws_config.h"
 
 using namespace BrainCloud;
 using namespace std;
@@ -33,7 +32,7 @@ public:
     void rttConnectFailure(const std::string& errorMessage) override
     {
         status += "---- ERROR: enableRTT: " + errorMessage  + "\n\n";
-        result = 2;
+        result = 3;
     }
 };
 static RTTConnectCallback rttConnectCallback;
@@ -59,16 +58,18 @@ public:
         status += "Login count: ";
         status += data["data"]["loginCount"].asString();
         status += "\n\n";
-        
+
+        result = 0; // end of test
+
         // now try rtt
-        pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
+        //pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
     }
 
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string& jsonError) override
     {
         status += "---- ERROR: authenticateUniversal: " + jsonError + "\n\n";
         
-        result = 1;
+        result = 2;
     }
 };
 
@@ -99,26 +100,6 @@ int main()
     std::string serverUrl = BRAINCLOUD_SERVER_URL;
     std::string secretKey = BRAINCLOUD_APP_SECRET;
     std::string appId = BRAINCLOUD_APP_ID;
-
-    // If ids.h is blank and environment variables are set
-    if (serverUrl.empty()) {
-        char* env = getenv("BC_BRAINCLOUD_SERVER_URL");
-        if (env != NULL) {
-            serverUrl = env;
-        }
-    }
-    if (secretKey.empty()) {
-        char* env = getenv("BC_CLIENTUNIT_APP_SECRET");
-        if (env != NULL) {
-            secretKey = env;
-        }
-    }
-    if (appId.empty()) {
-        char* env = getenv("BC_CLIENTUNIT_APP_ID");
-        if (env != NULL) {
-            appId = env;
-        }
-    }
     
     cout << "---- Welcome to BrainCloud!" << endl;
 
@@ -139,13 +120,7 @@ int main()
         status += "---- Initialized BrainCloud version ";
         status += pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str();
         status += "\n\n";
-        
-        status += "---- Using libwebsocket version ";
-        status += std::to_string(LWS_LIBRARY_VERSION_MAJOR)
-            + "." +std::to_string(LWS_LIBRARY_VERSION_MINOR)
-            + "." + std::to_string(LWS_LIBRARY_VERSION_PATCH);
-        status += "\n\n";
-        
+
         pBCWrapper->getBCClient()->enableLogging(true);
 
     }
@@ -179,7 +154,7 @@ int main()
         std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // short sleep to wrap things up
     }
     else{
-        result = 3;
+        result = 1;
     }
     
     switch(result){
@@ -187,13 +162,13 @@ int main()
             cout << "\n\n---- Successful test run. Good-bye." << endl;
             break;
         case 1:
-            cout << "\n\n---- Run failed in authentication callback." << endl;
+            cout << "\n\n---- Run failed in initialization." << endl;
             break;
         case 2:
-            cout << "\n\n---- Run failed in RTT callback." << endl;
+            cout << "\n\n---- Run failed in authentication callback." << endl;
             break;
         case 3:
-            cout << "\n\n---- Run failed in initialization." << endl;
+            cout << "\n\n---- Run failed in RTT callback." << endl;
             break;
         default:
             cout << "\n\n---- Test ended. Probable timeout." << endl;

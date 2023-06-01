@@ -5,3 +5,7 @@ configs.txt
 imgui.ini
 vcs.xml
 deploymentTargetDropDown.xml
+**/.idea/
+**/cmake-build-*/
+**/artifacts/
+tmp/
