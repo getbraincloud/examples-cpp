@@ -14,12 +14,8 @@ pipeline {
             	//sh 'git submodule update --init --recursive'
 				sh '~/bin/setupexamplescpp.sh'
 				sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
-				sh 'bash autobuild/runbuild.sh hellobc > artifacts/output.log'
+				sh 'bash autobuild/runbuild.sh hellobc'
             }
-        	post{
-        	    always{
-        	        archiveArtifacts 'artifacts/*.log'
-        	}
         }
         
         stage('HelloBC on Linux') {
