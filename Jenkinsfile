@@ -14,12 +14,13 @@ pipeline {
             	//sh 'git submodule update --init --recursive'
 				sh '~/bin/setupexamplescpp.sh'
 				sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
-				sh 'bash autobuild/runbuild.sh hellobc'
-				sh 'touch artificats/test.log'
+				sh 'bash autobuild/runbuild.sh hellobc > hellobc.log'
+				sh 'touch artificats/test.txt'
             }
         	post{
         	    always{
-        	        archiveArtifacts 'artifacts/*.log'
+        	        archiveArtifacts 'artifacts/*.*'
+        		}
         	}
         }
         
@@ -51,6 +52,7 @@ pipeline {
             }
         }
         
+        // end stages
     }
-    //end stages
+    // end pipeline
 }
