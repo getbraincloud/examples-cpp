@@ -18,7 +18,7 @@ pipeline {
             }
         	post{
         	    always{
-        	        archiveArtifacts artifacts: 'artifacts/*.log', fingerprint: true
+        	        archiveArtifacts 'artifacts/*.log'
         	}
         }
         
@@ -34,12 +34,8 @@ pipeline {
             	//sh 'git submodule update --init --recursive'
 				sh 'bash ~/bin/setupexamplescpp.sh'
 				sh 'bash autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
-				sh 'bash autobuild/runbuild.sh hellobc > artifacts/output.log'
+				sh 'bash autobuild/runbuild.sh hellobc'
             }
-        	post{
-        	    always{
-        	        archiveArtifacts artifacts: 'artifacts/*.log', fingerprint: true
-        	} 
         }
         
          stage('HelloBC on Windows') {
@@ -50,12 +46,10 @@ pipeline {
             	echo "Windows..."
             	//bat 'git submodule update --init --recursive'
             	bat 'C:\\Users\\buildmaster\\bin\\setupexamplescpp.bat'
-            	bat 'autobuild\\runbuild.bat hellobc > artifacts\\output.log'
+            	bat 'autobuild\\runbuild.bat hellobc'
             }
-        	post{
-        	    always{
-        	        archiveArtifacts artifacts: 'artifacts/*.log', fingerprint: true
-        	}
         }
+        
     }
+    //end stages
 }
