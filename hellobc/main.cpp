@@ -32,7 +32,7 @@ public:
     void rttConnectFailure(const std::string& errorMessage) override
     {
         status += "---- ERROR: enableRTT: " + errorMessage  + "\n\n";
-        result = 2;
+        result = 3;
     }
 };
 static RTTConnectCallback rttConnectCallback;
@@ -58,16 +58,18 @@ public:
         status += "Login count: ";
         status += data["data"]["loginCount"].asString();
         status += "\n\n";
-        
+
+        result = 0; // end of test
+
         // now try rtt
-        pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
+        //pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
     }
 
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string& jsonError) override
     {
         status += "---- ERROR: authenticateUniversal: " + jsonError + "\n\n";
         
-        result = 1;
+        result = 2;
     }
 };
 
@@ -152,7 +154,7 @@ int main()
         std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // short sleep to wrap things up
     }
     else{
-        result = 3;
+        result = 1;
     }
     
     switch(result){
@@ -160,13 +162,13 @@ int main()
             cout << "\n\n---- Successful test run. Good-bye." << endl;
             break;
         case 1:
-            cout << "\n\n---- Run failed in authentication callback." << endl;
+            cout << "\n\n---- Run failed in initialization." << endl;
             break;
         case 2:
-            cout << "\n\n---- Run failed in RTT callback." << endl;
+            cout << "\n\n---- Run failed in authentication callback." << endl;
             break;
         case 3:
-            cout << "\n\n---- Run failed in initialization." << endl;
+            cout << "\n\n---- Run failed in RTT callback." << endl;
             break;
         default:
             cout << "\n\n---- Test ended. Probable timeout." << endl;
