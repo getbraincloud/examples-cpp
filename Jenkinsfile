@@ -14,7 +14,7 @@ pipeline {
             	//sh 'git submodule update --init --recursive'
 				sh '~/bin/setupexamplescpp.sh'
 				sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
-				sh 'bash autobuild/runbuild.sh hellobc > hellobc.log'
+				sh 'bash autobuild/runbuild.sh hellobc'
 				sh 'touch artificats/test.txt'
             }
         	post{
