@@ -14,10 +14,12 @@ pipeline {
             	//sh 'git submodule update --init --recursive'
 				sh '~/bin/setupexamplescpp.sh'
 				sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
-				sh 'bash autobuild/runbuild.sh hellobc'
+				sh 'bash autobuild/runbuild.sh hellobc > artifacts/output.log'
             }
-            post {
-  			}	 
+        	post{
+        	    always{
+        	        archiveArtifacts artifacts: 'artifacts/*.log', fingerprint: true
+        	}
         }
         
         stage('HelloBC on Linux') {
@@ -32,10 +34,12 @@ pipeline {
             	//sh 'git submodule update --init --recursive'
 				sh 'bash ~/bin/setupexamplescpp.sh'
 				sh 'bash autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
-				sh 'bash autobuild/runbuild.sh hellobc'
+				sh 'bash autobuild/runbuild.sh hellobc > artifacts/output.log'
             }
-            post {
-  			}	 
+        	post{
+        	    always{
+        	        archiveArtifacts artifacts: 'artifacts/*.log', fingerprint: true
+        	} 
         }
         
          stage('HelloBC on Windows') {
@@ -46,10 +50,12 @@ pipeline {
             	echo "Windows..."
             	//bat 'git submodule update --init --recursive'
             	bat 'C:\\Users\\buildmaster\\bin\\setupexamplescpp.bat'
-            	bat 'autobuild\\runbuild.bat hellobc'
+            	bat 'autobuild\\runbuild.bat hellobc > artifacts\\output.log'
             }
-            post {
-  			}	 
+        	post{
+        	    always{
+        	        archiveArtifacts artifacts: 'artifacts/*.log', fingerprint: true
+        	}
         }
     }
 }
