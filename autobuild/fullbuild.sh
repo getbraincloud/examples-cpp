@@ -4,20 +4,7 @@
 # executable:
 # relaytestapp/build/RelayTestApp
 
-# export NINJA_COMMAND=/usr/bin/ninja
-# export NINJA_COMMAND=/Volumes/CLion/CLion.app/Contents/bin/ninja/mac/ninja
-
-NINJA_COMMAND=ninja
-
-pushd ${2}
+pushd ${2:-$1}
 rm -rf build
-mkdir build
-cd build
-if [ "$NINJA_COMMAND" == "" ]; 
-then
-	cmake -DCMAKE_BUILD_TYPE=Debug ..
-else
-	cmake -GNinja -DCMAKE_MAKE_PROGRAM=${NINJA_COMMAND} -DCMAKE_BUILD_TYPE=Debug ..
-fi
-cmake --build . --target ${1} --config Debug
 popd
+./autobuild/incbuild.sh ${1} ${2:-$1}
