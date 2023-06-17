@@ -2,7 +2,7 @@ pipeline {
     agent none
     triggers {
         cron('H 1 * * 1-5') // nightly around 1 am
-        pollSCM('H/5 * * * *') // check git every five minutes
+        // pollSCM('H/5 * * * *') // check git every five minutes
     }
     parameters {
         string(name: 'BC_LIB', defaultValue: '', description: 'braincloud-cpp branch (blank for .gitmodules)')
@@ -54,12 +54,12 @@ pipeline {
             }
             post {
                 success {
-                    fileOperations([folderCreateOperation('rta-macos')])
-                    fileOperations([fileCreateOperation(fileContent: '''Run \'Relay Test App\' on Mac OS.\nFirst, quarantine to allow permission:\nsudo xattr -r -d com.apple.quarantine relaytestapp\n''', fileName: 'rta-macos/README.md')])
-                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'relaytestapp/build/RelayTestApp', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'rta-macos', targetNameExpression: '')])
-                    fileOperations([fileZipOperation(folderPath: 'rta-macos', outputFolderPath: '')])
-                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'rta-macos.zip', renameFiles: false, sourceCaptureExpression: '', targetLocation: '~/Library/CloudStorage/GoogleDrive-joanneh@bitheads.com/Shared drives/brainCloud Team/Client/Builds', targetNameExpression: '')])
-                    archiveArtifacts allowEmptyArchive: true, artifacts: 'rta-macos.zip', followSymlinks: false, onlyIfSuccessful: true
+                    fileOperations([folderCreateOperation('artifacts/rta-macos')])
+                    fileOperations([fileCreateOperation(fileContent: '''Run \'Relay Test App\' on Mac OS.\nFirst, quarantine to allow permission:\nsudo xattr -r -d com.apple.quarantine relaytestapp\n''', fileName: 'artifacts/rta-macos/README.md')])
+                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'relaytestapp/build/RelayTestApp', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'artifacts/rta-macos', targetNameExpression: '')])
+                    fileOperations([fileZipOperation(folderPath: 'artifacts/rta-macos', outputFolderPath: 'artifacts')])
+                    //fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'artifacts/rta-macos.zip', renameFiles: false, sourceCaptureExpression: '', targetLocation: '~/Library/CloudStorage/GoogleDrive-joanneh@bitheads.com/Shared drives/brainCloud Team/Client/Builds', targetNameExpression: '')])
+                    archiveArtifacts allowEmptyArchive: true, artifacts: 'artifacts/rta-macos.zip', followSymlinks: false, onlyIfSuccessful: true
                 }
             }
         }
@@ -70,7 +70,7 @@ pipeline {
             }
             environment {
 			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
-                // this needs to be set for gradle and tools
+                // ANDROID_HOME needs to be set for gradle and tools
 			    ANDROID_HOME="/Users/buildmaster/Library/Android/sdk"
                 // JAVA_HOME needs to set if JVM hasn't been downloaded to Android Studio
                 // JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home/"
@@ -82,15 +82,16 @@ pipeline {
             }
             post {
                 success {
-                    fileOperations([folderCreateOperation('android-cpp')])
-                    fileOperations([fileCreateOperation(fileContent: 'Install this on a device or emulator.', fileName: 'android-cpp/README.md')])
-                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'android/app/build/outputs/apk/debug', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'android-cpp', targetNameExpression: '')])
-                    fileOperations([fileZipOperation(folderPath: 'android-cpp', outputFolderPath: '')])
-                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'android-cpp.zip', renameFiles: false, sourceCaptureExpression: '', targetLocation: '~/Library/CloudStorage/GoogleDrive-joanneh@bitheads.com/Shared drives/brainCloud Team/Client/Builds', targetNameExpression: '')])
-                    archiveArtifacts allowEmptyArchive: true, artifacts: 'android-cpp.zip', followSymlinks: false, onlyIfSuccessful: true
+                    fileOperations([folderCreateOperation('artifacts/android-cpp')])
+                    fileOperations([fileCreateOperation(fileContent: 'Install this on a device or emulator.', fileName: 'artifacts/android-cpp/README.md')])
+                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'android/app/build/outputs/apk/debug/*', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'artifacts/android-cpp', targetNameExpression: '')])
+                    fileOperations([fileZipOperation(folderPath: 'artifacts/android-cpp', outputFolderPath: 'artifacts')])
+                    //fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'artifacts/android-cpp.zip', renameFiles: false, sourceCaptureExpression: '', targetLocation: '~/Library/CloudStorage/GoogleDrive-joanneh@bitheads.com/Shared drives/brainCloud Team/Client/Builds', targetNameExpression: '')])
+                    archiveArtifacts allowEmptyArchive: true, artifacts: 'artifacts/android-cpp.zip', followSymlinks: false, onlyIfSuccessful: true
                 }
             }            
         }
+        
         stage('Build Unit Tests') {
             agent {
                 label 'clientUnit'
@@ -105,13 +106,13 @@ pipeline {
             }
             post {
                 success {
-                    fileOperations([folderCreateOperation('bctests-macos')])
-                    fileOperations([fileCreateOperation(fileContent: '''Run \'BC Tests\' on Mac OS.\nFirst, quarantine to allow permission:\nsudo xattr -r -d com.apple.quarantine relaytestapp\nThen, make sure to fill in ids.txt with your appId and secret key.''', fileName: 'bctests-macos/README.md')])
-                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'thirdparties/braincloud-cpp/build/tests/bctests', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'bctests-macos', targetNameExpression: '')])
-                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'thirdparties/braincloud-cpp/autobuild/ids-empty.txt', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'bctests-macos', targetNameExpression: '')])
-                    fileOperations([fileZipOperation(folderPath: 'bctests-macos', outputFolderPath: '')])
-                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'bctests-macos.zip', renameFiles: false, sourceCaptureExpression: '', targetLocation: '~/Library/CloudStorage/GoogleDrive-joanneh@bitheads.com/Shared drives/brainCloud Team/Client/Builds', targetNameExpression: '')])
-                    archiveArtifacts allowEmptyArchive: true, artifacts: 'bctests-macos.zip', followSymlinks: false, onlyIfSuccessful: true
+                    fileOperations([folderCreateOperation('artifacts/bctests-macos')])
+                    fileOperations([fileCreateOperation(fileContent: '''Run \'BC Tests\' on Mac OS.\nFirst, quarantine to allow permission:\nsudo xattr -r -d com.apple.quarantine bctests\nMake sure the product is executable:\nchmod a+x\nFill in ids.txt with your appId and secret key.\n\nUsage: ./bctests --test_output=all --gtest_output=xml:results.xml --gtest_filter=*TestBCAuth*\n''', fileName: 'artifacts/bctests-macos/README.md')])
+                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'thirdparties/braincloud-cpp/build/tests/bctests', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'artifacts/bctests-macos', targetNameExpression: '')])
+                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'thirdparties/braincloud-cpp/autobuild/ids-empty.txt', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'artifacts/bctests-macos', targetNameExpression: '')])
+                    fileOperations([fileZipOperation(folderPath: 'artifacts/bctests-macos', outputFolderPath: 'artifacts')])
+                    //fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'artifacts/bctests-macos.zip', renameFiles: false, sourceCaptureExpression: '', targetLocation: '~/Library/CloudStorage/GoogleDrive-joanneh@bitheads.com/Shared drives/brainCloud Team/Client/Builds', targetNameExpression: '')])
+                    archiveArtifacts allowEmptyArchive: true, artifacts: 'artifacts/bctests-macos.zip', followSymlinks: false, onlyIfSuccessful: true
                 }
             }
         }
