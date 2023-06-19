@@ -22,9 +22,9 @@ pipeline {
                 //}
                 checkout([$class: 'GitSCM', branches: [[name: '*/${BRANCH_NAME}']], extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], userRemoteConfigs: [[url: 'https://github.com/getbraincloud/examples-cpp.git']]])				
                 sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
-                sh '~/bin/setupexamplescpp.sh'
-                sh 'cp ~/bin/test_ids_internal.txt thirdparties/braincloud-cpp/autobuild/ids.txt'
-                sh 'cp ~/bin/test_ids_blank.txt thirdparties/braincloud-cpp/autobuild/ids-empty.txt'
+                sh '~/braincloud-bin/setupexamplescpp.sh'
+                sh 'cp ~/braincloud-bin/test_ids_internal.txt thirdparties/braincloud-cpp/autobuild/ids.txt'
+                sh 'cp ~/braincloud-bin/test_ids_blank.txt thirdparties/braincloud-cpp/autobuild/ids-empty.txt'
             }
         }
 
@@ -33,10 +33,10 @@ pipeline {
                 label 'clientUnit'
             }
             environment {
-			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
+			    PATH = "/Applications/CMake.app/Contents/braincloud-bin:/usr/local/braincloud-bin:${env.PATH}"
   			}
             steps {
-                sh '~/bin/setupexamplescpp.sh'
+                sh '~/braincloud-bin/setupexamplescpp.sh'
 				sh 'bash autobuild/incbuild.sh hellobc'
 				sh 'hellobc/build/hellobc'
             }
@@ -47,7 +47,7 @@ pipeline {
                 label 'clientUnit'
             }
             environment {
-			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
+			    PATH = "/Applications/CMake.app/Contents/braincloud-bin:/usr/local/braincloud-bin:${env.PATH}"
   			}
             steps {
 				sh 'bash autobuild/incbuild.sh RelayTestApp relaytestapp'
@@ -69,7 +69,7 @@ pipeline {
                 label 'clientUnit'
             }
             environment {
-			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
+			    PATH = "/Applications/CMake.app/Contents/braincloud-bin:/usr/local/braincloud-bin:${env.PATH}"
                 // ANDROID_HOME needs to be set for gradle and tools
 			    ANDROID_HOME="/Users/buildmaster/Library/Android/sdk"
                 // JAVA_HOME needs to set if JVM hasn't been downloaded to Android Studio
@@ -97,7 +97,7 @@ pipeline {
                 label 'clientUnit'
             }
             environment {
-			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
+			    PATH = "/Applications/CMake.app/Contents/braincloud-bin:/usr/local/braincloud-bin:${env.PATH}"
   			}
             steps {
                 dir('thirdparties/braincloud-cpp') {
@@ -123,7 +123,7 @@ pipeline {
                 label 'clientUnit'
             }
             environment {
-			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
+			    PATH = "/Applications/CMake.app/Contents/braincloud-bin:/usr/local/braincloud-bin:${env.PATH}"
   			}
             steps {
                 dir('thirdparties/braincloud-cpp') {
@@ -142,11 +142,11 @@ pipeline {
                 label 'clientUnit'
             }
             environment {
-			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
+			    PATH = "/Applications/CMake.app/Contents/braincloud-bin:/usr/local/braincloud-bin:${env.PATH}"
   			}
             steps {
                 dir('thirdparties/braincloud-cpp') {
-                    sh '~/bin/gemprepare.sh'
+                    sh '~/braincloud-bin/gemprepare.sh'
                     sh 'export LANG=en_US.UTF-8'
                     sh 'pod cache clean --all'
                     sh 'pod lib lint --use-libraries --allow-warnings --verbose'
