@@ -33,7 +33,7 @@ pipeline {
                 label 'clientUnit'
             }
             environment {
-			    PATH = "/Applications/CMake.app/Contents/braincloud-bin:/usr/local/braincloud-bin:${env.PATH}"
+			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
   			}
             steps {
                 sh '~/braincloud-bin/setupexamplescpp.sh'
@@ -47,7 +47,7 @@ pipeline {
                 label 'clientUnit'
             }
             environment {
-			    PATH = "/Applications/CMake.app/Contents/braincloud-bin:/usr/local/braincloud-bin:${env.PATH}"
+			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
   			}
             steps {
 				sh 'bash autobuild/incbuild.sh RelayTestApp relaytestapp'
@@ -69,7 +69,7 @@ pipeline {
                 label 'clientUnit'
             }
             environment {
-			    PATH = "/Applications/CMake.app/Contents/braincloud-bin:/usr/local/braincloud-bin:${env.PATH}"
+			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
                 // ANDROID_HOME needs to be set for gradle and tools
 			    ANDROID_HOME="/Users/buildmaster/Library/Android/sdk"
                 // JAVA_HOME needs to set if JVM hasn't been downloaded to Android Studio
@@ -97,7 +97,7 @@ pipeline {
                 label 'clientUnit'
             }
             environment {
-			    PATH = "/Applications/CMake.app/Contents/braincloud-bin:/usr/local/braincloud-bin:${env.PATH}"
+			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
   			}
             steps {
                 dir('thirdparties/braincloud-cpp') {
@@ -123,7 +123,7 @@ pipeline {
                 label 'clientUnit'
             }
             environment {
-			    PATH = "/Applications/CMake.app/Contents/braincloud-bin:/usr/local/braincloud-bin:${env.PATH}"
+			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
   			}
             steps {
                 dir('thirdparties/braincloud-cpp') {
@@ -142,7 +142,7 @@ pipeline {
                 label 'clientUnit'
             }
             environment {
-			    PATH = "/Applications/CMake.app/Contents/braincloud-bin:/usr/local/braincloud-bin:${env.PATH}"
+			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
   			}
             steps {
                 dir('thirdparties/braincloud-cpp') {
