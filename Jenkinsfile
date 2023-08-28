@@ -8,6 +8,7 @@ pipeline {
         string(name: 'BC_LIB', defaultValue: '', description: 'braincloud-cpp branch (blank for .gitmodules)')
         string(name: 'BRANCH_NAME', defaultValue: 'develop', description: 'examples-cpp branch')
         booleanParam(name: 'CLEAN_BUILD', defaultValue: true, description: 'clean pull and build')
+       choice(name: 'SERVER_ENV', choices: ['internal', 'prod', 'talespin'], description: 'Where to run tests?') 
     }
     stages {
 
@@ -22,9 +23,9 @@ pipeline {
                 //}
                 checkout([$class: 'GitSCM', branches: [[name: '*/${BRANCH_NAME}']], extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], userRemoteConfigs: [[url: 'https://github.com/getbraincloud/examples-cpp.git']]])				
                 sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
-                sh '~/braincloud-bin/setupexamplescpp.sh'
-                sh 'cp ~/braincloud-bin/test_ids_internal.txt thirdparties/braincloud-cpp/autobuild/ids.txt'
-                sh 'cp ~/braincloud-bin/test_ids_blank.txt thirdparties/braincloud-cpp/autobuild/ids-empty.txt'
+                sh '~/braincloud-client-master/data/setupexamplescpp.sh'
+                sh 'cp ~/braincloud-client-master/data/test_ids_${SERVER_ENV}.txt thirdparties/braincloud-cpp/autobuild/ids.txt'
+                sh 'cp ~/braincloud-client-master/data/test_ids_blank.txt thirdparties/braincloud-cpp/autobuild/ids-empty.txt'
             }
         }
 
@@ -36,7 +37,7 @@ pipeline {
 			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
   			}
             steps {
-                sh '~/braincloud-bin/setupexamplescpp.sh'
+                sh '~/braincloud-client-master/data/setupexamplescpp.sh'
 				sh 'bash autobuild/incbuild.sh hellobc'
 				sh 'hellobc/build/hellobc'
             }
@@ -55,8 +56,9 @@ pipeline {
             post {
                 success {
                     fileOperations([folderCreateOperation('artifacts/rta-macos')])
-                    fileOperations([fileCreateOperation(fileContent: '''Run \'Relay Test App\' on Mac OS.\nFirst, quarantine to allow permission:\nsudo xattr -r -d com.apple.quarantine relaytestapp\n''', fileName: 'artifacts/rta-macos/README.md')])
-                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'relaytestapp/build/RelayTestApp', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'artifacts/rta-macos', targetNameExpression: '')])
+                    //fileOperations([fileCreateOperation(fileContent: '''Run \'Relay Test App\' on Mac OS.\nFirst, quarantine to allow permission:\nsudo xattr -r -d com.apple.quarantine relaytestapp\n''', fileName: 'artifacts/rta-macos/README.md')])
+                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: '~/braincloud-client-master/bin/quarantine.command', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'artifacts/rta-macos', targetNameExpression: '')])
+                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'relaytestapp/build/RelayTestApp', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'artifacts/rta-macos', targetNameExpression: '')])                    
                     fileOperations([fileZipOperation(folderPath: 'artifacts/rta-macos', outputFolderPath: 'artifacts')])
                     //fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'artifacts/rta-macos.zip', renameFiles: false, sourceCaptureExpression: '', targetLocation: '~/Library/CloudStorage/GoogleDrive-joanneh@bitheads.com/Shared drives/brainCloud Team/Client/Builds', targetNameExpression: '')])
                     archiveArtifacts allowEmptyArchive: true, artifacts: 'artifacts/rta-macos.zip', followSymlinks: false, onlyIfSuccessful: true
@@ -107,7 +109,8 @@ pipeline {
             post {
                 success {
                     fileOperations([folderCreateOperation('artifacts/bctests-macos')])
-                    fileOperations([fileCreateOperation(fileContent: '''Run \'BC Tests\' on Mac OS.\nFirst, quarantine to allow permission:\nsudo xattr -r -d com.apple.quarantine bctests\nMake sure the product is executable:\nchmod a+x\nFill in ids.txt with your appId and secret key.\n\nUsage: ./bctests --test_output=all --gtest_output=xml:results.xml --gtest_filter=*TestBCAuth*\n''', fileName: 'artifacts/bctests-macos/README.md')])
+                    fileOperations([fileCreateOperation(fileContent: '''Run \'BC Tests\' on Mac OS.\nFirst, quarantine to allow permission:\nsudo xattr -r -d com.apple.quarantine bctests\nMake sure the product is executable:\nchmod a+x\nFill in ids.txt with your appIds and secret keys.\n\nUsage: ./bctests --test_output=all --gtest_output=xml:results.xml --gtest_filter=*TestBCAuth*\n''', fileName: 'artifacts/bctests-macos/README.md')])
+                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: '~/braincloud-client-master/bin/quarantine.command', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'artifacts/rta-macos', targetNameExpression: '')])
                     fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'thirdparties/braincloud-cpp/build/tests/bctests', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'artifacts/bctests-macos', targetNameExpression: '')])
                     fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'thirdparties/braincloud-cpp/autobuild/ids-empty.txt', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'artifacts/bctests-macos', targetNameExpression: '')])
                     fileOperations([fileZipOperation(folderPath: 'artifacts/bctests-macos', outputFolderPath: 'artifacts')])
@@ -146,7 +149,7 @@ pipeline {
   			}
             steps {
                 dir('thirdparties/braincloud-cpp') {
-                    sh '~/braincloud-bin/gemprepare.sh'
+                    sh '~/braincloud-client-master/data/gemprepare.sh'
                     sh 'export LANG=en_US.UTF-8'
                     sh 'pod cache clean --all'
                     sh 'pod lib lint --use-libraries --allow-warnings --verbose'
