@@ -22,7 +22,7 @@ else
   SERVER_ENVIRONMENT=$1
 fi
 
-cd "`dirname "$0"`"
+cd "`dirname "$0"`"/..
 
 export WORKSPACE=$PWD
 
