@@ -23,6 +23,8 @@ else()
     cmake_minimum_required(VERSION 3.0.0)
 endif()
 
+enable_language(OBJC)
+
 # Project
 project(RelayTestApp)
 
