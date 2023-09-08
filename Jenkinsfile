@@ -53,7 +53,7 @@ pipeline {
             }
             steps {
                 deleteDir()
-                checkout([$class: 'GitSCM', branches: [[name: '*/${BC_LIB}']], extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], userRemoteConfigs: [[url: 'https://github.com/getbraincloud/braincloud-cpp.git']]])
+                checkout([$class: 'GitSCM', branches: [[name: '*/${BRANCH_NAME}']], extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], userRemoteConfigs: [[url: 'https://github.com/getbraincloud/braincloud-cpp.git']]])
             	bat "copy /Y C:\\Users\\buildmaster\\braincloud-client-master\\data\\clientapp_ids_internal.h hellobc\\ids.h"
             	bat 'autobuild\\fullbuild.bat hellobc hellobc'
             	bat 'hellobc\\build\\debug\\hellobc.exe'
