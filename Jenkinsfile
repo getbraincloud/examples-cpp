@@ -26,14 +26,12 @@ pipeline {
                 //}
                 checkout([$class: 'GitSCM', branches: [[name: '*/${BRANCH_NAME}']], extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], userRemoteConfigs: [[url: 'https://github.com/getbraincloud/examples-cpp.git']]])				
                 sh '${BRAINCLOUD_TOOLS}/bin/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
-                sh '''
-                    ${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o android/app/src/main/cpp -p clientapp -x h -s ${SERVER_ENV}
-                    ${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o bcchat/src -p bcchat -x h -s ${SERVER_ENV}
-                    ${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o hellobc -p clientapp -x h -s ${SERVER_ENV}
-                    ${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o relaytestapp/src -p relaytestapp -x h -s ${SERVER_ENV}
-                    ${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o thirdparties/braincloud-cpp/autobuild -p test -x txt -s ${SERVER_ENV}
-                    '''
-                sh 'cp $BRAINCLOUD_TOOLS/data/test_ids_${SERVER_ENV}.txt thirdparties/braincloud-cpp/autobuild/ids.txt'
+                sh "${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o android/app/src/main/cpp -p clientapp -x h -s ${params.SERVER_ENV}"
+                sh "${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o bcchat/src -p bcchat -x h -s ${params.SERVER_ENV}"
+                sh "${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o hellobc -p clientapp -x h -s ${params.SERVER_ENV}"
+                sh "${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o relaytestapp/src -p relaytestapp -x h -s ${params.SERVER_ENV}"
+                sh "${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o thirdparties/braincloud-cpp/autobuild -p test -x txt -s ${params.SERVER_ENV}"
+                sh "cp $BRAINCLOUD_TOOLS/data/test_ids_${params.SERVER_ENV}.txt thirdparties/braincloud-cpp/autobuild/ids.txt"
                 sh 'cp $BRAINCLOUD_TOOLS/data/test_ids_blank.txt thirdparties/braincloud-cpp/autobuild/ids-empty.txt'
             }
         }
