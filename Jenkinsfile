@@ -11,7 +11,7 @@ pipeline {
     }
     stages {
 
-        stage('HelloBC exe MAC') {
+        stage('HelloBC exe macOS') {
             agent {
                 label 'clientUnit'
             }
@@ -20,6 +20,7 @@ pipeline {
    			    BRAINCLOUD_TOOLS="/Users/buildmaster/braincloud-client-master"
   			}
             steps {
+                deleteDir()
                 checkout([$class: 'GitSCM', branches: [[name: '*/${BRANCH_NAME}']], extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], userRemoteConfigs: [[url: 'https://github.com/getbraincloud/examples-cpp.git']]])
                 sh '${BRAINCLOUD_TOOLS}/bin/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
                 sh "${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o hellobc -p clientapp -x h -s ${params.SERVER_ENV}"
@@ -37,11 +38,25 @@ pipeline {
    			    BRAINCLOUD_TOOLS="/home/buildmaster/braincloud-client-master"
   			}
             steps {
+                deleteDir()
                 checkout([$class: 'GitSCM', branches: [[name: '*/${BRANCH_NAME}']], extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], userRemoteConfigs: [[url: 'https://github.com/getbraincloud/examples-cpp.git']]])
                 sh '${BRAINCLOUD_TOOLS}/bin/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
                 sh "${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o hellobc -p clientapp -x h -s ${params.SERVER_ENV}"
 				sh 'autobuild/incbuild.sh hellobc'
 				sh 'hellobc/build/hellobc'
+            }
+        }
+
+        stage('HelloBC exe on Windows') {
+            agent {
+                label 'Windows Build Agent (.34)'
+            }
+            steps {
+                deleteDir()
+                checkout([$class: 'GitSCM', branches: [[name: '*/${BC_LIB}']], extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], userRemoteConfigs: [[url: 'https://github.com/getbraincloud/braincloud-cpp.git']]])
+            	bat "copy /Y C:\\Users\\buildmaster\\braincloud-client-master\\data\\clientapp_ids_internal.h hellobc\\ids.h"
+            	bat 'autobuild\\fullbuild.bat hellobc hellobc'
+            	bat 'hellobc\\build\\hellobc.exe'
             }
         }
 
