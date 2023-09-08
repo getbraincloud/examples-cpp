@@ -8,7 +8,7 @@ pipeline {
         string(name: 'BC_LIB', defaultValue: '', description: 'braincloud-cpp branch (blank for .gitmodules)')
         string(name: 'BRANCH_NAME', defaultValue: 'develop', description: 'examples-cpp branch')
         booleanParam(name: 'CLEAN_BUILD', defaultValue: true, description: 'clean pull and build')
-       choice(name: 'SERVER_ENV', choices: ['internal', 'prod', 'talespin'], description: 'Where to run tests?') 
+        choice(name: 'SERVER_ENV', choices: ['internal', 'prod', 'talespin'], description: 'Where to run tests?')
     }
     stages {
 
@@ -16,16 +16,25 @@ pipeline {
             agent {
                 label 'clientUnit'
             }
-            steps {
+            environment {
+			    BRAINCLOUD_TOOLS="/Users/buildmaster/braincloud-client-master"
+  			}
+  			steps {
                 echo "---- braincloud Code Pull ${BRANCH_NAME} ${BC_LIB}"
                 //if (${CLEAN_BUILD}) {
                     deleteDir()
                 //}
                 checkout([$class: 'GitSCM', branches: [[name: '*/${BRANCH_NAME}']], extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], userRemoteConfigs: [[url: 'https://github.com/getbraincloud/examples-cpp.git']]])				
-                sh 'autobuild/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
-                sh '~/braincloud-client-master/data/setupexamplescpp.sh'
-                sh 'cp ~/braincloud-client-master/data/test_ids_${SERVER_ENV}.txt thirdparties/braincloud-cpp/autobuild/ids.txt'
-                sh 'cp ~/braincloud-client-master/data/test_ids_blank.txt thirdparties/braincloud-cpp/autobuild/ids-empty.txt'
+                sh '${BRAINCLOUD_TOOLS}/bin/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
+                sh '''
+                    ${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o android/app/src/main/cpp -p clientapp -x h -s ${SERVER_ENV}
+                    ${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o bcchat/src -p bcchat -x h -s ${SERVER_ENV}
+                    ${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o hellobc -p clientapp -x h -s ${SERVER_ENV}
+                    ${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o relaytestapp/src -p relaytestapp -x h -s ${SERVER_ENV}
+                    ${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o thirdparties/braincloud-cpp/autobuild -p test -x txt -s ${SERVER_ENV}
+                    '''
+                sh 'cp $BRAINCLOUD_TOOLS/data/test_ids_${SERVER_ENV}.txt thirdparties/braincloud-cpp/autobuild/ids.txt'
+                sh 'cp $BRAINCLOUD_TOOLS/data/test_ids_blank.txt thirdparties/braincloud-cpp/autobuild/ids-empty.txt'
             }
         }
 
@@ -37,7 +46,6 @@ pipeline {
 			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
   			}
             steps {
-                sh '~/braincloud-client-master/data/setupexamplescpp.sh'
 				sh 'bash autobuild/incbuild.sh hellobc'
 				sh 'hellobc/build/hellobc'
             }
@@ -57,7 +65,7 @@ pipeline {
                 success {
                     fileOperations([folderCreateOperation('artifacts/rta-macos')])
                     //fileOperations([fileCreateOperation(fileContent: '''Run \'Relay Test App\' on Mac OS.\nFirst, quarantine to allow permission:\nsudo xattr -r -d com.apple.quarantine relaytestapp\n''', fileName: 'artifacts/rta-macos/README.md')])
-                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: '~/braincloud-client-master/bin/quarantine.command', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'artifacts/rta-macos', targetNameExpression: '')])
+                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: '${BRAINCLOUD_TOOLS}/bin/quarantine.command', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'artifacts/rta-macos', targetNameExpression: '')])
                     fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'relaytestapp/build/RelayTestApp', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'artifacts/rta-macos', targetNameExpression: '')])                    
                     fileOperations([fileZipOperation(folderPath: 'artifacts/rta-macos', outputFolderPath: 'artifacts')])
                     //fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'artifacts/rta-macos.zip', renameFiles: false, sourceCaptureExpression: '', targetLocation: '~/Library/CloudStorage/GoogleDrive-joanneh@bitheads.com/Shared drives/brainCloud Team/Client/Builds', targetNameExpression: '')])
