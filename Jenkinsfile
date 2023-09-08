@@ -24,7 +24,7 @@ pipeline {
                 //if (${CLEAN_BUILD}) {
                     deleteDir()
                 //}
-                checkout([$class: 'GitSCM', branches: [[name: '*/${BRANCH_NAME}']], extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], userRemoteConfigs: [[url: 'https://github.com/getbraincloud/examples-cpp.git']]])				
+                checkout([$class: 'GitSCM', branches: [[name: '*/${BRANCH_NAME}']], extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], userRemoteConfigs: [[url: 'https://github.com/getbraincloud/examples-cpp.git']]])
                 sh '${BRAINCLOUD_TOOLS}/bin/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
             }
         }
@@ -35,6 +35,7 @@ pipeline {
             }
             environment {
 			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
+   			    BRAINCLOUD_TOOLS="/Users/buildmaster/braincloud-client-master"
   			}
             steps {
                 sh "${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o hellobc -p clientapp -x h -s ${params.SERVER_ENV}"
@@ -49,7 +50,8 @@ pipeline {
             }
             environment {
 			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
-  			}
+			    BRAINCLOUD_TOOLS="/Users/buildmaster/braincloud-client-master"
+			}
             steps {
                 sh "${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o relaytestapp/src -p relaytestapp -x h -s ${params.SERVER_ENV}"
 				sh 'bash autobuild/incbuild.sh RelayTestApp relaytestapp'
@@ -77,6 +79,7 @@ pipeline {
 			    ANDROID_HOME="/Users/buildmaster/Library/Android/sdk"
                 // JAVA_HOME needs to set if JVM hasn't been downloaded to Android Studio
                 // JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home/"
+			    BRAINCLOUD_TOOLS="/Users/buildmaster/braincloud-client-master"
   			}
             steps {
                 sh "${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o android/app/src/main/cpp -p clientapp -x h -s ${params.SERVER_ENV}"
@@ -102,6 +105,7 @@ pipeline {
             }
             environment {
 			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
+			    BRAINCLOUD_TOOLS="/Users/buildmaster/braincloud-client-master"
   			}
             steps {
                 sh "cp $BRAINCLOUD_TOOLS/data/test_ids_${params.SERVER_ENV}.txt thirdparties/braincloud-cpp/autobuild/ids.txt"
@@ -131,6 +135,7 @@ pipeline {
             }
             environment {
 			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
+			    BRAINCLOUD_TOOLS="/Users/buildmaster/braincloud-client-master"
   			}
             steps {
                 dir('thirdparties/braincloud-cpp') {
@@ -150,10 +155,11 @@ pipeline {
             }
             environment {
 			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
+			    BRAINCLOUD_TOOLS="/Users/buildmaster/braincloud-client-master"
   			}
             steps {
                 dir('thirdparties/braincloud-cpp') {
-                    sh '~/braincloud-client-master/data/gemprepare.sh'
+                    sh '${BRAINCLOUD_TOOLS}/data/gemprepare.sh'
                     sh 'export LANG=en_US.UTF-8'
                     sh 'pod cache clean --all'
                     sh 'pod lib lint --use-libraries --allow-warnings --verbose'
