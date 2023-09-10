@@ -18,5 +18,7 @@
 // Author: David St-Louis
 //-----------------------------------------------------------------------------
 
+#include "braincloud/BrainCloudWrapper.h"
+
 // Draws menu bar GUI and update its logic
 void menuBar_update();

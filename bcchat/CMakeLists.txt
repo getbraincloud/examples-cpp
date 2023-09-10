@@ -31,6 +31,9 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY XCODE_STARTUP_PROJEC
 # Enable C++11 features
 set(CMAKE_CXX_STANDARD 11)
 
+# enable objc for SDL
+enable_language(OBJC)
+
 # Some Win32 definitions to avoid common issues
 if (WIN32)
     add_definitions(-DNOMINMAX)
@@ -41,6 +44,10 @@ if (UWP)
         -DBCCHAT_UWP
         -DIMGUI_DISABLE_WIN32_DEFAULT_CLIPBOARD_FUNCTIONS
         -DIMGUI_DISABLE_WIN32_DEFAULT_IME_FUNCTIONS)
+endif()
+# for MacOS glInteger warnings, however this adds multiple definition warning in imgui
+if (APPLE)
+    add_definitions(-DGL_SILENCE_DEPRECATION)
 endif()
 
 # Application source files
@@ -97,17 +104,10 @@ else()
 endif()
 
 # Third parties source files
-list(APPEND thirdparty_src_files
-    src/imgui/imconfig.h
-    src/imgui/imgui_demo.cpp
-    src/imgui/imgui_draw.cpp
-    src/imgui/imgui_internal.h
-    src/imgui/imgui.cpp
-    src/imgui/imgui.h
-    src/imgui/stb_rect_pack.h
-    src/imgui/stb_textedit.h
-    src/imgui/stb_truetype.h
-)
+file(GLOB thirdparty_src_files
+        ../thirdparties/imgui/*.cpp
+        ../thirdparties/imgui/*.h
+        )
 
 if (UWP)
     list(APPEND thirdparty_src_files
@@ -116,10 +116,10 @@ if (UWP)
     )
 else()
     list(APPEND thirdparty_src_files
-        src/imgui/imgui_impl_opengl2.cpp
-        src/imgui/imgui_impl_opengl2.h
-        src/imgui/imgui_impl_sdl.cpp
-        src/imgui/imgui_impl_sdl.h
+                ../thirdparties/imgui/backends/imgui_impl_opengl2.cpp
+                ../thirdparties/imgui/backends/imgui_impl_opengl2.h
+                ../thirdparties/imgui/backends/imgui_impl_sdl3.cpp
+                ../thirdparties/imgui/backends/imgui_impl_sdl3.h
     )
 endif()
 
@@ -146,9 +146,9 @@ list(APPEND includes PUBLIC ./src/)
 if (NOT UWP)
     set(HAVE_LIBC OFF)
     set(SDL_MAIN_HANDLED ON)
-    add_subdirectory(../thirdparties/SDL ./thirdparties/SDL2)
-    list(APPEND libs SDL2-static)
-    list(APPEND includes PUBLIC ../thirdparties/SDL2/include/)
+    add_subdirectory(../thirdparties/SDL ./thirdparties/SDL)
+    list(APPEND libs SDL3-shared)
+    list(APPEND includes PUBLIC ../thirdparties/SDL/include/)
 endif()
 
 # OpenGL
@@ -166,7 +166,8 @@ list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/lib/jsoncpp-1.0.0/)
 list(APPEND libs brainCloud)
 
 # ImGui
-list(APPEND includes PUBLIC ./src/imgui/)
+list(APPEND includes PUBLIC ../thirdparties/imgui/)
+list(APPEND includes PUBLIC ../thirdparties/imgui/backends)
 
 # Setup includes and linked libraries
 target_include_directories(BCChat ${includes})
