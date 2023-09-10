@@ -13,6 +13,3 @@
 [submodule "thirdparties/imgui"]
 	path = thirdparties/imgui
 	url = https://github.com/ocornut/imgui.git
-[submodule "thirdparties/SDL2"]
-	path = thirdparties/SDL2
-	url = https://github.com/SDL-mirror/SDL.git
