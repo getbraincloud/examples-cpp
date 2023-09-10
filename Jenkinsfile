@@ -51,6 +51,9 @@ pipeline {
             agent {
                  label 'windows'
             }
+            environment {
+                BRAINCLOUD_TOOLS="C:\\Users\\buildmaster\\braincloud-client-master"
+            }
             steps {
                 deleteDir()
                 checkout([$class: 'GitSCM', branches: [[name: '*/${BRANCH_NAME}']], extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], userRemoteConfigs: [[url: 'https://github.com/getbraincloud/examples-cpp.git']]])
