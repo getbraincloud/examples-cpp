@@ -6,7 +6,7 @@ then
   export BRAINCLOUD_TOOLS=~/braincloud-client-master
 fi
 
-if ! [ -d "${BRAINCLOUD_TOOLS}" ];
+if ! [ -d "${BRAINCLOUD_TOOLS}/bin" ];
 then
     echo "Error: Can't find brainCloud tools in path ${BRAINCLOUD_TOOLS}"
     exit 1
