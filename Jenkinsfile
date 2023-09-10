@@ -54,9 +54,9 @@ pipeline {
             steps {
                 deleteDir()
                 checkout([$class: 'GitSCM', branches: [[name: "*/${BRANCH_NAME}"]], extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], userRemoteConfigs: [[url: 'https://github.com/getbraincloud/examples-cpp.git']]])
-                //bat '%BRAINCLOUD_TOOLS%\\bin\\checkout-submodule.bat thirdparties/braincloud-cpp ${BC_LIB}'
+                bat '%BRAINCLOUD_TOOLS%\\bin\\checkout-submodule.bat thirdparties/braincloud-cpp %BC_LIB%'
                 // todo: use server param in ids filename
-                bat "copy /Y C:\\Users\\buildmaster\\braincloud-client-master\\data\\clientapp_ids_internal.h hellobc\\ids.h"
+                bat "copy /Y C:\\Users\\buildmaster\\braincloud-client-master\\data\\clientapp_ids_${params.SERVER_ENVIRONMENT}.h hellobc\\ids.h"
             	bat 'autobuild\\fullbuild.bat hellobc hellobc'
             	bat 'hellobc\\build\\debug\\hellobc.exe'
             }
