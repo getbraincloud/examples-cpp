@@ -39,7 +39,7 @@ void loading_update()
         (float)width / 2.0f - DIALOG_WIDTH / 2.0f,
         (float)height / 2.0f - DIALOG_HEIGHT / 2.0f));
     ImGui::SetNextWindowSize(ImVec2(DIALOG_WIDTH, DIALOG_HEIGHT));
-    ImGui::Begin("Foo", nullptr,
+    ImGui::Begin("Name", nullptr,
         ImGuiWindowFlags_NoCollapse |
         ImGuiWindowFlags_NoMove |
         ImGuiWindowFlags_NoResize |

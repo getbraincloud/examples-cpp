@@ -25,6 +25,8 @@
 // Third party includes
 #include "imgui.h"
 
+#include "menuBar.h"
+
 // Draws menu bar GUI and update its logic
 void menuBar_update()
 {
