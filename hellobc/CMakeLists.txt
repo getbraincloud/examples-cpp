@@ -54,6 +54,16 @@ if( USE_BC_LIBRARY )
 		list(APPEND includes PUBLIC ../thirdparties/brainCloud/include/braincloud/internal/apple/)
 		list(APPEND includes PUBLIC ../thirdparties/brainCloud/thirdparty/jsoncpp-1.0.0/)
 	elseif (UNIX AND NOT APPLE AND NOT ANDROID) # LINUX
+		find_package(CURL REQUIRED)
+		list(APPEND includes PUBLIC ${CURL_INCLUDE_DIRS})
+
+		find_package(UUID REQUIRED)
+		list(APPEND includes PUBLIC ${UUID_INCLUDE_DIRS})
+
+		list(APPEND libs
+				${CURL_LIBRARIES}
+				${UUID_LIBRARIES})
+
 		add_library(brainCloud STATIC IMPORTED) # or STATIC instead of SHARED
 		set_target_properties(brainCloud PROPERTIES
 				IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/../thirdparties/brainCloud/libs/release/libbrainCloud.a"
