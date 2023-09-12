@@ -23,9 +23,6 @@ else()
     cmake_minimum_required(VERSION 3.0.0)
 endif()
 
-# enable objc for SDL
-enable_language(OBJC)
-
 # Project
 project(RelayTestApp)
 
@@ -46,6 +43,8 @@ endif()
 # for MacOS glInteger warnings, however this adds multiple definition warning in imgui
 if (APPLE)
     add_definitions(-DGL_SILENCE_DEPRECATION)
+    # enable objc for SDL
+    enable_language(OBJC)
 endif()
 
 # Application source files
