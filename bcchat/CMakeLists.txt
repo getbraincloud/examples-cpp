@@ -31,9 +31,6 @@ set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY XCODE_STARTUP_PROJEC
 # Enable C++11 features
 set(CMAKE_CXX_STANDARD 11)
 
-# enable objc for SDL
-enable_language(OBJC)
-
 # Some Win32 definitions to avoid common issues
 if (WIN32)
     add_definitions(-DNOMINMAX)
@@ -48,6 +45,8 @@ endif()
 # for MacOS glInteger warnings, however this adds multiple definition warning in imgui
 if (APPLE)
     add_definitions(-DGL_SILENCE_DEPRECATION)
+    # enable objc for SDL
+    enable_language(OBJC)
 endif()
 
 # Application source files
