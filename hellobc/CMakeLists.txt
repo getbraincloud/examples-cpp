@@ -42,7 +42,7 @@ endif()
 add_executable (hellobc ${src_files})
 
 # brainCloud
-set(USE_BC_LIBRARY ON)
+#set(USE_BC_LIBRARY ON)
 if( USE_BC_LIBRARY )
 	if (APPLE)
 		add_library(brainCloud STATIC IMPORTED) # or STATIC instead of SHARED
@@ -57,9 +57,12 @@ if( USE_BC_LIBRARY )
 		find_package(CURL REQUIRED)
 		list(APPEND includes PUBLIC ${CURL_INCLUDE_DIRS})
 
+		find_package(UUID REQUIRED)
+		list(APPEND includes PUBLIC ${UUID_INCLUDE_DIRS})
+
 		list(APPEND libs
 				${CURL_LIBRARIES}
-		)
+				${UUID_LIBRARIES})
 
 		add_library(brainCloud STATIC IMPORTED) # or STATIC instead of SHARED
 		set_target_properties(brainCloud PROPERTIES
