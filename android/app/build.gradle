@@ -49,6 +49,7 @@ android {
     buildFeatures {
         viewBinding true
     }
+    namespace 'com.bitheads.braincloud.android'
 }
 
 dependencies {
