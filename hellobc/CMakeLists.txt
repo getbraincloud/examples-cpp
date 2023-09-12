@@ -56,8 +56,8 @@ if( USE_BC_LIBRARY )
 	elseif (UNIX AND NOT APPLE AND NOT ANDROID) # LINUX
 		add_library(brainCloud STATIC IMPORTED) # or STATIC instead of SHARED
 		set_target_properties(brainCloud PROPERTIES
-				IMPORTED_LOCATION "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../thirdparties/brainCloud/libs/release/libbrainCloud.a"
-				INTERFACE_INCLUDE_DIRECTORIES "$<BUILD_INTERFACE:${CMAKE_CURRENT_SOURCE_DIR}/../thirdparties/brainCloud/include")
+				IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/../thirdparties/brainCloud/libs/release/libbrainCloud.a"
+				INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/../thirdparties/brainCloud/include")
 
 		list(APPEND includes PUBLIC ../thirdparties/brainCloud/include/)
 		list(APPEND includes PUBLIC ../thirdparties/brainCloud/include/braincloud/internal/)
