@@ -42,16 +42,27 @@ endif()
 add_executable (hellobc ${src_files})
 
 # brainCloud
-#set(USE_BC_LIBRARY ON)
+set(USE_BC_LIBRARY ON)
 if( USE_BC_LIBRARY )
-	add_library(brainCloud STATIC IMPORTED) # or STATIC instead of SHARED
-	set_target_properties(brainCloud PROPERTIES
-  		IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/../thirdparties/brainCloud/libs/libbrainCloud.a"
-  		INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/../thirdparties/brainCloud/include")
+	if (APPLE)
+		add_library(brainCloud STATIC IMPORTED) # or STATIC instead of SHARED
+		set_target_properties(brainCloud PROPERTIES
+			IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/../thirdparties/brainCloud/libs/brainCloudClient_osx.a"
+			INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/../thirdparties/brainCloud/include")
 
-	list(APPEND includes PUBLIC ../thirdparties/brainCloud/include/)
-	list(APPEND includes PUBLIC ../thirdparties/brainCloud/include/braincloud/internal/apple/)
-	list(APPEND includes PUBLIC ../thirdparties/brainCloud/thirdparty/jsoncpp/src/)
+		list(APPEND includes PUBLIC ../thirdparties/brainCloud/include/)
+		list(APPEND includes PUBLIC ../thirdparties/brainCloud/include/braincloud/internal/apple/)
+		list(APPEND includes PUBLIC ../thirdparties/brainCloud/thirdparty/jsoncpp-1.0.0/)
+	elseif (LINUX)
+		add_library(brainCloud STATIC IMPORTED) # or STATIC instead of SHARED
+		set_target_properties(brainCloud PROPERTIES
+				IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/../thirdparties/brainCloud/libs/release/libbrainCloud.a"
+				INTERFACE_INCLUDE_DIRECTORIES "${CMAKE_SOURCE_DIR}/../thirdparties/brainCloud/include")
+
+		list(APPEND includes PUBLIC ../thirdparties/brainCloud/include/)
+		list(APPEND includes PUBLIC ../thirdparties/brainCloud/include/braincloud/internal/)
+		list(APPEND includes PUBLIC ../thirdparties/brainCloud/thirdparty/jsoncpp-1.0.0/)
+	endif()
 else()
 	add_subdirectory(../thirdparties/braincloud-cpp ./thirdparties/braincloud-cpp)
 	list(APPEND includes PUBLIC ../thirdparties/braincloud-cpp/include/)
