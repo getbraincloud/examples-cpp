@@ -53,7 +53,7 @@ if( USE_BC_LIBRARY )
 		list(APPEND includes PUBLIC ../thirdparties/brainCloud/include/)
 		list(APPEND includes PUBLIC ../thirdparties/brainCloud/include/braincloud/internal/apple/)
 		list(APPEND includes PUBLIC ../thirdparties/brainCloud/thirdparty/jsoncpp-1.0.0/)
-	elseif (LINUX)
+	elseif (UNIX AND NOT APPLE AND NOT ANDROID) # LINUX
 		add_library(brainCloud STATIC IMPORTED) # or STATIC instead of SHARED
 		set_target_properties(brainCloud PROPERTIES
 				IMPORTED_LOCATION "${CMAKE_SOURCE_DIR}/../thirdparties/brainCloud/libs/release/libbrainCloud.a"
