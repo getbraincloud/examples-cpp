@@ -12,7 +12,7 @@ pipeline {
     }
     stages {
 
-        stage('HelloBC Exe Mac') {
+        stage('HelloBC Mac') {
             when {
                 expression {
                     params.PRODUCT == 'all' ||
@@ -36,7 +36,7 @@ pipeline {
             }
         }
 
-        stage('HelloBC Exe Linux') {
+        stage('HelloBC Linux') {
             when {
                 expression {
                     params.PRODUCT == 'all' ||
@@ -60,7 +60,7 @@ pipeline {
             }
         }
 
-        stage('HelloBC Exe Windows') {
+        stage('HelloBC Windows') {
             when {
                 expression {
                     params.PRODUCT == 'all' ||
@@ -80,7 +80,7 @@ pipeline {
             }
         }
 
-        stage('RelayTestApp Build Mac') {
+        stage('RelayTestApp Mac') {
             when {
                 expression {
                     params.PRODUCT == 'all' ||
@@ -113,7 +113,7 @@ pipeline {
             }
         }
 
-        stage('RelayTestApp Build Android') {
+        stage('RelayTestApp Android') {
             when {
                 expression {
                     params.PRODUCT == 'all' ||
@@ -153,7 +153,7 @@ pipeline {
             }
         }
 
-        stage('RelayTestApp Build Linux') {
+        stage('RelayTestApp Linux') {
             when {
                 expression {
                     params.PRODUCT == 'all' ||
@@ -186,7 +186,7 @@ pipeline {
             }
         }
 
-        stage('RelayTestApp Build Windows') {
+        stage('RelayTestApp Windows') {
             when {
                 expression {
                     params.PRODUCT == 'all' ||
@@ -207,7 +207,7 @@ pipeline {
             // todo: archive windows app
         }
 
-        stage('Android Build') {
+        stage('C++ Android App') {
             when {
                 expression {
                     params.PRODUCT == 'all' ||
@@ -245,7 +245,7 @@ pipeline {
             }
         }
         
-        stage('Build Unit Tests Mac') {
+        stage('Unit Test App Mac') {
             when {
                 expression {
                     params.PRODUCT == 'all' ||
@@ -281,7 +281,7 @@ pipeline {
             }
         }
 
-        stage('Build Unit Tests Linux') {
+        stage('Unit Test App Linux') {
             when {
                 expression {
                     params.PRODUCT == 'all' ||
