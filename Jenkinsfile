@@ -8,7 +8,7 @@ pipeline {
         string(name: 'BC_LIB', defaultValue: '', description: 'braincloud-cpp branch (blank for .gitmodules)')
         string(name: 'BRANCH_NAME', defaultValue: 'develop', description: 'examples-cpp branch')
         choice(name: 'SERVER_ENV', choices: ['internal', 'prod', 'talespin'], description: 'Where to run app?')
-        choice(name: 'PRODUCT', choices: ['all', 'hellobc', 'relaytestapp'], description: 'Which thing to build?')
+        choice(name: 'PRODUCT', choices: ['all', 'hellobc', 'relaytestapp', 'android', 'unittests', 'cocoapods', 'apple_lib', 'linux_lib'], description: 'Which thing to build?')
     }
     stages {
 
@@ -37,6 +37,12 @@ pipeline {
         }
 
         stage('HelloBC Exe Linux') {
+            when {
+                expression {
+                    params.PRODUCT == 'all' ||
+                    params.PRODUCT == 'hellobc'
+                }
+            }
             agent {
                 label '"Linux Build Agent (.41)"'
             }
@@ -55,6 +61,12 @@ pipeline {
         }
 
         stage('HelloBC Exe Windows') {
+            when {
+                expression {
+                    params.PRODUCT == 'all' ||
+                    params.PRODUCT == 'hellobc'
+                }
+            }
             agent {
                  label 'windows'
             }
@@ -69,6 +81,12 @@ pipeline {
         }
 
         stage('RelayTestApp Build Mac') {
+            when {
+                expression {
+                    params.PRODUCT == 'all' ||
+                    params.PRODUCT == 'relaytestapp'
+                }
+            }
             agent {
                 label 'clientUnit'
             }
@@ -96,6 +114,12 @@ pipeline {
         }
 
         stage('RelayTestApp Build Linux') {
+            when {
+                expression {
+                    params.PRODUCT == 'all' ||
+                    params.PRODUCT == 'relaytestapp'
+                }
+            }
             agent {
                 label '"Linux Build Agent (.41)"'
             }
@@ -123,6 +147,12 @@ pipeline {
         }
 
         stage('RelayTestApp Build Windows') {
+            when {
+                expression {
+                    params.PRODUCT == 'all' ||
+                    params.PRODUCT == 'relaytestapp'
+                }
+            }
             agent {
                  label 'windows'
             }
@@ -137,7 +167,15 @@ pipeline {
             // todo: archive windows app
         }
 
+        // todo: relaytestapp android
+
         stage('Android Build') {
+            when {
+                expression {
+                    params.PRODUCT == 'all' ||
+                    params.PRODUCT == 'android'
+                }
+            }
             agent {
                 label 'clientUnit'
             }
@@ -170,6 +208,12 @@ pipeline {
         }
         
         stage('Build Unit Tests Mac') {
+            when {
+                expression {
+                    params.PRODUCT == 'all' ||
+                    params.PRODUCT == 'unittests'
+                }
+            }
             agent {
                 label 'clientUnit'
             }
@@ -201,6 +245,12 @@ pipeline {
         }
 
         stage('CocoaPod Verification') {
+            when {
+                expression {
+                    params.PRODUCT == 'all' ||
+                    params.PRODUCT == 'cocoapods'
+                }
+            }
             agent {
                 label 'clientUnit'
             }
@@ -219,6 +269,12 @@ pipeline {
         }
 
         stage('Package Library Mac') {
+            when {
+                expression {
+                    params.PRODUCT == 'all' ||
+                    params.PRODUCT == 'apple_lib'
+                }
+            }
             agent {
                 label 'clientUnit'
             }
@@ -241,6 +297,12 @@ pipeline {
         }
 
         stage('Package Library Linux') {
+            when {
+                expression {
+                    params.PRODUCT == 'all' ||
+                    params.PRODUCT == 'linux_lib'
+                }
+            }
             agent {
                 label '"Linux Build Agent (.41)"'
             }
