@@ -7,16 +7,16 @@ pipeline {
     parameters {
         string(name: 'BC_LIB', defaultValue: '', description: 'braincloud-cpp branch (blank for .gitmodules)')
         string(name: 'BRANCH_NAME', defaultValue: 'develop', description: 'examples-cpp branch')
-        choice(name: 'SERVER_ENV', choices: ['internal', 'prod', 'talespin'], description: 'Where to run tests?')
-        choice(name: 'PRODUUCT', choices: ['all', 'hellobc', 'relaytestapp'], description: 'Where to run tests?')
+        choice(name: 'SERVER_ENV', choices: ['internal', 'prod', 'talespin'], description: 'Where to run app?')
+        choice(name: 'PRODUUCT', choices: ['all', 'hellobc', 'relaytestapp'], description: 'Which thing to build?')
     }
     stages {
 
         stage('HelloBC Exe Mac') {
             when {
-                anyOf {
-                    equals(actual: params.PRODUCT, expected: 'all')
-                    equals(actual: params.PRODUCT, expected: 'hellobc')
+                expression {
+                    params.PRODUCT == 'all' ||
+                    params.PRODUCT == 'hellobc'
                 }
             }
             agent {
