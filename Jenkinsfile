@@ -8,7 +8,7 @@ pipeline {
         string(name: 'BC_LIB', defaultValue: '', description: 'braincloud-cpp branch (blank for .gitmodules)')
         string(name: 'BRANCH_NAME', defaultValue: 'develop', description: 'examples-cpp branch')
         choice(name: 'SERVER_ENV', choices: ['internal', 'prod', 'talespin'], description: 'Where to run app?')
-        choice(name: 'PRODUUCT', choices: ['all', 'hellobc', 'relaytestapp'], description: 'Which thing to build?')
+        choice(name: 'PRODUCT', choices: ['all', 'hellobc', 'relaytestapp'], description: 'Which thing to build?')
     }
     stages {
 
