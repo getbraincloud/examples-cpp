@@ -113,6 +113,46 @@ pipeline {
             }
         }
 
+        stage('RelayTestApp Build Android') {
+            when {
+                expression {
+                    params.PRODUCT == 'all' ||
+                    params.PRODUCT == 'relaytestapp'
+                }
+            }
+            agent {
+                label 'clientUnit'
+            }
+            environment {
+			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
+                // ANDROID_HOME needs to be set for gradle and tools
+			    ANDROID_HOME="/Users/buildmaster/Library/Android/sdk"
+                // JAVA_HOME needs to set if JVM hasn't been downloaded to Android Studio
+                // JAVA_HOME="/Applications/Android Studio.app/Contents/jbr/Contents/Home/"
+			    BRAINCLOUD_TOOLS="/Users/buildmaster/braincloud-client-master"
+			}
+            steps {
+                checkout([$class: 'GitSCM', branches: [[name: '*/${BRANCH_NAME}']], extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], userRemoteConfigs: [[url: 'https://github.com/getbraincloud/examples-cpp.git']]])
+                sh '${BRAINCLOUD_TOOLS}/bin/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
+                sh '${BRAINCLOUD_TOOLS}/bin/checkout-submodule.sh thirdparties/SDL SDL2'
+                sh "${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o relaytestapp/src -p relaytestapp -x h -s ${params.SERVER_ENV}"
+                dir('relaytestapp/android_project') {
+                    sh './gradlew assembleDebug'
+                }
+                sh '${BRAINCLOUD_TOOLS}/bin/checkout-submodule.sh thirdparties/SDL'
+            }
+            post {
+                success {
+                    fileOperations([folderCreateOperation('artifacts/android-relaytestapp')])
+                                    fileOperations([fileCreateOperation(fileContent: 'Install this on a device or emulator.', fileName: 'artifacts/android-relaytestapp/README.md')])
+                                    fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'relaytestapp/android_project/app/build/outputs/apk/debug/*', renameFiles: false, sourceCaptureExpression: '', targetLocation: 'artifacts/android-relaytestapp', targetNameExpression: '')])
+                                    fileOperations([fileZipOperation(folderPath: 'artifacts/android-relaytestapp', outputFolderPath: 'artifacts')])
+                                    //fileOperations([fileCopyOperation(excludes: '', flattenFiles: true, includes: 'artifacts/android-cpp.zip', renameFiles: false, sourceCaptureExpression: '', targetLocation: '~/Library/CloudStorage/GoogleDrive-joanneh@bitheads.com/Shared drives/brainCloud Team/Client/Builds', targetNameExpression: '')])
+                                    archiveArtifacts allowEmptyArchive: true, artifacts: 'artifacts/android-relaytestapp.zip', followSymlinks: false, onlyIfSuccessful: true
+                    }
+            }
+        }
+
         stage('RelayTestApp Build Linux') {
             when {
                 expression {
