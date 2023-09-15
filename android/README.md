@@ -29,6 +29,6 @@ Files to note:
 
 In Android Studio, open the folder **examples-cpp/android**. Run in emulator or on device.
 
-Note: cmake version updated to 3.18.1, gradle plugin version to 7.2.0
+Note: cmake version updated to 3.18.1, gradle plugin version to 7.4.2
 
-In project structure > gradle version is 7.3.3, compile sdk 32, Tools version 32.1.0 rc1, NDK version 21.4.7075529, Java version 1.8 (Java 8)
+In project structure > gradle version is 7.5, compile sdk 32, Tools version 34, NDK version 21.4.7075529, Java version 11 (Java 11)
