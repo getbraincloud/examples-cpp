@@ -1,6 +1,7 @@
 [submodule "thirdparties/braincloud-cpp"]
 	path = thirdparties/braincloud-cpp
 	url = https://github.com/getbraincloud/braincloud-cpp.git
+	branch=develop
 [submodule "thirdparties/SDL"]
 	path = thirdparties/SDL
 	url = https://github.com/libsdl-org/SDL
@@ -8,6 +9,7 @@
 [submodule "roomserver/server/brainclouds2s-cpp"]
 	path = roomserver/server/brainclouds2s-cpp
 	url = https://github.com/getbraincloud/brainclouds2s-cpp.git
+	branch=develop
 [submodule "thirdparties/imgui"]
 	path = thirdparties/imgui
 	url = https://github.com/ocornut/imgui.git
