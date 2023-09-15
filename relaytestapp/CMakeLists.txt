@@ -43,6 +43,8 @@ endif()
 # for MacOS glInteger warnings, however this adds multiple definition warning in imgui
 if (APPLE)
     add_definitions(-DGL_SILENCE_DEPRECATION)
+    # enable objc for SDL
+    enable_language(OBJC)
 endif()
 
 # Application source files

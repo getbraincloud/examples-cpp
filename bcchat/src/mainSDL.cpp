@@ -23,13 +23,13 @@
 #include <Windows.h>
 #endif
 #include "imgui.h"
-#include "imgui_impl_sdl.h"
+#include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl2.h"
 #include <stdio.h>
 #define SDL_MAIN_HANDLED
 #if defined(USE_MAXOS_SDL_FRAMEWORK)
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_opengl.h>
 #else
 #include <SDL.h>
 #include <SDL_opengl.h>
@@ -61,12 +61,15 @@ int main()
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-    SDL_DisplayMode current;
-    SDL_GetCurrentDisplayMode(0, &current);
+
+    // using SDL3
+    SDL_DisplayID displayID = SDL_GetPrimaryDisplay(); // in case of multiple displays
+    const SDL_DisplayMode *current;
+    current = SDL_GetDesktopDisplayMode(displayID);
+
+    // using SDL3
     SDL_Window* window = SDL_CreateWindow(
         "BC Chat",
-        SDL_WINDOWPOS_CENTERED,
-        SDL_WINDOWPOS_CENTERED,
         width, height,
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
@@ -79,7 +82,7 @@ int main()
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     // Init imgui GL renderer
-    ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
+    ImGui_ImplSDL3_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL2_Init();
 
     // Load app related stuff
@@ -93,12 +96,12 @@ int main()
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
-            ImGui_ImplSDL2_ProcessEvent(&event);
-            if (event.type == SDL_QUIT)
+            ImGui_ImplSDL3_ProcessEvent(&event);
+            if (event.type == SDL_EVENT_QUIT)
             {
                 done = true;
             }
-            if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+            if (event.type == SDL_EVENT_WINDOW_RESIZED)
             {
                 width = (int)event.window.data1;
                 height = (int)event.window.data2;
@@ -115,7 +118,7 @@ int main()
 
         // Start the Dear ImGui frame
         ImGui_ImplOpenGL2_NewFrame();
-        ImGui_ImplSDL2_NewFrame(window);
+        ImGui_ImplSDL3_NewFrame();
         ImGui::NewFrame();
 
         // Draw the app
@@ -132,7 +135,7 @@ int main()
 
     // Cleanup
     ImGui_ImplOpenGL2_Shutdown();
-    ImGui_ImplSDL2_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();
 
     SDL_GL_DeleteContext(gl_context);
