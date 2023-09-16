@@ -181,7 +181,7 @@ void chat_update()
             ImGuiWindowFlags_NoTitleBar);
         
         // Textbox
-        bool enter = ImGui::InputText("", sendBuffer, SEND_BUFFER_SIZE,
+        bool enter = ImGui::InputText("Label", sendBuffer, SEND_BUFFER_SIZE,
             ImGuiInputTextFlags_EnterReturnsTrue);
         if (giveTextBarFocus)
         {

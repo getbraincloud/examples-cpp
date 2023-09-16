@@ -1,7 +1,10 @@
-pushd ${2}
+#!/bin/bash
+# usage:
+# ./autobuild/fullbuild.sh RelayTestApp relaytestapp/
+# executable:
+# relaytestapp/build/RelayTestApp
+
+pushd ${2:-$1}
 rm -rf build
-mkdir build
-cd build
-cmake -DBC_USE_OPENSSL=1 -DCMAKE_BUILD_TYPE=Debug ..
-cmake --build . --target ${1} --config Debug
 popd
+./autobuild/incbuild.sh ${1} ${2:-$1}

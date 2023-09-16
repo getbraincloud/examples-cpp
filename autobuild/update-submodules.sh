@@ -29,7 +29,29 @@ do
             continue
         fi
     fi
-
+    
+    if [[ $1 == "--branch" ]];
+    then
+        if [[ ${2} == "master" ]];
+        then
+            git submodule set-branch --default $i
+            if [[ $(git diff --compact-summary .gitmodules) ]];
+            then
+                echo modifying .gitmodule branch to default
+                git add .gitmodules
+                needspush=1
+            fi
+        else
+            git submodule set-branch  --branch ${2} $i
+            if [[ $(git diff --compact-summary .gitmodules) ]];
+            then
+                echo modifying .gitmodule branch to ${2}
+                git add .gitmodules
+                needspush=1
+            fi
+        fi
+    fi
+    
     STR=$(git config -f .gitmodules --get submodule.$i.branch)
     STR=${STR:="default"}
     
@@ -38,8 +60,6 @@ do
         if [[ $(git diff --compact-summary $i) ]];
         then
             git add $i
-            git commit -m "automatic submodules update" .
-
             needspush=1
 
             git submodule status $i
@@ -52,8 +72,6 @@ do
         if [[ $(git diff --compact-summary $i) ]];
         then
             git add $i
-            git commit -m "automatic submodules update" .
-
             needspush=1
             echo "--- $i local is already up to date updating branch $STR"
         else
@@ -64,6 +82,7 @@ done
 
 if [[ $needspush != 0 ]];
 then
+    git commit -m "automatic submodules update"
     echo "--- ATTENTION REQUIRED! Update pending. Please run command: git push"
 fi
 

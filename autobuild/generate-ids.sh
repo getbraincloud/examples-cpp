@@ -1,3 +1,4 @@
+#!/bin/bash
 while getopts p:s:a:k: flag
 do
     case "${flag}" in
@@ -21,8 +22,8 @@ echo "#define BRAINCLOUD_APP_ID \"${appid:-$BRAINCLOUD_APP_ID}\"" >>$project_sou
 echo "#define BRAINCLOUD_APP_SECRET \"${secretkey:-$BRAINCLOUD_APP_SECRET}\"" >>$project_source/ids.h
 
 echo "-- File ids.h created in $project_source"
-cat $project_source/ids.h
+# cat $project_source/ids.h
 
-git update-index --skip-worktree $project_source/ids.h
+git update-index --assume-unchanged $project_source/ids.h
 echo "-- File ids.h excluded from git worktree"
 

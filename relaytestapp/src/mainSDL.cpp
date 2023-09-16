@@ -25,25 +25,21 @@
 #include "imgui.h"
 
 #if defined(__ANDROID__)
-#include "imgui_impl_sdl2.h"
-#include "imgui_impl_opengl3.h"
 #include <jni.h>
 #include "braincloud/internal/android/AndroidGlobals.h" // to store java native interface env and context for app
+#include "imgui_impl_sdl2.h"
+#include "imgui_impl_opengl3.h"
+#include <SDL.h>
+#include <SDL_opengl.h>
 #else
-#include "imgui_impl_sdl.h"
+#include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl2.h"
 #define SDL_MAIN_HANDLED
+#include <SDL3/SDL.h>
+#include <SDL3/SDL_opengl.h>
 #endif
 
 #include <stdio.h>
-
-#if defined(USE_MAXOS_SDL_FRAMEWORK)
-#include <SDL2/SDL.h>
-#include <SDL2/SDL_opengl.h>
-#else
-#include <SDL.h>
-#include <SDL_opengl.h>
-#endif
 
 // App includes
 #include "app.h"
@@ -68,6 +64,11 @@ int main(int argc, char *argv[])
         printf("Error: %s\n", SDL_GetError());
         return -1;
     }
+
+    // a note for android, uses openGL3 and SDL2
+    // imgui has build and runtime issues with SDL3
+    // build issue can be fixed by setting focused_window var in imgui_impl_sdl3.cpp
+    // runtime issue is libraries (.so) failing to load
 #if defined(__ANDROID__)
     // retrieve the JNI environment.
     JNIEnv* env = (JNIEnv*)SDL_AndroidGetJNIEnv();
@@ -80,41 +81,60 @@ int main(int argc, char *argv[])
     // context may change while running callbacks so set each time
     BrainCloud::appEnv = env;
     BrainCloud::appContext = activity;
-#endif
 
+    // using SDL2
     SDL_DisplayMode current;
+    int displayID = 0; // assume display zero for android
+    SDL_GetDesktopDisplayMode(displayID, &current);
+#else
+    // using SDL3
+    SDL_DisplayID displayID = SDL_GetPrimaryDisplay(); // in case of multiple displays
+    const SDL_DisplayMode *current;
+    current = SDL_GetDesktopDisplayMode(displayID);
+#endif
     SDL_Rect usable_bounds;
-    SDL_GetDesktopDisplayMode(0, &current);
-    SDL_GetDisplayUsableBounds(0, &usable_bounds);
+    int retval = SDL_GetDisplayUsableBounds(displayID, &usable_bounds);
     int x = SDL_WINDOWPOS_CENTERED;
     int y = SDL_WINDOWPOS_CENTERED;
     Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
-    if (argc > 2)
-    {
-        settings.instanceIndex = std::atoi(argv[argc - 2]);
-        auto count = std::atoi(argv[argc - 1]);
-        if (count > 1) settings.autoJoin = true;
-        auto count_per_col = (int)std::sqrt((double)count);
-        auto count_per_row = (int)std::ceil((double)count / (double)count_per_col);
-        auto col_index = settings.instanceIndex % count_per_row;
-        auto row_index = settings.instanceIndex / count_per_row;
-
-        width = usable_bounds.w / count_per_row;
-        height = usable_bounds.h / count_per_col;
-        x = col_index * width;
-        y = row_index * height;
-
-        flags |= SDL_WINDOW_BORDERLESS;
+    if(retval==0){ // only set window size if usable bounds ok
+        if (argc > 2)
+        {
+            settings.instanceIndex = std::atoi(argv[argc - 2]);
+            auto count = std::atoi(argv[argc - 1]);
+            if (count > 1) settings.autoJoin = true;
+            auto count_per_col = (int)std::sqrt((double)count);
+            auto count_per_row = (int)std::ceil((double)count / (double)count_per_col);
+            auto col_index = settings.instanceIndex % count_per_row;
+            auto row_index = settings.instanceIndex / count_per_row;
+            
+            width = usable_bounds.w / count_per_row;
+            height = usable_bounds.h / count_per_col;
+            x = col_index * width;
+            y = row_index * height;
+            
+            flags |= SDL_WINDOW_BORDERLESS;
+        }
+        else{
+            // when possible, use entire space
+            width = usable_bounds.w;
+            height = usable_bounds.h;
+        }
     }
-
+    
     // Setup window
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
     SDL_GL_SetAttribute(SDL_GL_STENCIL_SIZE, 8);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MAJOR_VERSION, 2);
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
-
+#if defined(__ANDROID__)
+    // using SDL2
     SDL_Window* window = SDL_CreateWindow("brainCloud Relay Test App", x, y, width, height, flags);
+#else
+    // using SDL3
+    SDL_Window* window = SDL_CreateWindow("brainCloud Relay Test App", width, height, flags);
+#endif
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     SDL_GL_SetSwapInterval(1); // Enable vsync
 
@@ -125,10 +145,11 @@ int main(int argc, char *argv[])
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     // Init imgui GL renderer
-    ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
 #if defined(__ANDROID__)
+    ImGui_ImplSDL2_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL3_Init();
 #else
+    ImGui_ImplSDL3_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL2_Init();
 #endif
     ImGui::StyleColorsClassic();
@@ -153,25 +174,44 @@ int main(int argc, char *argv[])
         SDL_Event event;
         while (SDL_PollEvent(&event))
         {
+#if defined(__ANDROID__)
             ImGui_ImplSDL2_ProcessEvent(&event);
             if (event.type == SDL_QUIT)
             {
                 done = true;
             }
-            if (event.type == SDL_WINDOWEVENT && event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
+            if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
             {
                 width = (int)event.window.data1;
                 height = (int)event.window.data2;
             }
+            if (event.window.event == SDL_TEXTINPUT)
+            {
+                int foo = 2;
+            }
+
+#else
+            ImGui_ImplSDL3_ProcessEvent(&event);
+            if (event.type == SDL_EVENT_QUIT)
+            {
+                done = true;
+            }
+            if (event.type == SDL_EVENT_WINDOW_RESIZED)
+            {
+                width = (int)event.window.data1;
+                height = (int)event.window.data2;
+            }
+#endif
         }
 
         // Start the Dear ImGui frame
 #if defined(__ANDROID__)
         ImGui_ImplOpenGL3_NewFrame();
+        ImGui_ImplSDL2_NewFrame();
 #else
         ImGui_ImplOpenGL2_NewFrame();
+        ImGui_ImplSDL3_NewFrame();
 #endif
-        ImGui_ImplSDL2_NewFrame(window);
         ImGui::NewFrame();
 
         // Draw the app
@@ -193,10 +233,11 @@ int main(int argc, char *argv[])
     // Cleanup
 #if defined(__ANDROID__)
     ImGui_ImplOpenGL3_Shutdown();
+    ImGui_ImplSDL2_Shutdown();
 #else
     ImGui_ImplOpenGL2_Shutdown();
+    ImGui_ImplSDL3_Shutdown();
 #endif
-    ImGui_ImplSDL2_Shutdown();
     ImGui::DestroyContext();
 
     SDL_GL_DeleteContext(gl_context);

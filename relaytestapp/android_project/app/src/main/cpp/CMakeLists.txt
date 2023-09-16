@@ -53,6 +53,11 @@ add_library( # Sets the name of the library.
         ${SRC_ROOT}/src/mainSDL.cpp
 )
 
+option(SDL_TEST "Descr" OFF)
+option(SDL2_STATIC "Descr" ON)
+#option(SDL_STATIC "Descr" ON)
+#option(SDL_DLOPEN "Descr" OFF)
+
 # Searches for a specified prebuilt library and stores the path as a
 # variable. Because CMake includes system libraries in the search path by
 # default, you only need to specify the name of the public NDK library
@@ -66,12 +71,13 @@ find_library( # Sets the name of the path variable.
         # you want CMake to locate.
         log)
 
-find_library(SDL2 SDL2)
+find_library(SDL SDL2)
 
 #add brainCloud subdir
 #add_subdirectory(./thirdparty/braincloud-cpp) # add plugin code under source code
 add_subdirectory(${SRC_ROOT}/../thirdparties/braincloud-cpp ./binary/braincloud) # add out-of-tree plugin code in project root
 add_subdirectory(${SRC_ROOT}/../thirdparties/SDL ./binary/SDL) # add out-of-tree plugin code in project root
+
 
 # Specifies libraries CMake should link to your target library. You
 # can link multiple libraries, such as libraries you define in this
@@ -93,5 +99,6 @@ target_link_libraries( # Specifies the target library.
 
         SDL2-static)
 
+target_include_directories(relaybot PUBLIC ${SRC_ROOT}/../thirdparties/SDL/include/)
 target_include_directories(relaybot PRIVATE ${SRC_ROOT}/../thirdparties/imgui/)
 target_include_directories(relaybot PRIVATE ${SRC_ROOT}/../thirdparties/imgui/backends/)
