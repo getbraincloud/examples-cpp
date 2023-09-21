@@ -1,5 +1,5 @@
 platform :osx, '10.13'
 
 target 'BCChat' do
-  pod 'BrainCloudCpp', '~> 4.12.0'
+  pod 'BrainCloudCpp'
 end
