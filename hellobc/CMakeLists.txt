@@ -45,14 +45,19 @@ add_executable (hellobc ${src_files})
 #set(USE_BC_LIBRARY ON)
 if( USE_BC_LIBRARY )
 	if (APPLE)
+		find_library(BC_COREFOUNDATION_LIB CoreFoundation)
+		find_library(BC_FOUNDATION_LIB Foundation)
+		list(APPEND libs
+				${BC_COREFOUNDATION_LIB}
+				${BC_FOUNDATION_LIB})
 		add_library(brainCloud STATIC IMPORTED) # or STATIC instead of SHARED
 		set_target_properties(brainCloud PROPERTIES
-			IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/../thirdparties/brainCloud/libs/brainCloudClient_osx.a"
-			INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/../thirdparties/brainCloud/include")
+			IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/brainCloud/libs/brainCloudClient_osx.a"
+			INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/brainCloud/include")
 
-		list(APPEND includes PUBLIC ../thirdparties/brainCloud/include/)
-		list(APPEND includes PUBLIC ../thirdparties/brainCloud/include/braincloud/internal/apple/)
-		list(APPEND includes PUBLIC ../thirdparties/brainCloud/thirdparty/jsoncpp-1.0.0/)
+		list(APPEND includes PUBLIC brainCloud/include/)
+		list(APPEND includes PUBLIC brainCloud/include/braincloud/internal/apple/)
+		list(APPEND includes PUBLIC brainCloud/thirdparty/jsoncpp-1.0.0/)
 	elseif (UNIX AND NOT APPLE AND NOT ANDROID) # LINUX
 		find_package(CURL REQUIRED)
 		list(APPEND includes PUBLIC ${CURL_INCLUDE_DIRS})
