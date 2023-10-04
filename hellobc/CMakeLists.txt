@@ -42,22 +42,41 @@ endif()
 add_executable (hellobc ${src_files})
 
 # brainCloud
-#set(USE_BC_LIBRARY ON)
+set(USE_BC_LIBRARY ON)
 if( USE_BC_LIBRARY )
 	if (APPLE)
 		find_library(BC_COREFOUNDATION_LIB CoreFoundation)
 		find_library(BC_FOUNDATION_LIB Foundation)
+		find_library(BC_SECURITY_LIB Security)
 		list(APPEND libs
 				${BC_COREFOUNDATION_LIB}
-				${BC_FOUNDATION_LIB})
-		add_library(brainCloud STATIC IMPORTED) # or STATIC instead of SHARED
+				${BC_FOUNDATION_LIB}
+				${BC_SECURITY_LIB})
+		add_library(websockets STATIC IMPORTED) # or STATIC instead of SHARED
+		set_target_properties(websockets PROPERTIES
+				IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/brainCloud/libs/libwebsockets.a"
+				INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/brainCloud/include")
+		add_library(mbedtls STATIC IMPORTED) # or STATIC instead of SHARED
+		set_target_properties(mbedtls PROPERTIES
+				IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/brainCloud/libs/libmbedtls.a"
+				INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/brainCloud/include")
+		add_library(mbedx509 STATIC IMPORTED) # or STATIC instead of SHARED
+		set_target_properties(mbedx509 PROPERTIES
+				IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/brainCloud/libs/libmbedx509.a"
+				INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/brainCloud/include")
+		add_library(mbedcrypto STATIC IMPORTED) # or STATIC instead of SHARED
+		set_target_properties(mbedcrypto PROPERTIES
+				IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/brainCloud/libs/libmbedcrypto.a"
+				INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/brainCloud/include")
+		add_library(brainCloud SHARED IMPORTED) # or STATIC instead of SHARED
 		set_target_properties(brainCloud PROPERTIES
-			IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/brainCloud/libs/brainCloudClient_osx.a"
-			INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/brainCloud/include")
-
+				IMPORTED_LOCATION "${PROJECT_SOURCE_DIR}/brainCloud/libs/libbrainCloud.a"
+				INTERFACE_INCLUDE_DIRECTORIES "${PROJECT_SOURCE_DIR}/brainCloud/include")
 		list(APPEND includes PUBLIC brainCloud/include/)
+		list(APPEND includes PUBLIC brainCloud/include/braincloud/internal/)
 		list(APPEND includes PUBLIC brainCloud/include/braincloud/internal/apple/)
 		list(APPEND includes PUBLIC brainCloud/thirdparty/jsoncpp-1.0.0/)
+
 	elseif (UNIX AND NOT APPLE AND NOT ANDROID) # LINUX
 		find_package(CURL REQUIRED)
 		list(APPEND includes PUBLIC ${CURL_INCLUDE_DIRS})
@@ -85,6 +104,10 @@ else()
 endif()
 
 list(APPEND libs brainCloud)
+list(APPEND libs websockets)
+list(APPEND libs mbedtls)
+list(APPEND libs mbedx509)
+list(APPEND libs mbedcrypto)
 
 # Setup includes and linked libraries
 target_include_directories(hellobc ${includes})
