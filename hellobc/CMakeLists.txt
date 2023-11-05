@@ -42,7 +42,7 @@ endif()
 add_executable (hellobc ${src_files})
 
 # brainCloud
-set(USE_BC_LIBRARY ON)
+set(USE_BC_LIBRARY OFF)
 if( USE_BC_LIBRARY )
 	if (APPLE)
 		find_library(BC_COREFOUNDATION_LIB CoreFoundation)
