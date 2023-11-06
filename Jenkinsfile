@@ -36,6 +36,30 @@ pipeline {
             }
         }
 
+        stage('HelloBC Xcode') {
+            when {
+                expression {
+                    params.PRODUCT == 'all' ||
+                    params.PRODUCT == 'hellobc'
+                }
+            }
+            agent {
+                label 'clientUnit'
+            }
+            environment {
+			    PATH = "/Applications/CMake.app/Contents/bin:/usr/local/bin:${env.PATH}"
+   			    BRAINCLOUD_TOOLS="/Users/buildmaster/braincloud-client-master"
+  			}
+            steps {
+                deleteDir()
+                checkout([$class: 'GitSCM', branches: [[name: '*/${BRANCH_NAME}']], extensions: [[$class: 'SubmoduleOption', disableSubmodules: false, parentCredentials: false, recursiveSubmodules: true, reference: '', trackingSubmodules: false]], userRemoteConfigs: [[url: 'https://github.com/getbraincloud/examples-cpp.git']]])
+                sh '${BRAINCLOUD_TOOLS}/bin/checkout-submodule.sh thirdparties/braincloud-cpp ${BC_LIB}'
+                sh "${BRAINCLOUD_TOOLS}/bin/copy-ids.sh -o hellobc -p clientapp -x h -s ${params.SERVER_ENV}"
+				sh 'bash autobuild/xcode-build.sh hellobc'
+				sh 'hellobc/build/Debug/hellobc'
+            }
+        }
+
         stage('HelloBC Linux') {
             when {
                 expression {

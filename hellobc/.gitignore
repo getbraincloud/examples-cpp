@@ -10,5 +10,5 @@ generated/
 *.xcworkspacedata
 xcshareddata/
 **/x64/
-**/thirdparties/
+**/brainCloud/
 *.dir/
