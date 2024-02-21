@@ -32,7 +32,7 @@ class AuthCallback : public IServerCallback
     void serverError(ServiceName serviceName, 
                      ServiceOperation serviceOperation, 
                      int statusCode, int reasonCode, 
-                     const string& jsonError)
+                     const string& jsonError) override
     {
         printf("Auth error: %s\n", jsonError.c_str());
         isGameRunning = false;
@@ -48,7 +48,7 @@ class FindLobbyCallback : public IServerCallback
     void serverError(ServiceName serviceName, 
                      ServiceOperation serviceOperation, 
                      int statusCode, int reasonCode, 
-                     const string& jsonError)
+                     const string& jsonError) override
     {
         printf("Find lobby error: %s\n", jsonError.c_str());
         isGameRunning = false;
