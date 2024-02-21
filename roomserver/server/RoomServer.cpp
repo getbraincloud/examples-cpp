@@ -5,7 +5,8 @@
 bool RoomServer::init()
 {
     if (!loadEnvironmentVariables())
-        return false;
+        if(!loadIds())
+            return false;
 
     createS2S();
 
@@ -30,14 +31,14 @@ bool RoomServer::validatePasscode(const char* passcode)
     return false;
 }
 
-void RoomServer::loadIds()
+bool RoomServer::loadIds()
 {
 
     FILE * fp = fopen("ids.txt", "r");
     if (fp == NULL)
     {
         printf("ERROR: Failed to load ids.txt file!\n");
-        exit(1);
+        return false;
     }
     else
     {
@@ -72,8 +73,6 @@ void RoomServer::loadIds()
                 m_lobbyId="";
         }
         fclose(fp);
-
-
     }
 
     if (m_appId.empty() ||
@@ -82,15 +81,22 @@ void RoomServer::loadIds()
         m_serverHost.empty())
     {
         printf("ERROR: ids.txt missing S2S properties!\n");
-        exit(1);
+        return false;
     }
+
+    printf("SERVER_PORT:   %s\n", m_serverPort.c_str());
+    printf("SERVER_HOST:   %s\n", m_serverHost.c_str());
+    printf("APP_ID:        %s\n", m_appId.c_str());
+    printf("SERVER_SECRET: %s\n", m_serverSecret.c_str());
+    printf("SERVER_NAME:   %s\n", m_serverName.c_str());
+    printf("LOBBY_ID:      %s\n", m_lobbyId.c_str());
+
+    return true;
 }
 
 
 bool RoomServer::loadEnvironmentVariables()
 {
-    loadIds();
-    return true;
     // Get environement variables passed from brainCloud to our container.
     const char* SERVER_PORT     = getenv("SERVER_PORT");
     const char* SERVER_HOST     = getenv("SERVER_HOST");

@@ -4,7 +4,7 @@
 #include <json/json.h>
 #include <brainclouds2s.h>
 
-using namespace BrainCloud;
+//using namespace BrainCloud;
 
 class RoomServer
 {
@@ -14,7 +14,7 @@ public:
     bool validatePasscode(const char* passcode);
 
 private:
-    void loadIds();
+    bool loadIds();
     bool loadEnvironmentVariables();
     void createS2S();
     std::string getS2SUrl() const;
