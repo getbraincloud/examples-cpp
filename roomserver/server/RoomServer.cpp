@@ -5,7 +5,8 @@
 bool RoomServer::init()
 {
     if (!loadEnvironmentVariables())
-        return false;
+        if(!loadIds())
+            return false;
 
     createS2S();
 
@@ -30,6 +31,70 @@ bool RoomServer::validatePasscode(const char* passcode)
     return false;
 }
 
+bool RoomServer::loadIds()
+{
+
+    FILE * fp = fopen("ids.txt", "r");
+    if (fp == NULL)
+    {
+        printf("ERROR: Failed to load ids.txt file!\n");
+        return false;
+    }
+    else
+    {
+        printf("Found ids.txt file!\n");
+        char buf[1024];
+        while (fgets(buf, sizeof(buf), fp) != NULL)
+        {
+            char *c = strchr(buf, '\n');
+            if (c) { *c = 0; }
+
+            c = strchr(buf, '\r');
+            if (c) { *c = 0; }
+
+            std::string line(buf);
+            if (line.find("appId") != std::string::npos)
+            {
+                m_appId = line.substr(line.find("appId") + sizeof("appId"), line.length() - 1);
+            }
+            else if (line.find("serverName") != std::string::npos)
+            {
+                m_serverName = line.substr(line.find("serverName") + sizeof("serverName"), line.length() - 1);
+            }
+            else if (line.find("serverSecret") != std::string::npos)
+            {
+                m_serverSecret = line.substr(line.find("serverSecret") + sizeof("serverSecret"), line.length() - 1);
+            }
+            else if (line.find("s2sUrl") != std::string::npos)
+            {
+                m_serverUrl = line.substr(line.find("s2sUrl") + sizeof("s2sUrl"), line.length() - 1);
+            }
+            else
+                m_lobbyId="";
+        }
+        fclose(fp);
+    }
+
+    if (m_appId.empty() ||
+        m_serverName.empty() ||
+        m_serverSecret.empty() ||
+        m_serverUrl.empty())
+    {
+        printf("ERROR: ids.txt missing S2S properties!\n");
+        return false;
+    }
+
+    printf("SERVER_PORT:   %s\n", m_serverPort.c_str());
+    printf("SERVER_HOST:   %s\n", m_serverHost.c_str());
+    printf("SERVER_URL:   %s\n", m_serverUrl.c_str());
+    printf("APP_ID:        %s\n", m_appId.c_str());
+    printf("SERVER_SECRET: %s\n", m_serverSecret.c_str());
+    printf("SERVER_NAME:   %s\n", m_serverName.c_str());
+    printf("LOBBY_ID:      %s\n", m_lobbyId.c_str());
+
+    return true;
+}
+
 bool RoomServer::loadEnvironmentVariables()
 {
     // Get environement variables passed from brainCloud to our container.
@@ -42,6 +107,7 @@ bool RoomServer::loadEnvironmentVariables()
 
     printf("SERVER_PORT:   %s\n", SERVER_PORT);
     printf("SERVER_HOST:   %s\n", SERVER_HOST);
+    printf("SERVER_URL:    %s\n", getS2SUrl().c_str());
     printf("APP_ID:        %s\n", APP_ID);
     printf("SERVER_SECRET: %s\n", SERVER_SECRET);
     printf("SERVER_NAME:   %s\n", SERVER_NAME);
@@ -56,6 +122,7 @@ bool RoomServer::loadEnvironmentVariables()
 
     m_serverPort    = SERVER_PORT;
     m_serverHost    = SERVER_HOST;
+    m_serverUrl     = getS2SUrl();
     m_appId         = APP_ID;
     m_serverSecret  = SERVER_SECRET;
     m_serverName    = SERVER_NAME;
@@ -75,7 +142,7 @@ std::string RoomServer::getS2SUrl() const
 
 void RoomServer::createS2S()
 {
-    auto s2sUrl = getS2SUrl();
+    auto s2sUrl = m_serverUrl;
     printf("S2S URL: %s\n", s2sUrl.c_str());
 
     m_s2s = S2SContext::create(m_appId, m_serverName, m_serverSecret, s2sUrl, true);
