@@ -30,8 +30,67 @@ bool RoomServer::validatePasscode(const char* passcode)
     return false;
 }
 
+void RoomServer::loadIds()
+{
+
+    FILE * fp = fopen("ids.txt", "r");
+    if (fp == NULL)
+    {
+        printf("ERROR: Failed to load ids.txt file!\n");
+        exit(1);
+    }
+    else
+    {
+        printf("Found ids.txt file!\n");
+        char buf[1024];
+        while (fgets(buf, sizeof(buf), fp) != NULL)
+        {
+            char *c = strchr(buf, '\n');
+            if (c) { *c = 0; }
+
+            c = strchr(buf, '\r');
+            if (c) { *c = 0; }
+
+            std::string line(buf);
+            if (line.find("appId") != std::string::npos)
+            {
+                m_appId = line.substr(line.find("appId") + sizeof("appId"), line.length() - 1);
+            }
+            else if (line.find("serverName") != std::string::npos)
+            {
+                m_serverName = line.substr(line.find("serverName") + sizeof("serverName"), line.length() - 1);
+            }
+            else if (line.find("serverSecret") != std::string::npos)
+            {
+                m_serverSecret = line.substr(line.find("serverSecret") + sizeof("serverSecret"), line.length() - 1);
+            }
+            else if (line.find("s2sUrl") != std::string::npos)
+            {
+                m_serverHost = line.substr(line.find("s2sUrl") + sizeof("s2sUrl"), line.length() - 1);
+            }
+            else
+                m_lobbyId="";
+        }
+        fclose(fp);
+
+
+    }
+
+    if (m_appId.empty() ||
+        m_serverName.empty() ||
+        m_serverSecret.empty() ||
+        m_serverHost.empty())
+    {
+        printf("ERROR: ids.txt missing S2S properties!\n");
+        exit(1);
+    }
+}
+
+
 bool RoomServer::loadEnvironmentVariables()
 {
+    loadIds();
+    return true;
     // Get environement variables passed from brainCloud to our container.
     const char* SERVER_PORT     = getenv("SERVER_PORT");
     const char* SERVER_HOST     = getenv("SERVER_HOST");
@@ -66,6 +125,7 @@ bool RoomServer::loadEnvironmentVariables()
 
 std::string RoomServer::getS2SUrl() const
 {
+    return m_serverHost;
     std::stringstream url;
     url << "https://" << m_serverHost << ":" 
         << m_serverPort << "/s2sdispatcher";
