@@ -15,6 +15,9 @@ static std::string prevStatus;
 static char input;
 static int result = -1;
 static std::chrono::duration<double, std::milli> fp_ms;
+bool ClearData = false;
+bool ForgetUser = false;
+bool EnableRTT = false;
 
 //##############################################################################
 
@@ -60,26 +63,48 @@ public:
         status += "\n\n";
 
         result = 0; // end of test
-
-        // now try rtt
-        //pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
     }
 
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string& jsonError) override
     {
         status += "---- ERROR: authenticateUniversal: " + jsonError + "\n\n";
         
-        result = 2;
+        result = 4;
     }
 };
 
 static AuthCallback authCallback;
+//##############################################################################
 
+class LogoutCallback final : public IServerCallback
+{
+public:
+    void serverCallback(ServiceName serviceName, ServiceOperation serviceOperation, const std::string &jsonData) override
+    {
+        status += "---- Logged out of BrainCloud\n";
+        result = 0;
+
+    }
+
+    void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
+    {
+        status += "**** ERROR: logout: " + jsonError + "\n\n";
+        result = 2;
+    }
+};
+static LogoutCallback logoutCallback;
 //##############################################################################
 // CALLBACK LOOP
 void app_update()
 {
+    result = -1;
+    auto t1 = std::chrono::high_resolution_clock::now();
     do {
+        auto t2 = std::chrono::high_resolution_clock::now();
+
+        // timeout just in case
+        fp_ms = t2 - t1;
+
         if (pBCWrapper)
         {
             pBCWrapper->runCallbacks();
@@ -90,18 +115,33 @@ void app_update()
             status = "";
         }
         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // run callbacks loop every 1/10 second
-    } while(result < 0);
+    } while(result < 0 && fp_ms.count() < 15000);
 }
 
 //##############################################################################
 // MAIN GAME LOOP
-int main()
+// Example argument: ./hellobc "{\"TestSaveData\": {\"ClearData\": false,\"ForgetUser\": false}}"
+int main(int argc, char* argv[])
 {
     std::string serverUrl = BRAINCLOUD_SERVER_URL;
     std::string secretKey = BRAINCLOUD_APP_SECRET;
     std::string appId = BRAINCLOUD_APP_ID;
     
     cout << "---- Welcome to BrainCloud!" << endl;
+
+    // check if there is more than one argument and use the second one
+    //  (the first argument is the executable)
+    if (argc > 1)
+    {
+        std::string arg1(argv[1]);
+        // do stuff with arg1
+        Json::Reader reader;
+        Json::Value data;
+        reader.parse(arg1, data);
+
+        ClearData = data["TestSaveData"]["ClearData"].asBool();
+        ForgetUser = data["TestSaveData"]["ForgetUser"].asBool();
+    }
 
     // Initialize brainCloud
     if (!pBCWrapper) {
@@ -125,32 +165,44 @@ int main()
 
     }
     
-    if(pBCWrapper->getBCClient()->isInitialized())
-    {
-        // create an update loop for RunCallbacks()
-        std::thread(app_update).detach();
-        
-        // to make sure there's a fresh start for this test
-        pBCWrapper->resetStoredProfileId();
-        
+    if(pBCWrapper->getBCClient()->isInitialized()) {
+
+        // optional: create an update loop for RunCallbacks() if you do not want to wait for results
+        //std::thread(app_update).detach();
+
+        if (ClearData) {
+            // to make sure there's a fresh start for this test
+            pBCWrapper->resetStoredProfileId();
+            pBCWrapper->resetStoredAnonymousId();
+        }
+
+        cout<<"Stored Profile Id:"<<pBCWrapper->getStoredProfileId()<<endl;
+        cout<<"Stored Anon Id:"<<pBCWrapper->getStoredAnonymousId()<<endl;
+
         // Authenticate
         status += "---- Authenticating...\n";
         pBCWrapper->authenticateAnonymous(&authCallback);
-        
-        // keep app alive
-        
-        auto t1 = std::chrono::high_resolution_clock::now();
-        do {
-            
-            auto t2 = std::chrono::high_resolution_clock::now();
-            
-            // timeout just in case
-            fp_ms = t2 - t1;
-            
-            // callbacks will change this result value
-        } while (result < 0 && fp_ms.count() < 15000);
-        
-        
+
+        app_update(); // call update in this thread if you do want to wait for results
+
+        cout<<"Stored Profile Id:"<<pBCWrapper->getStoredProfileId()<<endl;
+        cout<<"Stored Anon Id:"<<pBCWrapper->getStoredAnonymousId()<<endl;
+
+        // Enable RTT
+        if(EnableRTT) {
+            pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
+            app_update(); // call update in this thread if you do want to wait for results
+        }
+
+        // Logout
+        status += "---- Logging out...\n";
+        pBCWrapper->logout(ForgetUser, &logoutCallback);
+
+        app_update(); // call update in this thread if you do want to wait for results
+
+        cout<<"Stored Profile Id:"<<pBCWrapper->getStoredProfileId()<<endl;
+        cout<<"Stored Anon Id:"<<pBCWrapper->getStoredAnonymousId()<<endl;
+
         std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // short sleep to wrap things up
     }
     else{
@@ -170,10 +222,16 @@ int main()
         case 3:
             cout << "\n\n---- Run failed in RTT callback." << endl;
             break;
+        case 4:
+            cout << "\n\n---- Run failed in logout." << endl;
+            break;
         default:
             cout << "\n\n---- Test ended. Probable timeout." << endl;
             break;
     }
+
+    // always logout on application exit
+    pBCWrapper->logout(false, &logoutCallback);
 
 	return result;
 }
