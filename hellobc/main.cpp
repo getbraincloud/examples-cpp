@@ -91,9 +91,17 @@ public:
         status += "**** ERROR: logout: " + jsonError + "\n\n";
         result = 2;
     }
+
 };
 static LogoutCallback logoutCallback;
+
 //##############################################################################
+void flush_status() {
+    if (status.length() > 0) {
+        cout << status;
+        status = "";
+    }
+}
 // CALLBACK LOOP
 void app_update()
 {
@@ -110,14 +118,15 @@ void app_update()
             pBCWrapper->runCallbacks();
         }
 
-        if (status.length() > 0) {
-            cout << status;
-            status = "";
-        }
-        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // run callbacks loop every 1/10 second
-    } while(result < 0 && fp_ms.count() < 15000);
-}
+        flush_status();
 
+        std::this_thread::sleep_for(std::chrono::milliseconds(100)); // run callbacks loop every 1/10 second
+        if(fp_ms.count() > 15000){
+            // optional: logout if there's a timeout
+            break;
+        }
+    } while(result < 0);
+}
 //##############################################################################
 // MAIN GAME LOOP
 // Example argument: ./hellobc "{\"TestSaveData\": {\"ClearData\": false,\"ForgetUser\": false}}"
@@ -126,8 +135,9 @@ int main(int argc, char* argv[])
     std::string serverUrl = BRAINCLOUD_SERVER_URL;
     std::string secretKey = BRAINCLOUD_APP_SECRET;
     std::string appId = BRAINCLOUD_APP_ID;
-    
-    cout << "---- Welcome to BrainCloud!" << endl;
+
+    status += "---- Welcome to BrainCloud!\n";
+
 
     // check if there is more than one argument and use the second one
     //  (the first argument is the executable)
@@ -164,51 +174,68 @@ int main(int argc, char* argv[])
         pBCWrapper->getBCClient()->enableLogging(true);
 
     }
-    
-    if(pBCWrapper->getBCClient()->isInitialized()) {
+    flush_status();
 
-        // optional: create an update loop for RunCallbacks() if you do not want to wait for results
-        //std::thread(app_update).detach();
+    do {
+        if (pBCWrapper->getBCClient()->isInitialized()) {
 
-        if (ClearData) {
-            // to make sure there's a fresh start for this test
-            pBCWrapper->resetStoredProfileId();
-            pBCWrapper->resetStoredAnonymousId();
-        }
+            // optional: create an update loop for RunCallbacks() if you do not want to wait for results
+            // make sure to logout on exit
+            // std::thread(app_update).detach();
 
-        cout<<"Stored Profile Id:"<<pBCWrapper->getStoredProfileId()<<endl;
-        cout<<"Stored Anon Id:"<<pBCWrapper->getStoredAnonymousId()<<endl;
+            if (ClearData) {
+                status += "---- Resetting User Data\n\n";
+                // to make sure there's a fresh start for this test
+                pBCWrapper->clearIds();
+            }
 
-        // Authenticate
-        status += "---- Authenticating...\n";
-        pBCWrapper->authenticateAnonymous(&authCallback);
+            status += "Stored Profile Id:";
+            status += pBCWrapper->getStoredProfileId();
+            status += "\n";
+            status += "Stored Anon Id:";
+            status += pBCWrapper->getStoredAnonymousId();
+            status += "\n\n";
 
-        app_update(); // call update in this thread if you do want to wait for results
-
-        cout<<"Stored Profile Id:"<<pBCWrapper->getStoredProfileId()<<endl;
-        cout<<"Stored Anon Id:"<<pBCWrapper->getStoredAnonymousId()<<endl;
-
-        // Enable RTT
-        if(EnableRTT) {
-            pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
+            // Authenticate
+            status += "---- Authenticating...\n";
+            pBCWrapper->authenticateAnonymous(&authCallback);
             app_update(); // call update in this thread if you do want to wait for results
+            if(result != 0) break;
+
+            status += "Stored Profile Id:";
+            status += pBCWrapper->getStoredProfileId();
+            status += "\n";
+            status += "Stored Anon Id:";
+            status += pBCWrapper->getStoredAnonymousId();
+            status += "\n\n";
+
+            // Enable RTT
+            if (EnableRTT) {
+                pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
+                app_update(); // call update in this thread if you do want to wait for results
+                if(result != 0) break;
+            }
+
+            // Logout
+            status += "---- Logging out...\n";
+            pBCWrapper->logout(ForgetUser, &logoutCallback);
+            app_update(); // call update in this thread if you do want to wait for results
+            if(result != 0) break;
+
+            status += "Stored Profile Id:";
+            status += pBCWrapper->getStoredProfileId();
+            status += "\n";
+            status += "Stored Anon Id:";
+            status += pBCWrapper->getStoredAnonymousId();
+            status += "\n\n";
+
+            flush_status();
+            std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // short sleep to wrap things up
+        } else {
+            result = 1;
         }
+    }while(false); // execute one time, no repeat
 
-        // Logout
-        status += "---- Logging out...\n";
-        pBCWrapper->logout(ForgetUser, &logoutCallback);
-
-        app_update(); // call update in this thread if you do want to wait for results
-
-        cout<<"Stored Profile Id:"<<pBCWrapper->getStoredProfileId()<<endl;
-        cout<<"Stored Anon Id:"<<pBCWrapper->getStoredAnonymousId()<<endl;
-
-        std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // short sleep to wrap things up
-    }
-    else{
-        result = 1;
-    }
-    
     switch(result){
         case 0:
             cout << "\n\n---- Successful test run. Good-bye." << endl;
@@ -229,9 +256,6 @@ int main(int argc, char* argv[])
             cout << "\n\n---- Test ended. Probable timeout." << endl;
             break;
     }
-
-    // always logout on application exit
-    pBCWrapper->logout(false, &logoutCallback);
 
 	return result;
 }
