@@ -14,10 +14,10 @@ static std::string status("");
 static std::string prevStatus;
 static char input;
 enum errorstatus{
+    complete,
     none,
     pass,
     timeout,
-    complete,
     initialize,
     authenticate,
     logout,
@@ -301,5 +301,5 @@ int main(int argc, char* argv[])
             break;
     }
 
-	return result;
+	return static_cast<int>(result);
 }
