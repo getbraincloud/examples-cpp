@@ -51,7 +51,7 @@ int count_fail = 0;
 // set a timeout after n seconds
 static double maxrun = 360;
 // number of times to repeat (counts down to 0)
-static int repeat = 1;
+static int repeat = 2;
 // how many attempts to try on rtt fail (at least 1)
 static int max_attempts = 1;
 // how long to wait seconds between repeat tests/retries
@@ -344,6 +344,8 @@ void TestCountryCode()
     if(!waiting) {
         switch (stagepassed) {
             case initialize:
+                pBCWrapper->clearIds();
+
                 status += "System Country Code:";
                 status += pBCWrapper->client->getCountryCode();
                 status += "\n";
@@ -360,7 +362,7 @@ void TestCountryCode()
                 break;
             case authenticate:
                 status += "Logging out...\n\n";
-                pBCWrapper->logout(false, &logoutCallback);
+                pBCWrapper->logout(true, &logoutCallback);
                 waiting = true;
                 break;
             case logout:
@@ -401,8 +403,8 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
                 BRAINCLOUD_APP_SECRET,
                 BRAINCLOUD_APP_ID,
                 "1.0",
-                "bitHeads inc.",
-                "ClientTest");
+                "bitheads",
+                "android");
 
         if(pBCWrapper->getBCClient()->isInitialized()) {
             pBCWrapper->getBCClient()->enableLogging(true);
