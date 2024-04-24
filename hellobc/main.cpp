@@ -25,7 +25,8 @@ enum errorstatus{
 };
 static errorstatus result = none;
 static std::chrono::duration<double, std::milli> fp_ms;
-bool ForgetUser = false;
+bool ClearData = true;
+bool ForgetUser = true;
 bool EnableRTT = false;
 int Repeat = 1;
 
@@ -149,14 +150,14 @@ void app_update()
 }
 //##############################################################################
 // MAIN GAME LOOP
-// Example argument: ./hellobc "{\"TestSaveData\": {\"ForgetUser\": false, \"Repeat\": 1}}"
+// Example argument: ./hellobc "{\"TestSaveData\": {\"ClearData\":false, \"ForgetUser\": false, \"Repeat\": 1}}"
 int main(int argc, char* argv[])
 {
     std::string serverUrl = BRAINCLOUD_SERVER_URL;
     std::string secretKey = BRAINCLOUD_APP_SECRET;
     std::string appId = BRAINCLOUD_APP_ID;
 
-    status += "---- Welcome to BrainCloud!\n";
+    status += "---- Welcome to brainCloud!\n";
 
 
     // check if there is more than one argument and use the second one
@@ -169,6 +170,7 @@ int main(int argc, char* argv[])
         Json::Value data;
         reader.parse(arg1, data);
 
+        ClearData = data["TestSaveData"]["ClearData"].asBool();
         ForgetUser = data["TestSaveData"]["ForgetUser"].asBool();
         Repeat = data["TestSaveData"]["Repeat"].asInt();
     }
@@ -203,6 +205,12 @@ int main(int argc, char* argv[])
             // make sure to logout on exit
             // std::thread(app_update).detach();
 
+            if(ClearData) {
+                status += "---- Resetting user data...\n";
+                pBCWrapper->clearIds();
+            }
+            flush_status();
+
             status += "Stored Profile Id:";
             status += pBCWrapper->getStoredProfileId();
             status += "\n";
@@ -223,6 +231,8 @@ int main(int argc, char* argv[])
 
             // Authenticate
             status += "---- Authenticating...\n";
+            flush_status();
+
             pBCWrapper->authenticateAnonymous(&authCallback);
             app_update(); // call update in this thread if you do want to wait for results
             if(result != pass) break;
@@ -236,6 +246,9 @@ int main(int argc, char* argv[])
 
             // Enable RTT
             if (EnableRTT) {
+                status += "---- Enabling RTT...\n";
+                flush_status();
+
                 pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
                 app_update(); // call update in this thread if you do want to wait for results
                 if(result != pass) break;
@@ -243,6 +256,8 @@ int main(int argc, char* argv[])
 
             // Logout
             status += "---- Logging out...\n";
+            flush_status();
+
             pBCWrapper->logout(ForgetUser, &logoutCallback);
             app_update(); // call update in this thread if you do want to wait for results
             if(result != pass) break;
