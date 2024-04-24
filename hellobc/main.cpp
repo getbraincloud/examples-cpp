@@ -13,11 +13,21 @@ static BrainCloud::BrainCloudWrapper* pBCWrapper = nullptr;
 static std::string status("");
 static std::string prevStatus;
 static char input;
-static int result = -1;
+enum errorstatus{
+    none,
+    pass,
+    timeout,
+    complete,
+    initialize,
+    authenticate,
+    logout,
+    rttEnable
+};
+static errorstatus result = none;
 static std::chrono::duration<double, std::milli> fp_ms;
-bool ClearData = false;
 bool ForgetUser = false;
 bool EnableRTT = false;
+int Repeat = 1;
 
 //##############################################################################
 
@@ -29,13 +39,13 @@ public:
         status += "---- RTT enabled after ";
         status += std::to_string(fp_ms.count());
         status += "ms\n\n";
-        result = 0;
+        result = pass;
     }
 
     void rttConnectFailure(const std::string& errorMessage) override
     {
         status += "---- ERROR: enableRTT: " + errorMessage  + "\n\n";
-        result = 3;
+        result = rttEnable;
     }
 };
 static RTTConnectCallback rttConnectCallback;
@@ -62,14 +72,24 @@ public:
         status += data["data"]["loginCount"].asString();
         status += "\n\n";
 
-        result = 0; // end of test
+        status += "Server Country Code: ";
+        status += data["data"]["countryCode"].asString();
+        status += "\n";
+        status += "Server Language Code: ";
+        status += data["data"]["languageCode"].asString();
+        status += "\n";
+        status += "Server Timezone Offset: ";
+        status += std::to_string(data["data"]["timeZoneOffset"].asFloat());
+        status += "\n";
+
+        result = pass;
     }
 
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string& jsonError) override
     {
         status += "---- ERROR: authenticateUniversal: " + jsonError + "\n\n";
         
-        result = 4;
+        result = authenticate;
     }
 };
 
@@ -82,14 +102,13 @@ public:
     void serverCallback(ServiceName serviceName, ServiceOperation serviceOperation, const std::string &jsonData) override
     {
         status += "---- Logged out of BrainCloud\n";
-        result = 0;
-
+        result = pass;
     }
 
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
     {
         status += "**** ERROR: logout: " + jsonError + "\n\n";
-        result = 2;
+        result = logout;
     }
 
 };
@@ -105,7 +124,8 @@ void flush_status() {
 // CALLBACK LOOP
 void app_update()
 {
-    result = -1;
+    result = none;
+
     auto t1 = std::chrono::high_resolution_clock::now();
     do {
         auto t2 = std::chrono::high_resolution_clock::now();
@@ -123,13 +143,13 @@ void app_update()
         std::this_thread::sleep_for(std::chrono::milliseconds(100)); // run callbacks loop every 1/10 second
         if(fp_ms.count() > 15000){
             // optional: logout if there's a timeout
-            break;
+            result = timeout;
         }
-    } while(result < 0);
+    } while(result == none);
 }
 //##############################################################################
 // MAIN GAME LOOP
-// Example argument: ./hellobc "{\"TestSaveData\": {\"ClearData\": false,\"ForgetUser\": false}}"
+// Example argument: ./hellobc "{\"TestSaveData\": {\"ForgetUser\": false, \"Repeat\": 1}}"
 int main(int argc, char* argv[])
 {
     std::string serverUrl = BRAINCLOUD_SERVER_URL;
@@ -149,8 +169,8 @@ int main(int argc, char* argv[])
         Json::Value data;
         reader.parse(arg1, data);
 
-        ClearData = data["TestSaveData"]["ClearData"].asBool();
         ForgetUser = data["TestSaveData"]["ForgetUser"].asBool();
+        Repeat = data["TestSaveData"]["Repeat"].asInt();
     }
 
     // Initialize brainCloud
@@ -183,12 +203,6 @@ int main(int argc, char* argv[])
             // make sure to logout on exit
             // std::thread(app_update).detach();
 
-            if (ClearData) {
-                status += "---- Resetting User Data\n\n";
-                // to make sure there's a fresh start for this test
-                pBCWrapper->clearIds();
-            }
-
             status += "Stored Profile Id:";
             status += pBCWrapper->getStoredProfileId();
             status += "\n";
@@ -196,11 +210,22 @@ int main(int argc, char* argv[])
             status += pBCWrapper->getStoredAnonymousId();
             status += "\n\n";
 
+            status += "System Country Code:";
+            status += pBCWrapper->client->getCountryCode();
+            status += "\n";
+            status += "System Language Code:";
+            status += pBCWrapper->client->getLanguageCode();
+            status += "\n";
+            status += "System Timezone Offset:";
+            status += std::to_string(pBCWrapper->client->getTimezoneOffset());
+            status += "\n\n";
+            flush_status();
+
             // Authenticate
             status += "---- Authenticating...\n";
             pBCWrapper->authenticateAnonymous(&authCallback);
             app_update(); // call update in this thread if you do want to wait for results
-            if(result != 0) break;
+            if(result != pass) break;
 
             status += "Stored Profile Id:";
             status += pBCWrapper->getStoredProfileId();
@@ -213,14 +238,17 @@ int main(int argc, char* argv[])
             if (EnableRTT) {
                 pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
                 app_update(); // call update in this thread if you do want to wait for results
-                if(result != 0) break;
+                if(result != pass) break;
             }
 
             // Logout
             status += "---- Logging out...\n";
             pBCWrapper->logout(ForgetUser, &logoutCallback);
             app_update(); // call update in this thread if you do want to wait for results
-            if(result != 0) break;
+            if(result != pass) break;
+
+            // mark complete on last run
+            if(Repeat == 1) result = complete;
 
             status += "Stored Profile Id:";
             status += pBCWrapper->getStoredProfileId();
@@ -232,26 +260,27 @@ int main(int argc, char* argv[])
             flush_status();
             std::this_thread::sleep_for(std::chrono::milliseconds(1000)); // short sleep to wrap things up
         } else {
-            result = 1;
+            result = initialize;
         }
-    }while(false); // execute one time, no repeat
+    }while(--Repeat > 0); // execute one time, no repeat
 
     switch(result){
-        case 0:
+        case complete:
             cout << "\n\n---- Successful test run. Good-bye." << endl;
             break;
-        case 1:
+        case initialize:
             cout << "\n\n---- Run failed in initialization." << endl;
             break;
-        case 2:
+        case authenticate:
             cout << "\n\n---- Run failed in authentication callback." << endl;
             break;
-        case 3:
+        case rttEnable:
             cout << "\n\n---- Run failed in RTT callback." << endl;
             break;
-        case 4:
+        case logout:
             cout << "\n\n---- Run failed in logout." << endl;
             break;
+        case none:
         default:
             cout << "\n\n---- Test ended. Probable timeout." << endl;
             break;
