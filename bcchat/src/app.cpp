@@ -542,9 +542,15 @@ void app_update()
     {
         pBCWrapper->runCallbacks();
     }
+    else 
+    {
+        initBC();
+    }
+
     if (dead)
     {
         dead = false;
+        pBCWrapper->logout(false, nullptr);
         uninitBC(); // We differ destroying BC because we cannot destroy it within a callback (yet)
         BCCallback::destroyAll();
     }
@@ -553,7 +559,10 @@ void app_update()
     switch (state.screenState)
     {
         case ScreenState::Login:
-            login_update();
+            if(pBCWrapper->canReconnect())
+                app_reconnect();
+            else
+                login_update();
             break;
         case ScreenState::Chat:
             chat_update();
@@ -583,6 +592,7 @@ void app_update()
 // Logs out the current user and goes back to login screen
 void app_logOut()
 {
+    pBCWrapper->logout(true, nullptr);
     uninitBC();
     resetState();
 }
@@ -594,6 +604,8 @@ void app_logOut()
 // Shutdowns the application
 void app_exit()
 {
+    if(pBCWrapper)
+        pBCWrapper->logout(false, nullptr);
 #if defined(BCCHAT_UWP)
     Windows::ApplicationModel::Core::CoreApplication::Exit();
 #else
@@ -603,9 +615,7 @@ void app_exit()
 
 // Attempt login with the specific username/password
 void app_login(const char* username, const char* password)
-{    
-    initBC();
-    
+{
     // Confirm successful initialization
     if (pBCWrapper->getBCClient()->isInitialized() == true) {
         loading_text = "Logging in ...";
@@ -633,13 +643,39 @@ void app_login(const char* username, const char* password)
     );
 }
 
+// Attempt  reconnect with saved profile
+void app_reconnect()
+{
+    // Confirm successful initialization
+    if (pBCWrapper->getBCClient()->isInitialized() == true) {
+        loading_text = "Reconnecting ...";
+    }
+    else
+        loading_text = "Initialize failed. Check ids.";
+
+    // Show loading screen
+    state.screenState = ScreenState::Loading;
+
+    // Authenticate with brainCloud
+    pBCWrapper->reconnect(new BCCallback(
+                                         [](const Json::Value& result) // Success
+                                         {
+                                             handlePlayerState(result);
+                                         },
+                                         [](const std::string& status_message) // Error
+                                         {
+                                             dieWithMessage("Reconnect Failed:\n" + status_message);
+                                         }));
+    
+}
+
 // Submit user name to brainCloud to be assosiated with the current user
 void app_submitName(const char* firstName, const char* lastName)
 {
     state.user.name = firstName + std::string(" ") + lastName;
 
     // Show loading screen
-    loading_text = "Logging in ...";
+    loading_text = "Updating name ...";
     state.screenState = ScreenState::Loading;
 
     // Update name

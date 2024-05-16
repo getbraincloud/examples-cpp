@@ -86,7 +86,7 @@ int main()
     ImGui_ImplOpenGL2_Init();
 
     // Load app related stuff
-    loadConfigs();
+    //loadConfigs();    
 
     // Main loop
     bool done = false;

@@ -34,49 +34,49 @@
 // Draws a login dialog and update its logic
 void login_update()
 {
-    // Menu Bar
-    menuBar_update();
-
-    // Login window, centered
-    {
-        ImGui::SetNextWindowPos(ImVec2(
-            (float)width / 2.0f - DIALOG_WIDTH / 2.0f,
-            (float)height / 2.0f - DIALOG_HEIGHT / 2.0f));
-        ImGui::SetNextWindowSize(ImVec2(DIALOG_WIDTH, DIALOG_HEIGHT));
-        ImGui::Begin("Log In", nullptr,
-            ImGuiWindowFlags_NoCollapse |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoResize);
-        ImGui::Text("A new user will be created if it doesn't exist.");
-        ImGui::InputText("Username", username, MAX_CREDENTIAL_CHAR);
-        ImGui::InputText("Password", password, MAX_CREDENTIAL_CHAR,
-            ImGuiInputTextFlags_Password);
-
-        // Greyed out login button if user/pass not yet entered
-        auto canLogin = strlen(username) && strlen(password);
-        if (!canLogin)
+        // Menu Bar
+        menuBar_update();
+        
+        // Login window, centered
         {
-            ImGui::PushStyleVar(
-                ImGuiStyleVar_Alpha,
-                ImGui::GetStyle().Alpha * 0.5f);
+            ImGui::SetNextWindowPos(ImVec2(
+                                           (float)width / 2.0f - DIALOG_WIDTH / 2.0f,
+                                           (float)height / 2.0f - DIALOG_HEIGHT / 2.0f));
+            ImGui::SetNextWindowSize(ImVec2(DIALOG_WIDTH, DIALOG_HEIGHT));
+            ImGui::Begin("Log In", nullptr,
+                         ImGuiWindowFlags_NoCollapse |
+                         ImGuiWindowFlags_NoMove |
+                         ImGuiWindowFlags_NoResize);
+            ImGui::Text("A new user will be created if it doesn't exist.");
+            ImGui::InputText("Username", username, MAX_CREDENTIAL_CHAR);
+            ImGui::InputText("Password", password, MAX_CREDENTIAL_CHAR,
+                             ImGuiInputTextFlags_Password);
+            
+            // Greyed out login button if user/pass not yet entered
+            auto canLogin = strlen(username) && strlen(password);
+            if (!canLogin)
+            {
+                ImGui::PushStyleVar(
+                                    ImGuiStyleVar_Alpha,
+                                    ImGui::GetStyle().Alpha * 0.5f);
+            }
+            
+            // Login button
+            if (ImGui::Button("Login") && canLogin)
+            {
+                // Save user/pass locally for next time
+                // saveConfigs();
+                
+                // Attempt login
+                app_login(username, password);
+            }
+            
+            // Restore style for grayed out button
+            if (!canLogin)
+            {
+                ImGui::PopStyleVar();
+            }
+            
+            ImGui::End();
         }
-
-        // Login button
-        if (ImGui::Button("Login") && canLogin)
-        {
-            // Save user/pass locally for next time
-            saveConfigs();
-
-            // Attempt login
-            app_login(username, password);
-        }
-
-        // Restore style for grayed out button
-        if (!canLogin)
-        {
-            ImGui::PopStyleVar();
-        }
-
-        ImGui::End();
-    }
 }

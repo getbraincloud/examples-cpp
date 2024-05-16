@@ -27,6 +27,9 @@ void app_logOut();
 // Shutdowns the application
 void app_exit();
 
+// Attempt reconnect with saved profile
+void app_reconnect();
+
 // Attempt login with the specific username/password
 void app_login(const char* username, const char* password);
 
