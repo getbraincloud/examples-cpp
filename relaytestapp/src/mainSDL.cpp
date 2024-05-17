@@ -51,6 +51,7 @@
 
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 bool done = false;
+bool startfullscreen = false;
 
 int main(int argc, char *argv[])
 {
@@ -84,7 +85,7 @@ int main(int argc, char *argv[])
 
     // using SDL2
     SDL_DisplayMode current;
-    int displayID = 0; // assume display zero for android
+    int displayID = 1; // assume display zero for android
     SDL_GetDesktopDisplayMode(displayID, &current);
 #else
     // using SDL3
@@ -115,7 +116,7 @@ int main(int argc, char *argv[])
             
             flags |= SDL_WINDOW_BORDERLESS;
         }
-        else{
+        else if(startfullscreen){
             // when possible, use entire space
             width = usable_bounds.w;
             height = usable_bounds.h;
@@ -178,7 +179,7 @@ int main(int argc, char *argv[])
             ImGui_ImplSDL2_ProcessEvent(&event);
             if (event.type == SDL_QUIT)
             {
-                done = true;
+                app_exit();
             }
             if (event.window.event == SDL_WINDOWEVENT_SIZE_CHANGED)
             {
@@ -194,7 +195,7 @@ int main(int argc, char *argv[])
             ImGui_ImplSDL3_ProcessEvent(&event);
             if (event.type == SDL_EVENT_QUIT)
             {
-                done = true;
+                app_exit();
             }
             if (event.type == SDL_EVENT_WINDOW_RESIZED)
             {
