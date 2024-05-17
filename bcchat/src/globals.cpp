@@ -50,10 +50,6 @@ void loadConfigs()
             {
                 strcpy(username, value);
             }
-            else if (strcmp(key, "password") == 0)
-            {
-                strcpy(password, value);
-            }
             else if (strcmp(key, "theme") == 0)
             {
                 theme = atoi(value);
@@ -70,7 +66,6 @@ void saveConfigs()
     if (pFile)
     {
         fprintf(pFile, "username = %s\n", username);
-        fprintf(pFile, "password = %s\n", password);
         fprintf(pFile, "theme = %i\n", theme);
         fclose(pFile);
     }

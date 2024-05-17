@@ -86,7 +86,7 @@ int main()
     ImGui_ImplOpenGL2_Init();
 
     // Load app related stuff
-    //loadConfigs();    
+    loadConfigs();    
 
     // Main loop
     bool done = false;
@@ -99,7 +99,7 @@ int main()
             ImGui_ImplSDL3_ProcessEvent(&event);
             if (event.type == SDL_EVENT_QUIT)
             {
-                done = true;
+                app_exit();
             }
             if (event.type == SDL_EVENT_WINDOW_RESIZED)
             {

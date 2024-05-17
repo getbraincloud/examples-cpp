@@ -134,7 +134,7 @@ void initBC()
     
     if (!pBCWrapper)
     {
-        pBCWrapper = new BrainCloud::BrainCloudWrapper("BCChat");
+        pBCWrapper = new BrainCloud::BrainCloudWrapper("");
     }
     dead = false;
     pBCWrapper->initialize(serverUrl.c_str(),
@@ -508,6 +508,10 @@ void onPresenceUpdate(const Json::Value& jsonPresence)
 // Go back to login screen, with an error message
 void dieWithMessage(const std::string& message)
 {
+    if(pBCWrapper && pBCWrapper->getBCClient())
+    {
+        pBCWrapper->logout(false, nullptr);
+    }
     errorMessage = message;
     ImGui::OpenPopup("Error");
     dead = true;
@@ -538,23 +542,31 @@ void resetState()
 // Draws the application's GUI and update brainCloud
 void app_update()
 {
-    if (pBCWrapper)
-    {
-        pBCWrapper->runCallbacks();
-    }
-    else 
-    {
-        initBC();
-    }
-
+    
     if (dead)
     {
         dead = false;
-        pBCWrapper->logout(false, nullptr);
         uninitBC(); // We differ destroying BC because we cannot destroy it within a callback (yet)
         BCCallback::destroyAll();
     }
-
+    else
+    {
+        if (pBCWrapper)
+        {
+            pBCWrapper->runCallbacks();
+        }
+        else
+        {
+            initBC();
+            
+            if (pBCWrapper->getBCClient()->isInitialized() == false) {
+                loading_text = "Initialize failed. Check ids.";
+                // Show loading screen
+                state.screenState = ScreenState::Loading;
+            }
+        }
+    }
+    
     // Display the proper scree
     switch (state.screenState)
     {
@@ -593,7 +605,6 @@ void app_update()
 void app_logOut()
 {
     pBCWrapper->logout(true, nullptr);
-    uninitBC();
     resetState();
 }
 
@@ -604,7 +615,7 @@ void app_logOut()
 // Shutdowns the application
 void app_exit()
 {
-    if(pBCWrapper)
+    if(pBCWrapper && pBCWrapper->getBCClient())
         pBCWrapper->logout(false, nullptr);
 #if defined(BCCHAT_UWP)
     Windows::ApplicationModel::Core::CoreApplication::Exit();
@@ -616,12 +627,7 @@ void app_exit()
 // Attempt login with the specific username/password
 void app_login(const char* username, const char* password)
 {
-    // Confirm successful initialization
-    if (pBCWrapper->getBCClient()->isInitialized() == true) {
-        loading_text = "Logging in ...";
-    }
-    else
-        loading_text = "Initialize failed. Check ids.";
+    loading_text = "Logging in ...";
 
     // Show loading screen
     state.screenState = ScreenState::Loading;
@@ -646,12 +652,7 @@ void app_login(const char* username, const char* password)
 // Attempt  reconnect with saved profile
 void app_reconnect()
 {
-    // Confirm successful initialization
-    if (pBCWrapper->getBCClient()->isInitialized() == true) {
-        loading_text = "Reconnecting ...";
-    }
-    else
-        loading_text = "Initialize failed. Check ids.";
+    loading_text = "Reconnecting ...";
 
     // Show loading screen
     state.screenState = ScreenState::Loading;
