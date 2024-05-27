@@ -140,8 +140,8 @@ void initBC()
     pBCWrapper->initialize(serverUrl.c_str(),
                            secretKey.c_str(),
                            appId.c_str(),
-                           pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str(),
-                           "bitHeads inc.", 
+                           "1.1(cpp)",
+                           "playBrains Studio",
                            "BCChat");
     pBCWrapper->getBCClient()->enableLogging(true);
 }

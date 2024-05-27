@@ -1,7 +1,7 @@
 # Android
 brainCloud Android authentication example, written in C++.
 
-![](./screenshots/screenshot.png)
+![](./Screenshots/android-GamePlay.png)
 
 ## How to Build
 First you'll need to properly clone the project's submodules.
