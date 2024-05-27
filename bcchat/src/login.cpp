@@ -43,7 +43,7 @@ void login_update()
                                        (float)width / 2.0f - DIALOG_WIDTH / 2.0f,
                                        (float)height / 2.0f - DIALOG_HEIGHT / 2.0f));
         ImGui::SetNextWindowSize(ImVec2(DIALOG_WIDTH, DIALOG_HEIGHT));
-        ImGui::Begin("Log In", nullptr,
+        ImGui::Begin((std::string("BCChat ")+appVersion).c_str(), nullptr,
                      ImGuiWindowFlags_NoCollapse |
                      ImGuiWindowFlags_NoMove |
                      ImGuiWindowFlags_NoResize);

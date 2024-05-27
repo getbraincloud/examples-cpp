@@ -156,6 +156,7 @@ int main(int argc, char* argv[])
     std::string serverUrl = BRAINCLOUD_SERVER_URL;
     std::string secretKey = BRAINCLOUD_APP_SECRET;
     std::string appId = BRAINCLOUD_APP_ID;
+    std::string appVersion = "2.0";
 
     status += "---- Welcome to brainCloud!\n";
 
@@ -185,9 +186,9 @@ int main(int argc, char* argv[])
             serverUrl.c_str(),
             secretKey.c_str(),
             appId.c_str(),
-            "1.0",
-            "bitHeads inc.",
-            "Hello BrainCloud");
+            appVersion.c_str(),
+            "bitHeads",
+            "HelloBC");
 
         status += "---- Initialized BrainCloud version ";
         status += pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str();

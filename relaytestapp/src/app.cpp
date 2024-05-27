@@ -41,6 +41,8 @@
 #include <iostream>
 #include <stdlib.h>
 
+std::string appVersion = "2.0";
+
 // Prototypes for private functions
 static void initBC();
 static void handlePlayerState(const Json::Value& result);
@@ -162,8 +164,8 @@ static void initBC()
     pBCWrapper->initialize(BRAINCLOUD_SERVER_URL, 
                            BRAINCLOUD_APP_SECRET, 
                            BRAINCLOUD_APP_ID, 
-                           pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str(), 
-                           "bitHeads inc.", 
+                           appVersion.c_str(),
+                           "bitheads",
                            "RelayTestApp");
     pBCWrapper->getBCClient()->enableLogging(true);
 }

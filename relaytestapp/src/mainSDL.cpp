@@ -100,7 +100,7 @@ int main(int argc, char *argv[])
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
     // using SDL3
-    SDL_Window* window = SDL_CreateWindow("brainCloud Relay Test App", width, height, flags);
+    SDL_Window* window = SDL_CreateWindow((std::string("brainCloud Relay Test App ") + appVersion).c_str() , width, height, flags);
 
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     SDL_GL_SetSwapInterval(1); // Enable vsync
