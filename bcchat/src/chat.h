@@ -18,6 +18,7 @@
 //       multiple panels.
 // Author: David St-Louis
 //-----------------------------------------------------------------------------
+#pragma once
 
 // Draws the application's chat screen GUI and updates its logic
 void chat_update();

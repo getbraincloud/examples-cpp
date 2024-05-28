@@ -17,6 +17,7 @@
 // Desc: Interface for displaying and updating the AskForName dialog
 // Author: David St-Louis
 //-----------------------------------------------------------------------------
+#pragma once
 
 // Draws dialog GUI and update it's logic
 void askForName_update();

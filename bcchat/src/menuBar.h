@@ -17,7 +17,7 @@
 // Desc: Interface for displaying a menuBar
 // Author: David St-Louis
 //-----------------------------------------------------------------------------
-
+#pragma once
 #include "braincloud/BrainCloudWrapper.h"
 
 // Draws menu bar GUI and update its logic

@@ -41,6 +41,8 @@
 #include <iostream>
 #include <stdlib.h>
 
+std::string appVersion = "2.0";
+
 // Prototypes for private functions
 static void initBC();
 static void handlePlayerState(const Json::Value& result);
@@ -156,14 +158,14 @@ static void initBC()
 {
     if (!pBCWrapper)
     {
-        pBCWrapper = new BrainCloud::BrainCloudWrapper("RelayTestApp");
+        pBCWrapper = new BrainCloud::BrainCloudWrapper("");
     }
     dead = false;
     pBCWrapper->initialize(BRAINCLOUD_SERVER_URL, 
                            BRAINCLOUD_APP_SECRET, 
                            BRAINCLOUD_APP_ID, 
-                           pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str(), 
-                           "bitHeads inc.", 
+                           appVersion.c_str(),
+                           "bitheads",
                            "RelayTestApp");
     pBCWrapper->getBCClient()->enableLogging(true);
 }
@@ -233,6 +235,8 @@ void dieWithMessage(const std::string& message)
     pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
     pBCWrapper->getRTTService()->disableRTT();
 
+    pBCWrapper->logout(false, nullptr);
+    
     errorMessage = message;
     ImGui::OpenPopup("Error");
     dead = true;
@@ -303,17 +307,30 @@ static void onRelayMessage(int netId, const Json::Value& json)
 // Draws the application's GUI and update brainCloud
 void app_update()
 {
-    if (pBCWrapper)
-    {
-        pBCWrapper->runCallbacks();
-    }
     if (dead)
     {
         dead = false;
         uninitBC(); // We differ destroying BC because we cannot destroy it within a callback (yet)
         BCCallback::destroyAll();
     }
-
+    else
+    {
+        if (pBCWrapper)
+        {
+            pBCWrapper->runCallbacks();
+        }
+        else
+        {
+            initBC();
+            
+            if (pBCWrapper->getBCClient()->isInitialized() == false) {
+                loading_text = "Initialize failed. Check ids.";
+                // Show loading screen
+                state.screenState = ScreenState::LoggingIn;
+            }
+        }
+    }
+    
     // Add a menu at the top with an exit option to cleanly quit the app,
     // so we can test for exit crashes at any point
     if (ImGui::BeginMainMenuBar())
@@ -382,7 +399,10 @@ void app_update()
     switch (state.screenState)
     {
         case ScreenState::Login:
-            login_update();
+            if(pBCWrapper->canReconnect())
+                app_reconnect();
+            else
+                login_update();
             break;
         case ScreenState::LoggingIn:
         case ScreenState::JoiningLobby:
@@ -417,7 +437,8 @@ void app_update()
 // Logs out the current user and goes back to login screen
 void app_logOut()
 {
-    uninitBC();
+    pBCWrapper->logout(true, nullptr);
+    dead = true;
     resetState();
 }
 
@@ -430,6 +451,11 @@ void app_exit()
 {
     extern bool done;
     done = true;
+    
+    if(pBCWrapper && pBCWrapper->getBCClient())
+    {
+        pBCWrapper->logout(false, nullptr);
+    }
 //#if defined(RELAYTESTAPP_UWP)
 //    Windows::ApplicationModel::Core::CoreApplication::Exit();
 //#else
@@ -440,7 +466,6 @@ void app_exit()
 // Attempt login with the specific username/password
 void app_login(const char* username, const char* password)
 {
-    initBC();
 
     // Show loading screen
     loading_text = "Logging in ...";
@@ -461,6 +486,26 @@ void app_login(const char* username, const char* password)
             dieWithMessage("Login Failed:\n" + status_message);
         })
     );
+}
+
+// Attempt  reconnect with saved profile
+void app_reconnect()
+{
+    // Show loading screen
+    loading_text = "Reconnecting ...";
+    state.screenState = ScreenState::LoggingIn;
+
+    // Authenticate with brainCloud
+    pBCWrapper->reconnect(new BCCallback(
+                                         [](const Json::Value& result) // Success
+                                         {
+                                             handlePlayerState(result);
+                                         },
+                                         [](const std::string& status_message) // Error
+                                         {
+                                             dieWithMessage("Reconnect Failed:\n" + status_message);
+                                         }));
+
 }
 
 // Submit user name to brainCloud to be assosiated with the current user

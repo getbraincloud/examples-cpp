@@ -15,9 +15,27 @@
 
 using namespace BrainCloud;
 
+enum completionstage{
+    none,
+    timeout,
+    complete,
+    initialize,
+    authenticate,
+    logout,
+    logout1,
+    rttEnable,
+    getChannelId,
+    channelConnect,
+    rttMessage
+};
+
 static BrainCloud::BrainCloudWrapper *pBCWrapper = nullptr;
 static std::string status = "";
-static int result = -1;
+static std::string jsonResponse = "";
+static std::string appVersion = "2.0";
+static completionstage stagepassed = none;
+static completionstage result = none;
+static bool waiting = false;
 bool done = false;
 static std::string channelId;
 static std::chrono::duration<double, std::milli> fp_ms; // to check elapsed time anywhere
@@ -34,11 +52,13 @@ int count_fail = 0;
 // set a timeout after n seconds
 static double maxrun = 360;
 // number of times to repeat (counts down to 0)
-static int repeat = 1;
+static int repeat = 2;
 // how many attempts to try on rtt fail (at least 1)
 static int max_attempts = 1;
 // how long to wait seconds between repeat tests/retries
 static double spin = 3;
+
+
 
 class ConsoleStream : public std::stringbuf
 {
@@ -69,7 +89,8 @@ public:
         status += "---- RTT message callback \n\n>> " + message + "\n\n";
 
         // end of the test
-        result = 0;
+        stagepassed = rttMessage;
+        waiting = false;
     }
 };
 ChatCallback chatCallback;
@@ -83,14 +104,16 @@ public:
     {
         status += "---- Connected to channel\n\n";
 
-        pBCWrapper->getBCClient()->getRTTService()->registerRTTChatCallback(&chatCallback);
-        pBCWrapper->getChatService()->postChatMessageSimple(channelId, "Hello from Android", true);
+
+        stagepassed = channelConnect;
+        waiting = false;
     }
 
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
     {
         status += "**** ERROR: channelConnect: " + jsonError + "\n\n";
-        result = 4;
+        result = channelConnect;
+        waiting = false;
     }
 };
 static ChannelConnectCallback channelConnectCallback;
@@ -110,13 +133,15 @@ public:
         status += "---- Chat service enabled\n\n";
         status += "Channel id: " + channelId + "\n\n";
 
-        pBCWrapper->getChatService()->channelConnect(channelId, 50, &channelConnectCallback);
+        stagepassed = getChannelId;
+        waiting = false;
     }
 
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
     {
         status += "**** ERROR: getChannelId: " + jsonError + "\n\n";
-        result = 3;
+        result = getChannelId;
+        waiting = false;
     }
 };
 static GetChannelIdCallback getChannelIdCallback;
@@ -130,14 +155,17 @@ public:
     {
         status += "---- RTT service enabled\n\n";
 
-        pBCWrapper->getChatService()->getChannelId("gl", "valid", &getChannelIdCallback);
+
+        stagepassed = rttEnable;
+        waiting = false;
     }
 
     void rttConnectFailure(const std::string& errorMessage) override
     {
-        status += "**** ERROR: enableRTT: " + errorMessage  + "\n\n";
+        status += "**** ERROR: rttEnable: " + errorMessage  + "\n\n";
         count_fail ++;
-        result = 2;
+        result = rttEnable;
+        waiting = false;
     }
 };
 static RTTConnectCallback rttConnectCallback;
@@ -164,53 +192,189 @@ public:
         status += data["data"]["loginCount"].asString();
         status += "\n\n";
 
-        //result = 0; // this can stop the test at any point
+        status += "Server Country Code: ";
+        status += data["data"]["countryCode"].asString();
+        status += "\n";
+        status += "Server Language Code: ";
+        status += data["data"]["languageCode"].asString();
+        status += "\n";
+        status += "Server Timezone Offset: ";
+        status += std::to_string(data["data"]["timeZoneOffset"].asFloat());
+        status += "\n";
 
-        pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
+        stagepassed = authenticate;
+        waiting = false;
     }
 
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
     {
-        status += "**** ERROR: authenticateUniversal: " + jsonError + "\n\n";
-        result = 1;
+        status += "**** ERROR: authenticate: " + jsonError + "\n\n";
+        result = authenticate;
+        waiting = false;
     }
 };
 static AuthCallback authCallback;
-//##############################################################################
 
+//##############################################################################
+class Logout1Callback final : public IServerCallback
+{
+public:
+    void serverCallback(ServiceName serviceName, ServiceOperation serviceOperation, const std::string &jsonData) override
+    {
+        stagepassed = logout1;
+        waiting = false;
+    }
+
+    void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
+    {
+        stagepassed = logout1;
+        waiting = false;
+    }
+};
+static Logout1Callback logout1Callback;
+//##############################################################################
 class LogoutCallback final : public IServerCallback
 {
 public:
     void serverCallback(ServiceName serviceName, ServiceOperation serviceOperation, const std::string &jsonData) override
     {
         status += "---- Logged out of BrainCloud\n";
-        status += "Passed  " + std::to_string(count_success) + " Failed  " + std::to_string(count_fail) +"\n\n";
-        done = true;
-
-        if(--repeat > 0 && result != 6) {
-            status += "Repeating test T-minus " + std::to_string(repeat) + "\n\n";
-            result = -1;
-            done = false;
-            //startwait = 0;
-            retry = false;
-            attempts = 0;
-
-            running_repeat = true;
-
-        }
-        else if(repeat == 0){
-            status += "---- All runs have been executed.\n\n";
-        }
+        stagepassed = logout;
+        waiting = false;
     }
 
     void serverError(ServiceName serviceName, ServiceOperation serviceOperation, int statusCode, int reasonCode, const std::string &jsonError) override
     {
         status += "**** ERROR: logout: " + jsonError + "\n\n";
-        done = true;
+        result = logout;
+        waiting = false;
     }
 };
 static LogoutCallback logoutCallback;
+
 //##############################################################################
+void TestChatFeature() {
+    if(!waiting) {
+        switch (stagepassed) {
+            case initialize:
+                // Authenticate
+                status += "Authenticating...\n\n";
+                pBCWrapper->authenticateAnonymous(&authCallback);
+                waiting = true;
+                break;
+            case authenticate:
+                pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
+                waiting = true;
+                break;
+            case rttEnable:
+                pBCWrapper->getChatService()->getChannelId("gl", "valid", &getChannelIdCallback);
+                waiting = true;
+                break;
+            case getChannelId:
+                pBCWrapper->getChatService()->channelConnect(channelId, 50,
+                                                             &channelConnectCallback);
+                waiting = true;
+                break;
+            case channelConnect:
+                pBCWrapper->getBCClient()->getRTTService()->registerRTTChatCallback(&chatCallback);
+                pBCWrapper->getChatService()->postChatMessageSimple(channelId, "Hello from Android",
+                                                                    true);
+                waiting = true;
+                break;
+            case rttMessage:
+                // Logout
+                status += "Logging out...\n\n";
+                pBCWrapper->logout(false, &logoutCallback);
+                waiting = true;
+                break;
+            case logout:
+                result = complete;
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+void TestSaveData(bool ForgetUser)
+{
+    if(!waiting) {
+        switch (stagepassed) {
+            case initialize:
+                status += "Stored Profile Id:";
+                status += pBCWrapper->getStoredProfileId();
+                status += "\n";
+                status += "Stored Anon Id:";
+                status += pBCWrapper->getStoredAnonymousId();
+                status += "\n\n";
+
+                status += "Authenticating...\n\n";
+                pBCWrapper->authenticateAnonymous(&authCallback, true);
+                waiting = true;
+                break;
+            case authenticate:
+                status += "Stored Profile Id:";
+                status += pBCWrapper->getStoredProfileId();
+                status += "\n";
+                status += "Stored Anon Id:";
+                status += pBCWrapper->getStoredAnonymousId();
+                status += "\n\n";
+
+                status += "Logging out...\n\n";
+                pBCWrapper->logout(ForgetUser, &logoutCallback);
+                waiting = true;
+                break;
+            case logout:
+                status += "Stored Profile Id:";
+                status += pBCWrapper->getStoredProfileId();
+                status += "\n";
+                status += "Stored Anon Id:";
+                status += pBCWrapper->getStoredAnonymousId();
+                status += "\n\n";
+
+                result = complete;
+                break;
+            default:
+                break;
+        }
+    }
+}
+
+void TestCountryCode()
+{
+    if(!waiting) {
+        switch (stagepassed) {
+            case initialize:
+                pBCWrapper->clearIds();
+
+                status += "System Country Code:";
+                status += pBCWrapper->client->getCountryCode();
+                status += "\n";
+                status += "System Language Code:";
+                status += pBCWrapper->client->getLanguageCode();
+                status += "\n";
+                status += "System Timezone Offset:";
+                status += std::to_string(pBCWrapper->client->getTimezoneOffset());
+                status += "\n\n";
+
+                status += "Authenticating...\n\n";
+                pBCWrapper->authenticateAnonymous(&authCallback, true);
+                waiting = true;
+                break;
+            case authenticate:
+                status += "Logging out...\n\n";
+                pBCWrapper->logout(true, &logoutCallback);
+                waiting = true;
+                break;
+            case logout:
+                result = complete;
+                break;
+            default:
+                break;
+        }
+    }
+
+}
 
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
@@ -225,7 +389,7 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
     if(appContext != context)
         appContext = context;
 
-    int lastresult = result; // checking test results to quit on fail
+    completionstage lastresult = result; // checking test results to quit on fail
 
     // Initialize brainCloud
     if (!pBCWrapper) {
@@ -239,15 +403,16 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
                 BRAINCLOUD_SERVER_URL,
                 BRAINCLOUD_APP_SECRET,
                 BRAINCLOUD_APP_ID,
-                "1.0",
-                "bitHeads inc.",
-                "ClientTest");
+                appVersion.c_str(),
+                "bitheads",
+                "android");
 
         if(pBCWrapper->getBCClient()->isInitialized()) {
             pBCWrapper->getBCClient()->enableLogging(true);
-
             status += "---- Initialized BrainCloud version ";
             status += pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str();
+            status += "\n     App version ";
+            status += appVersion.c_str();
             status += "\n\n";
 
             status += "Using libwebsocket version ";
@@ -270,19 +435,19 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
                     LLL_ERR, [](int level, const char *line) {
                         __android_log_print(ANDROID_LOG_ERROR, "brainCloudLWS", "%s", line);
                     });
-
-            // Authenticate
-            status += "Authenticating...\n\n";
-            //pBCWrapper->authenticateEmailPassword("testAndroidUser", "qwertY123", true, &authCallback);
-            pBCWrapper->authenticateAnonymous(&authCallback);
+            stagepassed = initialize;
         } else {
             status += "**** Failed to initialize. Check header file ids.h \n\n";
-            result = 7;
+            result = initialize;
         }
     }
 
     if (!done)
     {
+        //TestChatFeature();
+        //TestSaveData(false);
+        TestCountryCode();
+
         // Update braincloud
         pBCWrapper->runCallbacks();
 
@@ -291,12 +456,12 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
         fp_ms = t2 - t1;
         double elapsed = fp_ms.count();
 
-        if (result < 0 && elapsed > maxrun * 1000) {
+        if (result == none && elapsed > maxrun * 1000) {
             status += "**** ERROR: test is timing out after " + std::to_string(elapsed) + "ms \n\n";
-            result = 6; // timeout error
+            result = timeout; // timeout error
         }
 
-        if (result == 2 && max_attempts > 1) {
+        if (result == rttEnable && max_attempts > 1) {
             if (!retry) {
                 startwait = elapsed;
                 status += "Attempting retry #" + std::to_string(attempts + 1) + " in 5s\n\n";
@@ -304,23 +469,24 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
             }
             if (elapsed - startwait > spin * 1000) {
                 if (++attempts < max_attempts) {
-                    result = -1;
+                    result = none;
+                    stagepassed = authenticate;
                     pBCWrapper->getBCClient()->getRTTService()->enableRTT(&rttConnectCallback, true);
                 }
                 retry = false;
-                lastresult = -1;
+                lastresult = none;
             }
         }
 
         if(running_repeat && (elapsed - startwait > spin * 1000)){
             startwait = elapsed;
             running_repeat = false;
-            pBCWrapper->authenticateAnonymous(&authCallback);
+            stagepassed = initialize;
         }
 
         // check if done testing
-        if (!retry && result >= 0 && lastresult != result) {
-            if (result == 0) {
+        if (!retry && result != none) {
+            if (result == complete) {
                 status += "---- Successfully completed test run.\n\n";
                 count_success ++;
             }
@@ -328,8 +494,23 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
                 status += "**** Failed with code " + std::to_string(result) + "\n\n";
                 count_fail ++;
             }
+            done = true;
 
-            pBCWrapper->getBCClient()->getPlayerStateService()->logout(&logoutCallback);
+            if(--repeat > 0 && result != timeout) {
+                status += "Repeating test T-minus " + std::to_string(repeat) + "\n\n";
+                result = none;
+                done = false;
+                stagepassed = none;
+                //startwait = 0;
+                retry = false;
+                attempts = 0;
+
+                running_repeat = true;
+
+            }
+            else if(repeat == 0){
+                status += "---- All runs have been executed.\n\n";
+            }
         }
     }
 
