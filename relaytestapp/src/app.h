@@ -21,6 +21,8 @@
 // brainCloud
 #include <braincloud/BrainCloudRelay.h>
 
+extern std::string appVersion;
+
 struct Point;
 
 // Draws the application's GUI and update brainCloud

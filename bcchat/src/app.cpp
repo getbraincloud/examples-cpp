@@ -35,6 +35,8 @@
 // C/C++ includes
 #include <stdlib.h>
 
+std::string appVersion = "2.0";
+
 // Prototypes for private functions
 void initBC();
 void handlePlayerState(const Json::Value& result);
@@ -140,8 +142,8 @@ void initBC()
     pBCWrapper->initialize(serverUrl.c_str(),
                            secretKey.c_str(),
                            appId.c_str(),
-                           pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str(),
-                           "bitHeads inc.", 
+                           appVersion.c_str(),
+                           "bitheads",
                            "BCChat");
     pBCWrapper->getBCClient()->enableLogging(true);
 }

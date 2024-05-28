@@ -17,6 +17,7 @@
 // Desc: Defines global application state, data and constants
 // Author: David St-Louis
 //-----------------------------------------------------------------------------
+#pragma once
 
 // C/C++ includes
 #include <string>

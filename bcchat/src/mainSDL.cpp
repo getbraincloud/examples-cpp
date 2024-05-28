@@ -69,7 +69,7 @@ int main()
 
     // using SDL3
     SDL_Window* window = SDL_CreateWindow(
-        "BC Chat",
+        (std::string("BC Chat ") + appVersion).c_str() ,
         width, height,
         SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE);
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);

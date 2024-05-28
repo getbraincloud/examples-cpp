@@ -17,6 +17,10 @@
 // Desc: Interface for main application logic
 // Author: David St-Louis
 //-----------------------------------------------------------------------------
+#pragma once
+#include <braincloud/BrainCloudWrapper.h>
+
+extern std::string appVersion;
 
 // Draws the application's GUI and update brainCloud
 void app_update();

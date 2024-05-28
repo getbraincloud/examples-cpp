@@ -32,6 +32,7 @@ enum completionstage{
 static BrainCloud::BrainCloudWrapper *pBCWrapper = nullptr;
 static std::string status = "";
 static std::string jsonResponse = "";
+static std::string appVersion = "2.0";
 static completionstage stagepassed = none;
 static completionstage result = none;
 static bool waiting = false;
@@ -402,15 +403,16 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
                 BRAINCLOUD_SERVER_URL,
                 BRAINCLOUD_APP_SECRET,
                 BRAINCLOUD_APP_ID,
-                "1.0",
+                appVersion.c_str(),
                 "bitheads",
                 "android");
 
         if(pBCWrapper->getBCClient()->isInitialized()) {
             pBCWrapper->getBCClient()->enableLogging(true);
-
             status += "---- Initialized BrainCloud version ";
             status += pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str();
+            status += "\n     App version ";
+            status += appVersion.c_str();
             status += "\n\n";
 
             status += "Using libwebsocket version ";
