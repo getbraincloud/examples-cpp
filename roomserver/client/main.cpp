@@ -23,6 +23,8 @@ bool isGameRunning = true; // If false, the main loop will exit
 shared_ptr<BrainCloudWrapper> bc;
 Json::Value serverConnectionInfo;
 
+std::string appVersion= "1.1";
+
 // Prototypes
 void connectToServer();
 
@@ -91,11 +93,11 @@ int main(int argc, char** argv)
     bc->initialize(BRAINCLOUD_SERVER_URL,
                    BRAINCLOUD_APP_SECRET,
                    BRAINCLOUD_APP_ID,
-                   bc->getBCClient()->getBrainCloudClientVersion().c_str(),
-                   "MyCompany", "MyGame");
+                   appVersion.c_str(),
+                   "bitheads", "RoomServerExample");
  
     
-    printf("-- Room Server Example Client %s --\n", bc->getBCClient()->getBrainCloudClientVersion().c_str());
+    printf("-- Room Server Example Client -- \n\tApp ID: %s\n\tApp Version: %s\n\tClient Version: %s\n\n", BRAINCLOUD_APP_ID, appVersion.c_str(), bc->getBCClient()->getBrainCloudClientVersion().c_str());
 
     
     bc->getBCClient()->enableLogging(true);
