@@ -17,6 +17,10 @@
 // Desc: Interface for main application logic
 // Author: David St-Louis
 //-----------------------------------------------------------------------------
+#pragma once
+#include <braincloud/BrainCloudWrapper.h>
+
+extern std::string appVersion;
 
 // Draws the application's GUI and update brainCloud
 void app_update();
@@ -26,6 +30,9 @@ void app_logOut();
 
 // Shutdowns the application
 void app_exit();
+
+// Attempt reconnect with saved profile
+void app_reconnect();
 
 // Attempt login with the specific username/password
 void app_login(const char* username, const char* password);

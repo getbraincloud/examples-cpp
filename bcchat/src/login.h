@@ -17,6 +17,6 @@
 // Desc: Interface for displaying a login screen and updating its logic
 // Author: David St-Louis
 //-----------------------------------------------------------------------------
-
+#pragma once
 // Draws a login dialog and update its logic
 void login_update();

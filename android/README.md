@@ -1,7 +1,7 @@
 # Android
 brainCloud Android authentication example, written in C++.
 
-![](./screenshots/screenshot.png)
+![](./Screenshots/android-GamePlay.png)
 
 ## How to Build
 First you'll need to properly clone the project's submodules.
@@ -29,6 +29,6 @@ Files to note:
 
 In Android Studio, open the folder **examples-cpp/android**. Run in emulator or on device.
 
-Note: cmake version updated to 3.18.1, gradle plugin version to 7.4.2
+Note: cmake version updated to 3.22.1, gradle plugin version to 8.0.2
 
-In project structure > gradle version is 7.5, compile sdk 32, Tools version 34, NDK version 21.4.7075529, Java version 11 (Java 11)
+In project structure > gradle version is 8.0, compile sdk 33, Tools version 34, NDK version 25.1.8937393, Java version 11 (Java 11)

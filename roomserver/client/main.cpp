@@ -87,7 +87,7 @@ LobbyCallback lobbyCallback;
 int main(int argc, char** argv)
 {
     // Create our brainCloud client
-    bc = make_shared<BrainCloudWrapper>("MyGame");
+    bc = make_shared<BrainCloudWrapper>("");
     bc->initialize(BRAINCLOUD_SERVER_URL,
                    BRAINCLOUD_APP_SECRET,
                    BRAINCLOUD_APP_ID,
@@ -111,6 +111,8 @@ int main(int argc, char** argv)
 
         this_thread::sleep_for(100ms);
     }
+
+    bc->logout(false, nullptr);
 
     bc = nullptr;
     return 0;

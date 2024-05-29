@@ -1,7 +1,7 @@
 # BC Chat
 brainCloud RTT Chat example, written in C++.
 
-![](./screenshots/screenshot.jpg)
+![](./Screenshots/bcchat-GamePlay.png)
 
 ## How to Build
 First you'll need to properly clone the project's submodules.

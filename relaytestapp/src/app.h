@@ -21,6 +21,8 @@
 // brainCloud
 #include <braincloud/BrainCloudRelay.h>
 
+extern std::string appVersion;
+
 struct Point;
 
 // Draws the application's GUI and update brainCloud
@@ -34,6 +36,9 @@ void app_exit();
 
 // Attempt login with the specific username/password
 void app_login(const char* username, const char* password);
+
+// Attempt reconnect with saved profile
+void app_reconnect();
 
 // Find lobby
 void app_play(BrainCloud::eRelayConnectionType protocol);

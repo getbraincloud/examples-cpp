@@ -68,10 +68,6 @@ void loadConfigs()
             {
                 strcpy(settings.username, value);
             }
-            else if (strcmp(key, "password") == 0)
-            {
-                strcpy(settings.password, value);
-            }
             else if (strcmp(key, "colorIndex") == 0)
             {
                 settings.colorIndex = std::stoi(value);
@@ -126,7 +122,6 @@ void saveConfigs()
     if (pFile)
     {
         fprintf(pFile, "username = %s\n", settings.username);
-        fprintf(pFile, "password = %s\n", settings.password);
         fprintf(pFile, "colorIndex = %i\n", settings.colorIndex);
         fprintf(pFile, "gameUIIScale = %i\n", settings.gameUIIScale);
         fprintf(pFile, "protocol = %i\n", (int)settings.protocol);

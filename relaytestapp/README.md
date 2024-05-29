@@ -1,7 +1,7 @@
 # brainCloud Relay Test App
 brainCloud Relay Service example, written in C++.
 
-![](./screenshots/screenshot.jpg)
+![](./Screenshots/relaytestapp_GamePlay.png)
 
 ## How to Build
 First you'll need to properly clone the project's submodules.
