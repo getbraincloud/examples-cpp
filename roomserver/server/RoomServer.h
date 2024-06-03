@@ -6,6 +6,8 @@
 
 using namespace BrainCloud;
 
+extern std::string serverVersion;
+
 class RoomServer
 {
 public:

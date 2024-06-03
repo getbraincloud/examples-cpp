@@ -24,6 +24,7 @@ shared_ptr<BrainCloudWrapper> bc;
 Json::Value serverConnectionInfo;
 
 std::string appVersion= "1.1";
+bool bClearIds = false;
 
 // Prototypes
 void connectToServer();
@@ -101,6 +102,10 @@ int main(int argc, char** argv)
 
     
     bc->getBCClient()->enableLogging(true);
+
+    // call to clear profile id on device
+    if(bClearIds)
+        bc->clearIds();
 
     // Authenticate
     bc->authenticateAnonymous(&authCallback);

@@ -1,5 +1,6 @@
 #include <stdio.h>
 #include <sstream>
+#include <brainclouds2s-rtt.h>
 #include "RoomServer.h"
 
 bool RoomServer::init()
@@ -9,6 +10,10 @@ bool RoomServer::init()
             return false;
 
     createS2S();
+
+    m_s2s->authenticateSync();
+
+   m_s2s->enableRTTSync();
 
     if (!loadLobbyJson())
         return false;
@@ -88,7 +93,6 @@ bool RoomServer::loadIds()
     printf("SERVER_HOST:   %s\n", m_serverHost.c_str());
     printf("SERVER_URL:   %s\n", m_serverUrl.c_str());
     printf("APP_ID:        %s\n", m_appId.c_str());
-    printf("SERVER_SECRET: %s\n", m_serverSecret.c_str());
     printf("SERVER_NAME:   %s\n", m_serverName.c_str());
     printf("LOBBY_ID:      %s\n", m_lobbyId.c_str());
 
@@ -105,13 +109,6 @@ bool RoomServer::loadEnvironmentVariables()
     const char* SERVER_NAME     = getenv("SERVER_NAME");
     const char* LOBBY_ID        = getenv("LOBBY_ID");
 
-    printf("SERVER_PORT:   %s\n", SERVER_PORT);
-    printf("SERVER_HOST:   %s\n", SERVER_HOST);
-    printf("SERVER_URL:    %s\n", getS2SUrl().c_str());
-    printf("APP_ID:        %s\n", APP_ID);
-    printf("SERVER_SECRET: %s\n", SERVER_SECRET);
-    printf("SERVER_NAME:   %s\n", SERVER_NAME);
-    printf("LOBBY_ID:      %s\n", LOBBY_ID);
 
     if (!SERVER_PORT || !SERVER_HOST || !APP_ID || 
         !SERVER_SECRET || !SERVER_NAME || !LOBBY_ID)
@@ -128,12 +125,18 @@ bool RoomServer::loadEnvironmentVariables()
     m_serverName    = SERVER_NAME;
     m_lobbyId       = LOBBY_ID;
 
+    printf("SERVER_PORT:   %s\n", m_serverPort.c_str());
+    printf("SERVER_HOST:   %s\n", m_serverHost.c_str());
+    printf("SERVER_URL:   %s\n", m_serverUrl.c_str());
+    printf("APP_ID:        %s\n", m_appId.c_str());
+    printf("SERVER_NAME:   %s\n", m_serverName.c_str());
+    printf("LOBBY_ID:      %s\n", m_lobbyId.c_str());
+
     return true;
 }
 
 std::string RoomServer::getS2SUrl() const
 {
-    return m_serverHost;
     std::stringstream url;
     url << "https://" << m_serverHost << ":" 
         << m_serverPort << "/s2sdispatcher";
@@ -148,6 +151,8 @@ void RoomServer::createS2S()
 
     m_s2s = S2SContext::create(m_appId, m_serverName, m_serverSecret, s2sUrl, true);
     m_s2s->setLogEnabled(true);
+
+    printf("-- Room Server Example Client -- \n\tApp ID: %s\n\tApp Version: %s\n\tS2S Version: %s\n\n", m_appId.c_str(), serverVersion.c_str(), m_s2s->getS2SVersion().c_str());
 }
 
 std::string RoomServer::buildRequest(const std::string& operation) const
