@@ -104,7 +104,7 @@ int main(int argc, char** argv)
     bc->getBCClient()->enableLogging(true);
 
     // call to clear profile id on device
-    if(bClearIds)
+    if(argc == 2 || bClearIds)
         bc->clearIds();
 
     // Authenticate
