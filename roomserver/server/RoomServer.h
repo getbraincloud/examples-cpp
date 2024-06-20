@@ -14,6 +14,7 @@ public:
     bool init();
     void readyUp();
     bool validatePasscode(const char* passcode);
+    bool connectRTT();
 
 private:
     bool loadIds();

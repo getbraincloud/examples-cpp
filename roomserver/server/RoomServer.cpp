@@ -13,8 +13,6 @@ bool RoomServer::init()
 
     m_s2s->authenticateSync();
 
-   m_s2s->enableRTTSync();
-
     if (!loadLobbyJson())
         return false;
 
@@ -24,6 +22,13 @@ bool RoomServer::init()
 void RoomServer::readyUp()
 {
     m_s2s->request(buildRequest("SYS_ROOM_READY"), [](const std::string& result){});
+}
+
+bool RoomServer::connectRTT()
+{
+    m_s2s->enableRTTSync();
+
+    return m_s2s->getRTTService()->getRTTEnabled();
 }
 
 bool RoomServer::validatePasscode(const char* passcode)
@@ -149,10 +154,10 @@ void RoomServer::createS2S()
     auto s2sUrl = m_serverUrl;
     printf("S2S URL: %s\n", s2sUrl.c_str());
 
-    m_s2s = S2SContext::create(m_appId, m_serverName, m_serverSecret, s2sUrl, true);
+    m_s2s = S2SContext::create(m_appId, m_serverName, m_serverSecret, s2sUrl, false);
     m_s2s->setLogEnabled(true);
 
-    printf("-- Room Server Example Client -- \n\tApp ID: %s\n\tApp Version: %s\n\tS2S Version: %s\n\n", m_appId.c_str(), serverVersion.c_str(), m_s2s->getS2SVersion().c_str());
+    printf("-- Room Server Example Server -- \n\tApp ID: %s\n\tApp Version: %s\n\tS2S Version: %s\n\n", m_appId.c_str(), serverVersion.c_str(), m_s2s->getS2SVersion().c_str());
 }
 
 std::string RoomServer::buildRequest(const std::string& operation) const

@@ -95,5 +95,8 @@ int main(int argc, char** argv)
     send(clientSocket, &response, sizeof(response), 0);
     printf("CONNECTED sent\n");
 
+    // Enable RTT
+    if (!roomServer.connectRTT()) exit(EXIT_FAILURE);
+
     exit(EXIT_SUCCESS);
 }

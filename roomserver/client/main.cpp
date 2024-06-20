@@ -98,12 +98,13 @@ int main(int argc, char** argv)
                    "bitheads", "RoomServerExample");
  
     
-    printf("-- Room Server Example Client -- \n\tApp ID: %s\n\tApp Version: %s\n\tClient Version: %s\n\n", BRAINCLOUD_APP_ID, appVersion.c_str(), bc->getBCClient()->getBrainCloudClientVersion().c_str());
+    printf("-- Room Server Example Client --\n\tApp ID: %s\n\tApp Version: %s\n\tClient Version: %s\n\n", BRAINCLOUD_APP_ID, appVersion.c_str(), bc->getBCClient()->getBrainCloudClientVersion().c_str());
 
     
     bc->getBCClient()->enableLogging(true);
 
     // call to clear profile id on device
+
     if(argc == 2 || bClearIds)
         bc->clearIds();
 
