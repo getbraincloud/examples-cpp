@@ -6,6 +6,7 @@
 #include "RoomServer.h"
 
 static const uint16_t PORT = 7777;
+std::string serverVersion= "1.1";
 
 struct Response
 {
@@ -15,7 +16,7 @@ struct Response
 
 int main(int argc, char** argv)
 {
-    printf("-- Room Server Example Server 4.5.6 --\n");
+    printf("-- Room Server Example Server --");
 
     // Create a RoomServer utility class that will fetch the Lobby data
     // from brainCloud.

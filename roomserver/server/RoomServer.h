@@ -6,12 +6,15 @@
 
 using namespace BrainCloud;
 
+extern std::string serverVersion;
+
 class RoomServer
 {
 public:
     bool init();
     void readyUp();
     bool validatePasscode(const char* passcode);
+    bool connectRTT();
 
 private:
     bool loadIds();

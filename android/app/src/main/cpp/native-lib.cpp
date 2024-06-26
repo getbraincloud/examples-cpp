@@ -409,9 +409,11 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
 
         if(pBCWrapper->getBCClient()->isInitialized()) {
             pBCWrapper->getBCClient()->enableLogging(true);
-            status += "---- Initialized BrainCloud version ";
+            status += "---- Initialized brainCloud Version ";
             status += pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str();
-            status += "\n     App version ";
+            status += "\n     Portal App ";
+            status += BRAINCLOUD_APP_ID;
+            status += "\n     App Version ";
             status += appVersion.c_str();
             status += "\n\n";
 
