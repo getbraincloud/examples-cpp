@@ -9,7 +9,7 @@
 [submodule "roomserver/server/brainclouds2s-cpp"]
 	path = roomserver/server/brainclouds2s-cpp
 	url = https://github.com/getbraincloud/brainclouds2s-cpp.git
-	branch = BCLOUD-6547_rtt_4_s2s
+	branch = develop
 [submodule "thirdparties/imgui"]
 	path = thirdparties/imgui
 	url = https://github.com/ocornut/imgui.git
