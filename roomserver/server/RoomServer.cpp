@@ -24,13 +24,6 @@ void RoomServer::readyUp()
     m_s2s->request(buildRequest("SYS_ROOM_READY"), [](const std::string& result){});
 }
 
-bool RoomServer::connectRTT()
-{
-    m_s2s->enableRTTSync();
-
-    return m_s2s->getRTTService()->getRTTEnabled();
-}
-
 bool RoomServer::validatePasscode(const char* passcode)
 {
     for (const auto& memberJson : m_lobbyJson["data"]["members"])
