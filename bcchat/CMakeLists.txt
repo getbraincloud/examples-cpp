@@ -49,6 +49,19 @@ if (APPLE)
     enable_language(OBJC)
 endif()
 
+if(DEFINED SSL_ALLOW_SELFSIGNED)
+    set(SSL_ALLOW_SELFSIGNED 1)
+else()
+    set(SSL_ALLOW_SELFSIGNED 0)
+endif()
+
+if (SSL_ALLOW_SELFSIGNED)
+    message("brainCloud Skipping certificate verification in RTT")
+    add_definitions(-DBC_SSL_ALLOW_SELFSIGNED)
+    else()
+    message("brainCloud Building with certificates for RTT")
+endif()
+
 # Application source files
 list(APPEND src_files
     src/ids.h
@@ -129,6 +142,14 @@ if (UWP)
     source_group("Resource Files" FILES ${res_src_files})
 endif()
 
+# SDL
+if (NOT UWP)
+    set(HAVE_LIBC OFF)
+    add_subdirectory(../thirdparties/SDL ./thirdparties/SDL)
+    list(APPEND libs SDL3-shared)
+    list(APPEND includes PUBLIC ../thirdparties/SDL/include/)
+endif()
+
 # BCChat
 if (UWP)
     add_executable(BCChat WIN32 ${src_files} ${thirdparty_src_files} ${res_src_files})
@@ -140,15 +161,6 @@ else()
     add_executable(BCChat ${src_files} ${thirdparty_src_files})
 endif()
 list(APPEND includes PUBLIC ./src/)
-
-# SDL
-if (NOT UWP)
-    set(HAVE_LIBC OFF)
-    set(SDL_MAIN_HANDLED ON)
-    add_subdirectory(../thirdparties/SDL ./thirdparties/SDL)
-    list(APPEND libs SDL3-shared)
-    list(APPEND includes PUBLIC ../thirdparties/SDL/include/)
-endif()
 
 # OpenGL
 if (NOT UWP)
@@ -167,6 +179,14 @@ list(APPEND libs brainCloud)
 # ImGui
 list(APPEND includes PUBLIC ../thirdparties/imgui/)
 list(APPEND includes PUBLIC ../thirdparties/imgui/backends)
+
+# Add a post-build command to copy the DLL
+add_custom_command(TARGET BCChat POST_BUILD
+    COMMAND cmake -E copy_if_different
+        "${CMAKE_CURRENT_BINARY_DIR}/thirdparties/SDL/${CMAKE_BUILD_TYPE}/SDL3.dll"
+        "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/SDL3.dll"
+    COMMENT "Copying SDL3.dll to the output directory from ${SDL3_DLL_PATH} "
+)
 
 # Setup includes and linked libraries
 target_include_directories(BCChat ${includes})

@@ -47,6 +47,19 @@ if (APPLE)
     enable_language(OBJC)
 endif()
 
+if(DEFINED SSL_ALLOW_SELFSIGNED)
+    set(SSL_ALLOW_SELFSIGNED 1)
+else()
+    set(SSL_ALLOW_SELFSIGNED 0)
+endif()
+
+if (SSL_ALLOW_SELFSIGNED)
+    message("brainCloud Skipping certificate verification in RTT")
+    add_definitions(-DBC_SSL_ALLOW_SELFSIGNED)
+    else()
+    message("brainCloud Building with certificates for RTT")
+endif()
+
 # Application source files
 list(APPEND src_files
     src/ids.h
@@ -165,6 +178,14 @@ list(APPEND libs brainCloud)
 # ImGui
 list(APPEND includes PUBLIC ../thirdparties/imgui/)
 list(APPEND includes PUBLIC ../thirdparties/imgui/backends)
+
+# Add a post-build command to copy the DLL
+add_custom_command(TARGET RelayTestApp POST_BUILD
+    COMMAND cmake -E copy_if_different
+        "${CMAKE_CURRENT_BINARY_DIR}/thirdparties/SDL/${CMAKE_BUILD_TYPE}/SDL3.dll"
+        "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/SDL3.dll"
+    COMMENT "Copying SDL3.dll to the output directory from ${SDL3_DLL_PATH} "
+)
 
 # Setup includes and linked libraries
 target_include_directories(RelayTestApp ${includes})

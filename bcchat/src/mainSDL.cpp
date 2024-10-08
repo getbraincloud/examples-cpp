@@ -20,20 +20,19 @@
 
 // SDL implementations related includes
 #if defined(WIN32)
+#define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
 #endif
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl2.h"
+#include <gl/GL.h>
 #include <stdio.h>
-#define SDL_MAIN_HANDLED
-#if defined(USE_MAXOS_SDL_FRAMEWORK)
+
 #include <SDL3/SDL.h>
 #include <SDL3/SDL_opengl.h>
-#else
-#include <SDL.h>
-#include <SDL_opengl.h>
-#endif
+#include <SDL3/SDL_audio.h>
+#include <SDL3/SDL_video.h>
 
 // App includes
 #include "app.h"
@@ -48,12 +47,6 @@ int main()
     static char stdOutBuffer[8192];
     setvbuf(stdout, stdOutBuffer, _IOFBF, sizeof(stdOutBuffer));
 
-    // Setup SDL
-    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER) != 0)
-    {
-        printf("Error: %s\n", SDL_GetError());
-        return -1;
-    }
 
     // Setup window
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
