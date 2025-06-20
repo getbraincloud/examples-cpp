@@ -187,6 +187,11 @@ add_custom_command(TARGET RelayTestApp POST_BUILD
     COMMENT "Copying SDL3.dll to the output directory from ${SDL3_DLL_PATH} "
 )
 
+add_custom_command(TARGET RelayTestApp POST_BUILD
+    COMMAND ${CMAKE_COMMAND} -E copy_directory
+    ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:RelayTestApp>/assets
+)
+
 # Setup includes and linked libraries
 target_include_directories(RelayTestApp ${includes})
 target_link_libraries(RelayTestApp ${libs})
