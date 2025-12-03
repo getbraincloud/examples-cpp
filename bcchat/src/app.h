@@ -21,6 +21,7 @@
 #include <braincloud/BrainCloudWrapper.h>
 
 extern std::string appVersion;
+extern std::string serverVersion;
 
 // Draws the application's GUI and update brainCloud
 void app_update();

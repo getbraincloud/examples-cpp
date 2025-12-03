@@ -26,6 +26,8 @@
 #include <imgui.h>
 #include <stdio.h>
 
+#include "mainMenu.h"
+
 // Login dialog dimensions
 #define DIALOG_WIDTH 400.0f
 #define DIALOG_HEIGHT 150.0f
@@ -68,6 +70,25 @@ void mainMenu_update()
         {
             app_play(settings.protocol);
         }
+
+        // Right-aligned item separator
+        float rightAlignWidth = ImGui::GetContentRegionAvail().x - 350;
+        ImGui::Dummy(ImVec2(rightAlignWidth, 0.0f));
+        ImGui::SameLine();
+
+        std::string app_text = "Client: ";
+        if (pBCWrapper && pBCWrapper->getBCClient()->isInitialized()) {
+            app_text += pBCWrapper->getBCClient()->getBrainCloudClientVersion();
+        }
+
+        if (pBCWrapper && pBCWrapper->getBCClient()->isInitialized()) {
+            app_text += " Server: " + serverVersion;
+        }
+
+        app_text += " Project: ";
+        app_text += VERSION;
+
+        ImGui::MenuItem(app_text.c_str());
 
         ImGui::End();
     }

@@ -20,6 +20,7 @@
 
 // App includes
 #include "app.h"
+#include "BCCallback.h"
 #include "globals.h"
 
 // Third party includes
@@ -34,12 +35,7 @@ void menuBar_update()
     // Menu Bar
     ImGui::BeginMainMenuBar();
 
-    // File
-    std::string app_text = "brainCloud ";
-    if(pBCWrapper && pBCWrapper->getBCClient()->isInitialized()) {
-        app_text += pBCWrapper->getBCClient()->getBrainCloudClientVersion();
-    }
-    if (ImGui::BeginMenu(app_text.c_str()))
+    if (ImGui::BeginMenu("BCChat"))
     {
         if (ImGui::MenuItem("Exit", "ALT + F4"))
         {
@@ -81,6 +77,25 @@ void menuBar_update()
             ImGui::EndMenu();
         }
     }
+
+    // Right-aligned item separator
+    float rightAlignWidth = ImGui::GetContentRegionAvail().x - 350;
+    ImGui::Dummy(ImVec2(rightAlignWidth, 0.0f));
+    ImGui::SameLine();
+
+    std::string app_text = "Client: ";
+    if (pBCWrapper && pBCWrapper->getBCClient()->isInitialized()) {
+        app_text += pBCWrapper->getBCClient()->getBrainCloudClientVersion();
+    }
+
+    if (pBCWrapper && pBCWrapper->getBCClient()->isInitialized()) {
+        app_text += " Server: " + serverVersion;
+    }
+
+    app_text += " Project: ";
+    app_text += VERSION;
+
+    ImGui::MenuItem(app_text.c_str());
 
     ImGui::EndMainMenuBar();
 }
