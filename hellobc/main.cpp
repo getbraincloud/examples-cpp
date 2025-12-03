@@ -156,7 +156,7 @@ int main(int argc, char* argv[])
     std::string serverUrl = BRAINCLOUD_SERVER_URL;
     std::string secretKey = BRAINCLOUD_APP_SECRET;
     std::string appId = BRAINCLOUD_APP_ID;
-    std::string appVersion = "2.0";
+    std::string appVersion = VERSION;
 
     status += "---- Welcome to brainCloud!\n";
 
