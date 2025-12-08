@@ -22,11 +22,18 @@
 #if defined(WIN32)
 #define WIN32_LEAN_AND_MEAN
 #include <Windows.h>
+#include <gl/GL.h>
+#elif defined(__APPLE__)
+#include <OpenGL/gl.h>
+#else 
+#include <GL/gl.h>
 #endif
+
 #include "imgui.h"
 #include "imgui_impl_sdl3.h"
 #include "imgui_impl_opengl2.h"
-#include <gl/GL.h>
+
+
 #include <stdio.h>
 
 #include <SDL3/SDL.h>
