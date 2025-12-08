@@ -188,6 +188,20 @@ if(WIN32)
 			"${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/SDL3.dll"
 		COMMENT "Copying SDL3.dll to the output directory from ${SDL3_DLL_PATH} "
 	)
+elseif(APPLE)
+
+	add_custom_command(
+		TARGET BCChat POST_BUILD
+		COMMAND cmake -E copy
+		  $<TARGET_FILE:SDL3::SDL3-shared>
+		  $<TARGET_FILE_DIR:BCChat>
+	)
+	
+	set_target_properties(BCChat PROPERTIES
+		INSTALL_RPATH "@executable_path/../Frameworks"
+		BUILD_RPATH "@executable_path"
+	)
+
 endif()
 
 
