@@ -181,14 +181,14 @@ list(APPEND includes PUBLIC ../thirdparties/imgui/)
 list(APPEND includes PUBLIC ../thirdparties/imgui/backends)
 
 # Add a post-build command to copy the 
-if(WIN32){
+if(WIN32)
 	add_custom_command(TARGET BCChat POST_BUILD
 		COMMAND cmake -E copy_if_different
 			"${CMAKE_CURRENT_BINARY_DIR}/thirdparties/SDL/${CMAKE_BUILD_TYPE}/SDL3.dll"
 			"${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/SDL3.dll"
 		COMMENT "Copying SDL3.dll to the output directory from ${SDL3_DLL_PATH} "
 	)
-}
+endif()
 
 
 # Setup includes and linked libraries
