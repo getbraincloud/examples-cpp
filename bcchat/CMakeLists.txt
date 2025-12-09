@@ -196,10 +196,12 @@ elseif(APPLE)
 		  $<TARGET_FILE:SDL3::SDL3-shared>
 		  $<TARGET_FILE_DIR:BCChat>
 	)
+	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/dylibs)
+	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/dylibs)
 	
-	set_target_properties(BCChat PROPERTIES
-		INSTALL_RPATH "@executable_path/../Frameworks"
-		BUILD_RPATH "@executable_path"
+	set_target_properties(SDL3-shared PROPERTIES
+		LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/dylibs
+		RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/dylibs
 	)
 
 endif()
