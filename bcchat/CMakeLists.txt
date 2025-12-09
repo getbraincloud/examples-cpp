@@ -47,6 +47,8 @@ if (APPLE)
     add_definitions(-DGL_SILENCE_DEPRECATION)
     # enable objc for SDL
     enable_language(OBJC)
+	# Homebrew search paths
+	set(CMAKE_PREFIX_PATH "/usr/local" "/usr/local/opt" ${CMAKE_PREFIX_PATH})
 endif()
 
 if(DEFINED SSL_ALLOW_SELFSIGNED)
@@ -144,10 +146,15 @@ endif()
 
 # SDL
 if (NOT UWP)
-    set(HAVE_LIBC OFF)
-    add_subdirectory(../thirdparties/SDL ./thirdparties/SDL)
-    list(APPEND libs SDL3-shared)
-    list(APPEND includes PUBLIC ../thirdparties/SDL/include/)
+	set(HAVE_LIBC OFF)
+	if (APPLE)
+		find_package(SDL3 REQUIRED)
+		list(APPEND libs SDL3::SDL3)
+	else()
+		add_subdirectory(../thirdparties/SDL ./thirdparties/SDL)
+		list(APPEND libs SDL3-shared)
+		list(APPEND includes PUBLIC ../thirdparties/SDL/include/)
+	endif()
 endif()
 
 # BCChat
@@ -189,20 +196,6 @@ if(WIN32)
 		COMMENT "Copying SDL3.dll to the output directory from ${SDL3_DLL_PATH} "
 	)
 elseif(APPLE)
-
-	add_custom_command(
-		TARGET BCChat POST_BUILD
-		COMMAND cmake -E copy
-		  $<TARGET_FILE:SDL3::SDL3-shared>
-		  $<TARGET_FILE_DIR:BCChat>
-	)
-	set(CMAKE_LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/dylibs)
-	set(CMAKE_RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/dylibs)
-	
-	set_target_properties(SDL3-shared PROPERTIES
-		LIBRARY_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/dylibs
-		RUNTIME_OUTPUT_DIRECTORY ${CMAKE_BINARY_DIR}/dylibs
-	)
 
 endif()
 
