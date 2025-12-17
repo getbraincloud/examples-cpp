@@ -190,12 +190,11 @@ if(WIN32)
 	)
 	add_custom_command(TARGET BCChat POST_BUILD
 		COMMAND cmake -E copy_if_different
-			"${CMAKE_CURRENT_BINARY_DIR}/../thirdparties/braincloud-cpp/lib/zlib/zlib1.dll"
+			"${CMAKE_CURRENT_BINARY_DIR}/../../thirdparties/braincloud-cpp/lib/zlib/zlib1.dll"
 			"${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/zlib1.dll"
 		COMMENT "Copying zlib1.dll to the output directory"
 	)
 endif()
-
 
 # Setup includes and linked libraries
 target_include_directories(BCChat ${includes})
