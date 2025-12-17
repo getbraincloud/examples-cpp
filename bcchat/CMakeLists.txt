@@ -47,8 +47,6 @@ if (APPLE)
     add_definitions(-DGL_SILENCE_DEPRECATION)
     # enable objc for SDL
     enable_language(OBJC)
-	# Homebrew search paths
-	set(CMAKE_PREFIX_PATH "/usr/local" "/usr/local/opt" ${CMAKE_PREFIX_PATH})
 endif()
 
 if(DEFINED SSL_ALLOW_SELFSIGNED)
@@ -146,16 +144,10 @@ endif()
 
 # SDL
 if (NOT UWP)
-	set(HAVE_LIBC OFF)
-	if (APPLE)
-		find_package(SDL3 REQUIRED)
-		list(APPEND libs SDL3::SDL3)
-		list(APPEND includes PRIVATE ${SDL3_INCLUDE_DIRS})
-	else()
-		add_subdirectory(../thirdparties/SDL ./thirdparties/SDL)
-		list(APPEND libs SDL3-shared)
-		list(APPEND includes PUBLIC ../thirdparties/SDL/include/)
-	endif()
+    set(HAVE_LIBC OFF)
+    add_subdirectory(../thirdparties/SDL ./thirdparties/SDL)
+    list(APPEND libs SDL3-shared)
+    list(APPEND includes PUBLIC ../thirdparties/SDL/include/)
 endif()
 
 # BCChat
@@ -194,10 +186,14 @@ if(WIN32)
 		COMMAND cmake -E copy_if_different
 			"${CMAKE_CURRENT_BINARY_DIR}/thirdparties/SDL/${CMAKE_BUILD_TYPE}/SDL3.dll"
 			"${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/SDL3.dll"
-		COMMENT "Copying SDL3.dll to the output directory from ${SDL3_DLL_PATH} "
+		COMMENT "Copying SDL3.dll to the output directory"
 	)
-elseif(APPLE)
-
+	add_custom_command(TARGET BCChat POST_BUILD
+		COMMAND cmake -E copy_if_different
+			"${CMAKE_CURRENT_BINARY_DIR}/../thirdparties/braincloud-cpp/lib/zlib/zlib1.dll"
+			"${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/zlib1.dll"
+		COMMENT "Copying zlib1.dll to the output directory"
+	)
 endif()
 
 
