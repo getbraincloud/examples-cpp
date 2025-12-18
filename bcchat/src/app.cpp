@@ -145,8 +145,9 @@ void initBC()
                            appId.c_str(),
                            appVersion.c_str(),
                            "bitheads",
-                           "BCChat");
+                           "BCChat-jetevermerge-prod");
     pBCWrapper->getBCClient()->enableLogging(true);
+    pBCWrapper->getBCClient()->enableCompression(true);
 
     pBCWrapper->getBCClient()->getAuthenticationService()->getServerVersion(new BCCallback(
         [=](const Json::Value& result) // Success
@@ -541,6 +542,8 @@ void uninitBC()
 // Reset application state, back to login screen
 void resetState()
 {
+    pBCWrapper->resetStoredAnonymousId();
+    pBCWrapper->resetStoredProfileId();
     state.chatData.globalChannels.clear();
     state.chatData.groups.clear();
     state.chatData.pActiveChannel.reset();
