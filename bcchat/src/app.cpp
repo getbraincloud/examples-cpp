@@ -145,7 +145,7 @@ void initBC()
                            appId.c_str(),
                            appVersion.c_str(),
                            "bitheads",
-                           "BCChat-jetevermerge-prod");
+                           "BCChat");
     pBCWrapper->getBCClient()->enableLogging(true);
     pBCWrapper->getBCClient()->enableCompression(true);
 
