@@ -20,6 +20,7 @@
 
 // App includes
 #include "globals.h"
+#include <cstring>
 
 // Main application state instance
 State state;

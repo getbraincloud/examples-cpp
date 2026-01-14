@@ -3,7 +3,7 @@
 	archiveVersion = 1;
 	classes = {
 	};
-	objectVersion = 54;
+	objectVersion = 77;
 	objects = {
 
 /* Begin PBXBuildFile section */
@@ -18,21 +18,141 @@
 		DB7A4A6E215A6A30009DD6B0 /* Security.framework in Frameworks */ = {isa = PBXBuildFile; fileRef = DB7A4A6D215A6A30009DD6B0 /* Security.framework */; };
 /* End PBXBuildFile section */
 
-/* Begin PBXCopyFilesBuildPhase section */
-		DB15261D215A60870005F27A /* CopyFiles */ = {
-			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
-			dstPath = /usr/share/man/man1/;
-			dstSubfolderSpec = 0;
-			files = (
-			);
-			runOnlyForDeploymentPostprocessing = 1;
+/* Begin PBXContainerItemProxy section */
+		492E4EAB2EECBCD90066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E4E192EECBCD90066704E /* example_apple_metal.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 8307E7C420E9F9C900473790;
+			remoteInfo = example_apple_metal_ios;
 		};
+		492E4EAD2EECBCD90066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E4E192EECBCD90066704E /* example_apple_metal.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 8307E7DA20E9F9C900473790;
+			remoteInfo = example_apple_metal_macos;
+		};
+		492E4EB02EECBCD90066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E4E1D2EECBCD90066704E /* example_apple_opengl2.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 4080A96B20B029B00036BA46;
+			remoteInfo = example_osx_opengl2;
+		};
+		492E50382EECC3BA0066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E4F172EECC39C0066704E /* example_apple_metal.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 8307E7C420E9F9C900473790;
+			remoteInfo = example_apple_metal_ios;
+		};
+		492E503A2EECC3BA0066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E4F172EECC39C0066704E /* example_apple_metal.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 8307E7DA20E9F9C900473790;
+			remoteInfo = example_apple_metal_macos;
+		};
+		492E503D2EECC3BA0066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E4F1B2EECC39C0066704E /* example_apple_opengl2.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 4080A96B20B029B00036BA46;
+			remoteInfo = example_osx_opengl2;
+		};
+		492E51B32EECC5010066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E50922EECC4D60066704E /* example_apple_metal.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 8307E7C420E9F9C900473790;
+			remoteInfo = example_apple_metal_ios;
+		};
+		492E51B52EECC5010066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E50922EECC4D60066704E /* example_apple_metal.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 8307E7DA20E9F9C900473790;
+			remoteInfo = example_apple_metal_macos;
+		};
+		492E51B82EECC5010066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E50962EECC4D60066704E /* example_apple_opengl2.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 4080A96B20B029B00036BA46;
+			remoteInfo = example_osx_opengl2;
+		};
+		492E53302EF0A0020066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E520F2EF09FCB0066704E /* example_apple_metal.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 8307E7C420E9F9C900473790;
+			remoteInfo = example_apple_metal_ios;
+		};
+		492E53322EF0A0020066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E520F2EF09FCB0066704E /* example_apple_metal.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 8307E7DA20E9F9C900473790;
+			remoteInfo = example_apple_metal_macos;
+		};
+		492E53352EF0A0020066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E52132EF09FCB0066704E /* example_apple_opengl2.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 4080A96B20B029B00036BA46;
+			remoteInfo = example_osx_opengl2;
+		};
+		492E54AF2EF0A4960066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E538E2EF0A4810066704E /* example_apple_metal.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 8307E7C420E9F9C900473790;
+			remoteInfo = example_apple_metal_ios;
+		};
+		492E54B12EF0A4960066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E538E2EF0A4810066704E /* example_apple_metal.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 8307E7DA20E9F9C900473790;
+			remoteInfo = example_apple_metal_macos;
+		};
+		492E54B42EF0A4960066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E53922EF0A4810066704E /* example_apple_opengl2.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 4080A96B20B029B00036BA46;
+			remoteInfo = example_osx_opengl2;
+		};
+		492E5ADE2EF2198B0066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E59BC2EF219630066704E /* example_apple_metal.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 8307E7C420E9F9C900473790;
+			remoteInfo = example_apple_metal_ios;
+		};
+		492E5AE02EF2198B0066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E59BC2EF219630066704E /* example_apple_metal.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 8307E7DA20E9F9C900473790;
+			remoteInfo = example_apple_metal_macos;
+		};
+		492E5AE32EF2198B0066704E /* PBXContainerItemProxy */ = {
+			isa = PBXContainerItemProxy;
+			containerPortal = 492E59C02EF219630066704E /* example_apple_opengl2.xcodeproj */;
+			proxyType = 2;
+			remoteGlobalIDString = 4080A96B20B029B00036BA46;
+			remoteInfo = example_osx_opengl2;
+		};
+/* End PBXContainerItemProxy section */
+
+/* Begin PBXCopyFilesBuildPhase section */
 		DBF6869923F583B000A6922F /* Embed Frameworks */ = {
 			isa = PBXCopyFilesBuildPhase;
-			buildActionMask = 2147483647;
+			buildActionMask = 12;
 			dstPath = "";
-			dstSubfolderSpec = 10;
+			dstSubfolderSpec = 16;
 			files = (
 				571DAF622ABCD09E00AFA839 /* SDL3.framework in Embed Frameworks */,
 			);
@@ -42,8 +162,18 @@
 /* End PBXCopyFilesBuildPhase section */
 
 /* Begin PBXFileReference section */
-		571DAF5E2ABCCFF700AFA839 /* src */ = {isa = PBXFileReference; lastKnownFileType = folder; name = src; path = ../src; sourceTree = "<group>"; };
-		571DAF5F2ABCD02000AFA839 /* imgui */ = {isa = PBXFileReference; lastKnownFileType = folder; name = imgui; path = ../../thirdparties/imgui; sourceTree = "<group>"; };
+		492E4E192EECBCD90066704E /* example_apple_metal.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = example_apple_metal.xcodeproj; sourceTree = "<group>"; };
+		492E4E1D2EECBCD90066704E /* example_apple_opengl2.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = example_apple_opengl2.xcodeproj; sourceTree = "<group>"; };
+		492E4F172EECC39C0066704E /* example_apple_metal.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = example_apple_metal.xcodeproj; sourceTree = "<group>"; };
+		492E4F1B2EECC39C0066704E /* example_apple_opengl2.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = example_apple_opengl2.xcodeproj; sourceTree = "<group>"; };
+		492E50922EECC4D60066704E /* example_apple_metal.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = example_apple_metal.xcodeproj; sourceTree = "<group>"; };
+		492E50962EECC4D60066704E /* example_apple_opengl2.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = example_apple_opengl2.xcodeproj; sourceTree = "<group>"; };
+		492E520F2EF09FCB0066704E /* example_apple_metal.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = example_apple_metal.xcodeproj; sourceTree = "<group>"; };
+		492E52132EF09FCB0066704E /* example_apple_opengl2.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = example_apple_opengl2.xcodeproj; sourceTree = "<group>"; };
+		492E538E2EF0A4810066704E /* example_apple_metal.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = example_apple_metal.xcodeproj; sourceTree = "<group>"; };
+		492E53922EF0A4810066704E /* example_apple_opengl2.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = example_apple_opengl2.xcodeproj; sourceTree = "<group>"; };
+		492E59BC2EF219630066704E /* example_apple_metal.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = example_apple_metal.xcodeproj; sourceTree = "<group>"; };
+		492E59C02EF219630066704E /* example_apple_opengl2.xcodeproj */ = {isa = PBXFileReference; lastKnownFileType = "wrapper.pb-project"; path = example_apple_opengl2.xcodeproj; sourceTree = "<group>"; };
 		571DAF602ABCD09E00AFA839 /* SDL3.framework */ = {isa = PBXFileReference; lastKnownFileType = wrapper.framework; path = SDL3.framework; sourceTree = "<group>"; };
 		B1A939E3436DF47A67397EA6 /* Pods-BCChat.release.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-BCChat.release.xcconfig"; path = "Pods/Target Support Files/Pods-BCChat/Pods-BCChat.release.xcconfig"; sourceTree = "<group>"; };
 		B2A414F5888172DCB4373B99 /* libPods-BCChat.a */ = {isa = PBXFileReference; explicitFileType = archive.ar; includeInIndex = 0; path = "libPods-BCChat.a"; sourceTree = BUILT_PRODUCTS_DIR; };
@@ -59,11 +189,103 @@
 		E0C0AB062665AB158A31AAA1 /* Pods-BCChat.debug.xcconfig */ = {isa = PBXFileReference; includeInIndex = 1; lastKnownFileType = text.xcconfig; name = "Pods-BCChat.debug.xcconfig"; path = "Pods/Target Support Files/Pods-BCChat/Pods-BCChat.debug.xcconfig"; sourceTree = "<group>"; };
 /* End PBXFileReference section */
 
+/* Begin PBXFileSystemSynchronizedBuildFileExceptionSet section */
+		492E4DFA2EECBC700066704E /* Exceptions for "../../thirdparties/imgui" folder in "BCChat" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				backends/imgui_impl_allegro5.cpp,
+				backends/imgui_impl_android.cpp,
+				backends/imgui_impl_dx9.cpp,
+				backends/imgui_impl_dx10.cpp,
+				backends/imgui_impl_dx11.cpp,
+				backends/imgui_impl_dx12.cpp,
+				backends/imgui_impl_glfw.cpp,
+				backends/imgui_impl_glut.cpp,
+				backends/imgui_impl_sdl2.cpp,
+				backends/imgui_impl_sdlrenderer2.cpp,
+				backends/imgui_impl_vulkan.cpp,
+				backends/imgui_impl_wgpu.cpp,
+				backends/imgui_impl_win32.cpp,
+				examples/example_allegro5/main.cpp,
+				examples/example_android_opengl3/main.cpp,
+				examples/example_apple_metal/main.mm,
+				examples/example_apple_opengl2/main.mm,
+				examples/example_emscripten_wgpu/main.cpp,
+				examples/example_emscripten_wgpu/Makefile,
+				examples/example_glfw_metal/main.mm,
+				examples/example_glfw_metal/Makefile,
+				examples/example_glfw_opengl2/main.cpp,
+				examples/example_glfw_opengl2/Makefile,
+				examples/example_glfw_opengl3/main.cpp,
+				examples/example_glfw_opengl3/Makefile,
+				examples/example_glfw_vulkan/main.cpp,
+				examples/example_glut_opengl2/main.cpp,
+				examples/example_glut_opengl2/Makefile,
+				examples/example_null/main.cpp,
+				examples/example_null/Makefile,
+				examples/example_sdl2_directx11/main.cpp,
+				examples/example_sdl2_metal/main.mm,
+				examples/example_sdl2_metal/Makefile,
+				examples/example_sdl2_opengl2/main.cpp,
+				examples/example_sdl2_opengl2/Makefile,
+				examples/example_sdl2_opengl3/main.cpp,
+				examples/example_sdl2_opengl3/Makefile,
+				examples/example_sdl2_sdlrenderer2/main.cpp,
+				examples/example_sdl2_sdlrenderer2/Makefile,
+				examples/example_sdl2_vulkan/main.cpp,
+				examples/example_sdl3_opengl3/main.cpp,
+				examples/example_sdl3_opengl3/Makefile,
+				examples/example_sdl3_sdlrenderer3/main.cpp,
+				examples/example_sdl3_sdlrenderer3/Makefile,
+				examples/example_win32_directx9/main.cpp,
+				examples/example_win32_directx10/main.cpp,
+				examples/example_win32_directx11/main.cpp,
+				examples/example_win32_directx12/main.cpp,
+				examples/example_win32_opengl3/main.cpp,
+				"examples/libs/glfw/lib-vc2010-32/glfw3.lib",
+				"examples/libs/glfw/lib-vc2010-64/glfw3.lib",
+				examples/libs/usynergy/uSynergy.c,
+				misc/fonts/binary_to_compressed_c.cpp,
+			);
+			target = DB15261E215A60870005F27A /* BCChat */;
+		};
+		492E51BA2EF09DCA0066704E /* Exceptions for "../src" folder in "BCChat" target */ = {
+			isa = PBXFileSystemSynchronizedBuildFileExceptionSet;
+			membershipExceptions = (
+				mainUWP.cpp,
+			);
+			target = DB15261E215A60870005F27A /* BCChat */;
+		};
+/* End PBXFileSystemSynchronizedBuildFileExceptionSet section */
+
+/* Begin PBXFileSystemSynchronizedRootGroup section */
+		492E4B6D2EECBA9C0066704E /* ../src */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				492E51BA2EF09DCA0066704E /* Exceptions for "../src" folder in "BCChat" target */,
+			);
+			path = ../src;
+			sourceTree = "<group>";
+		};
+		492E4C792EECBA9C0066704E /* ../../thirdparties/imgui */ = {
+			isa = PBXFileSystemSynchronizedRootGroup;
+			exceptions = (
+				492E4DFA2EECBC700066704E /* Exceptions for "../../thirdparties/imgui" folder in "BCChat" target */,
+			);
+			explicitFolders = (
+				docs,
+			);
+			path = ../../thirdparties/imgui;
+			sourceTree = "<group>";
+		};
+/* End PBXFileSystemSynchronizedRootGroup section */
+
 /* Begin PBXFrameworksBuildPhase section */
 		DB15261C215A60870005F27A /* Frameworks */ = {
 			isa = PBXFrameworksBuildPhase;
 			buildActionMask = 2147483647;
 			files = (
+				571DAF612ABCD09E00AFA839 /* SDL3.framework in Frameworks */,
 				DB7A4A6E215A6A30009DD6B0 /* Security.framework in Frameworks */,
 				DB7A4A6C215A6A28009DD6B0 /* SystemConfiguration.framework in Frameworks */,
 				DB7A4A6A215A6A20009DD6B0 /* Foundation.framework in Frameworks */,
@@ -71,13 +293,114 @@
 				DB7A4A66215A6A0A009DD6B0 /* GameKit.framework in Frameworks */,
 				DB7A493E215A6682009DD6B0 /* OpenGL.framework in Frameworks */,
 				06D5A5B7C379D53BEBB8FA44 /* libPods-BCChat.a in Frameworks */,
-				571DAF612ABCD09E00AFA839 /* SDL3.framework in Frameworks */,
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 		};
 /* End PBXFrameworksBuildPhase section */
 
 /* Begin PBXGroup section */
+		492E4EA52EECBCD90066704E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				492E4EAC2EECBCD90066704E /* example_apple_metal.app */,
+				492E4EAE2EECBCD90066704E /* example_apple_metal.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		492E4EA72EECBCD90066704E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				492E4EB12EECBCD90066704E /* example_osx_opengl2 */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		492E4FCC2EECC39C0066704E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				492E50392EECC3BA0066704E /* example_apple_metal.app */,
+				492E503B2EECC3BA0066704E /* example_apple_metal.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		492E4FCE2EECC39C0066704E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				492E503E2EECC3BA0066704E /* example_osx_opengl2 */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		492E51472EECC4D60066704E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				492E51B92EECC5010066704E /* example_osx_opengl2 */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		492E51492EECC4D60066704E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				492E51B42EECC5010066704E /* example_apple_metal.app */,
+				492E51B62EECC5010066704E /* example_apple_metal.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		492E52C42EF09FCB0066704E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				492E53362EF0A0020066704E /* example_osx_opengl2 */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		492E52C62EF09FCB0066704E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				492E53312EF0A0020066704E /* example_apple_metal.app */,
+				492E53332EF0A0020066704E /* example_apple_metal.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		492E54432EF0A4810066704E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				492E54B52EF0A4960066704E /* example_osx_opengl2 */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		492E54452EF0A4810066704E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				492E54B02EF0A4960066704E /* example_apple_metal.app */,
+				492E54B22EF0A4960066704E /* example_apple_metal.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		492E5A712EF219630066704E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				492E5ADF2EF2198B0066704E /* example_apple_metal.app */,
+				492E5AE12EF2198B0066704E /* example_apple_metal.app */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
+		492E5A732EF219630066704E /* Products */ = {
+			isa = PBXGroup;
+			children = (
+				492E5AE42EF2198B0066704E /* example_osx_opengl2 */,
+			);
+			name = Products;
+			sourceTree = "<group>";
+		};
 		5B0AF685E80F6461989DE02A /* Pods */ = {
 			isa = PBXGroup;
 			children = (
@@ -90,8 +413,8 @@
 		DB152616215A60870005F27A = {
 			isa = PBXGroup;
 			children = (
-				571DAF5F2ABCD02000AFA839 /* imgui */,
-				571DAF5E2ABCCFF700AFA839 /* src */,
+				492E4C792EECBA9C0066704E /* ../../thirdparties/imgui */,
+				492E4B6D2EECBA9C0066704E /* ../src */,
 				DB152620215A60870005F27A /* Products */,
 				DB7A490C215A6426009DD6B0 /* Frameworks */,
 				5B0AF685E80F6461989DE02A /* Pods */,
@@ -131,15 +454,18 @@
 			buildConfigurationList = DB152626215A60870005F27A /* Build configuration list for PBXNativeTarget "BCChat" */;
 			buildPhases = (
 				DF53DE7A35C1DEFA08216A3E /* [CP] Check Pods Manifest.lock */,
-				DB15261B215A60870005F27A /* Sources */,
 				DB15261C215A60870005F27A /* Frameworks */,
-				DB15261D215A60870005F27A /* CopyFiles */,
-				86EA8941C3366B5A01BF3CB7 /* [CP] Copy Pods Resources */,
+				DB15261B215A60870005F27A /* Sources */,
 				DBF6869923F583B000A6922F /* Embed Frameworks */,
+				86EA8941C3366B5A01BF3CB7 /* [CP] Copy Pods Resources */,
 			);
 			buildRules = (
 			);
 			dependencies = (
+			);
+			fileSystemSynchronizedGroups = (
+				492E4B6D2EECBA9C0066704E /* ../src */,
+				492E4C792EECBA9C0066704E /* ../../thirdparties/imgui */,
 			);
 			name = BCChat;
 			productName = BCChat;
@@ -161,7 +487,6 @@
 				};
 			};
 			buildConfigurationList = DB15261A215A60870005F27A /* Build configuration list for PBXProject "BCChat" */;
-			compatibilityVersion = "Xcode 9.3";
 			developmentRegion = en;
 			hasScannedForEncodings = 0;
 			knownRegions = (
@@ -169,14 +494,194 @@
 				Base,
 			);
 			mainGroup = DB152616215A60870005F27A;
+			preferredProjectObjectVersion = 77;
 			productRefGroup = DB152620215A60870005F27A /* Products */;
 			projectDirPath = "";
+			projectReferences = (
+				{
+					ProductGroup = 492E4FCC2EECC39C0066704E /* Products */;
+					ProjectRef = 492E4F172EECC39C0066704E /* example_apple_metal.xcodeproj */;
+				},
+				{
+					ProductGroup = 492E4EA52EECBCD90066704E /* Products */;
+					ProjectRef = 492E4E192EECBCD90066704E /* example_apple_metal.xcodeproj */;
+				},
+				{
+					ProductGroup = 492E54452EF0A4810066704E /* Products */;
+					ProjectRef = 492E538E2EF0A4810066704E /* example_apple_metal.xcodeproj */;
+				},
+				{
+					ProductGroup = 492E52C62EF09FCB0066704E /* Products */;
+					ProjectRef = 492E520F2EF09FCB0066704E /* example_apple_metal.xcodeproj */;
+				},
+				{
+					ProductGroup = 492E5A712EF219630066704E /* Products */;
+					ProjectRef = 492E59BC2EF219630066704E /* example_apple_metal.xcodeproj */;
+				},
+				{
+					ProductGroup = 492E51492EECC4D60066704E /* Products */;
+					ProjectRef = 492E50922EECC4D60066704E /* example_apple_metal.xcodeproj */;
+				},
+				{
+					ProductGroup = 492E54432EF0A4810066704E /* Products */;
+					ProjectRef = 492E53922EF0A4810066704E /* example_apple_opengl2.xcodeproj */;
+				},
+				{
+					ProductGroup = 492E4EA72EECBCD90066704E /* Products */;
+					ProjectRef = 492E4E1D2EECBCD90066704E /* example_apple_opengl2.xcodeproj */;
+				},
+				{
+					ProductGroup = 492E52C42EF09FCB0066704E /* Products */;
+					ProjectRef = 492E52132EF09FCB0066704E /* example_apple_opengl2.xcodeproj */;
+				},
+				{
+					ProductGroup = 492E4FCE2EECC39C0066704E /* Products */;
+					ProjectRef = 492E4F1B2EECC39C0066704E /* example_apple_opengl2.xcodeproj */;
+				},
+				{
+					ProductGroup = 492E5A732EF219630066704E /* Products */;
+					ProjectRef = 492E59C02EF219630066704E /* example_apple_opengl2.xcodeproj */;
+				},
+				{
+					ProductGroup = 492E51472EECC4D60066704E /* Products */;
+					ProjectRef = 492E50962EECC4D60066704E /* example_apple_opengl2.xcodeproj */;
+				},
+			);
 			projectRoot = "";
 			targets = (
 				DB15261E215A60870005F27A /* BCChat */,
 			);
 		};
 /* End PBXProject section */
+
+/* Begin PBXReferenceProxy section */
+		492E4EAC2EECBCD90066704E /* example_apple_metal.app */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.application;
+			path = example_apple_metal.app;
+			remoteRef = 492E4EAB2EECBCD90066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E4EAE2EECBCD90066704E /* example_apple_metal.app */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.application;
+			path = example_apple_metal.app;
+			remoteRef = 492E4EAD2EECBCD90066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E4EB12EECBCD90066704E /* example_osx_opengl2 */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = example_osx_opengl2;
+			remoteRef = 492E4EB02EECBCD90066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E50392EECC3BA0066704E /* example_apple_metal.app */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.application;
+			path = example_apple_metal.app;
+			remoteRef = 492E50382EECC3BA0066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E503B2EECC3BA0066704E /* example_apple_metal.app */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.application;
+			path = example_apple_metal.app;
+			remoteRef = 492E503A2EECC3BA0066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E503E2EECC3BA0066704E /* example_osx_opengl2 */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = example_osx_opengl2;
+			remoteRef = 492E503D2EECC3BA0066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E51B42EECC5010066704E /* example_apple_metal.app */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.application;
+			path = example_apple_metal.app;
+			remoteRef = 492E51B32EECC5010066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E51B62EECC5010066704E /* example_apple_metal.app */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.application;
+			path = example_apple_metal.app;
+			remoteRef = 492E51B52EECC5010066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E51B92EECC5010066704E /* example_osx_opengl2 */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = example_osx_opengl2;
+			remoteRef = 492E51B82EECC5010066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E53312EF0A0020066704E /* example_apple_metal.app */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.application;
+			path = example_apple_metal.app;
+			remoteRef = 492E53302EF0A0020066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E53332EF0A0020066704E /* example_apple_metal.app */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.application;
+			path = example_apple_metal.app;
+			remoteRef = 492E53322EF0A0020066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E53362EF0A0020066704E /* example_osx_opengl2 */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = example_osx_opengl2;
+			remoteRef = 492E53352EF0A0020066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E54B02EF0A4960066704E /* example_apple_metal.app */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.application;
+			path = example_apple_metal.app;
+			remoteRef = 492E54AF2EF0A4960066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E54B22EF0A4960066704E /* example_apple_metal.app */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.application;
+			path = example_apple_metal.app;
+			remoteRef = 492E54B12EF0A4960066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E54B52EF0A4960066704E /* example_osx_opengl2 */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = example_osx_opengl2;
+			remoteRef = 492E54B42EF0A4960066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E5ADF2EF2198B0066704E /* example_apple_metal.app */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.application;
+			path = example_apple_metal.app;
+			remoteRef = 492E5ADE2EF2198B0066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E5AE12EF2198B0066704E /* example_apple_metal.app */ = {
+			isa = PBXReferenceProxy;
+			fileType = wrapper.application;
+			path = example_apple_metal.app;
+			remoteRef = 492E5AE02EF2198B0066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+		492E5AE42EF2198B0066704E /* example_osx_opengl2 */ = {
+			isa = PBXReferenceProxy;
+			fileType = "compiled.mach-o.executable";
+			path = example_osx_opengl2;
+			remoteRef = 492E5AE32EF2198B0066704E /* PBXContainerItemProxy */;
+			sourceTree = BUILT_PRODUCTS_DIR;
+		};
+/* End PBXReferenceProxy section */
 
 /* Begin PBXShellScriptBuildPhase section */
 		86EA8941C3366B5A01BF3CB7 /* [CP] Copy Pods Resources */ = {
@@ -187,9 +692,13 @@
 			inputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-BCChat/Pods-BCChat-resources-${CONFIGURATION}-input-files.xcfilelist",
 			);
+			inputPaths = (
+			);
 			name = "[CP] Copy Pods Resources";
 			outputFileListPaths = (
 				"${PODS_ROOT}/Target Support Files/Pods-BCChat/Pods-BCChat-resources-${CONFIGURATION}-output-files.xcfilelist",
+			);
+			outputPaths = (
 			);
 			runOnlyForDeploymentPostprocessing = 0;
 			shellPath = /bin/sh;
@@ -351,6 +860,15 @@
 					"COCOAPODS=1",
 					USE_MAXOS_SDL_FRAMEWORK,
 				);
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"${PODS_ROOT}/Headers/Public\"",
+					"\"${PODS_ROOT}/Headers/Public/BrainCloudCpp\"",
+					"\"${PODS_ROOT}/Headers/Public/BrainCloudJsonCpp\"",
+					"\"${PODS_ROOT}/Headers/Public/SSKeychain\"",
+					"\"${PODS_ROOT}/Headers/Public/SocketRocket\"",
+				);
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Debug;
@@ -370,6 +888,15 @@
 					"COCOAPODS=1",
 					USE_MAXOS_SDL_FRAMEWORK,
 				);
+				HEADER_SEARCH_PATHS = (
+					"$(inherited)",
+					"\"${PODS_ROOT}/Headers/Public\"",
+					"\"${PODS_ROOT}/Headers/Public/BrainCloudCpp\"",
+					"\"${PODS_ROOT}/Headers/Public/BrainCloudJsonCpp\"",
+					"\"${PODS_ROOT}/Headers/Public/SSKeychain\"",
+					"\"${PODS_ROOT}/Headers/Public/SocketRocket\"",
+				);
+				LD_RUNPATH_SEARCH_PATHS = "@executable_path/../Frameworks";
 				PRODUCT_NAME = "$(TARGET_NAME)";
 			};
 			name = Release;

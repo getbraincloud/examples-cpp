@@ -180,13 +180,21 @@ list(APPEND libs brainCloud)
 list(APPEND includes PUBLIC ../thirdparties/imgui/)
 list(APPEND includes PUBLIC ../thirdparties/imgui/backends)
 
-# Add a post-build command to copy the DLL
-add_custom_command(TARGET BCChat POST_BUILD
-    COMMAND cmake -E copy_if_different
-        "${CMAKE_CURRENT_BINARY_DIR}/thirdparties/SDL/${CMAKE_BUILD_TYPE}/SDL3.dll"
-        "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/SDL3.dll"
-    COMMENT "Copying SDL3.dll to the output directory from ${SDL3_DLL_PATH} "
-)
+# Add a post-build command to copy required DLLs
+if(WIN32)
+	add_custom_command(TARGET BCChat POST_BUILD
+		COMMAND cmake -E copy_if_different
+			"${CMAKE_CURRENT_BINARY_DIR}/thirdparties/SDL/${CMAKE_BUILD_TYPE}/SDL3.dll"
+			"${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/SDL3.dll"
+		COMMENT "Copying SDL3.dll to the output directory"
+	)
+	add_custom_command(TARGET BCChat POST_BUILD
+		COMMAND cmake -E copy_if_different
+			"${CMAKE_CURRENT_BINARY_DIR}/../../thirdparties/braincloud-cpp/lib/zlib/zlib1.dll"
+			"${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/zlib1.dll"
+		COMMENT "Copying zlib1.dll to the output directory"
+	)
+endif()
 
 # Setup includes and linked libraries
 target_include_directories(BCChat ${includes})

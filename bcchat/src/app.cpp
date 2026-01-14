@@ -35,7 +35,8 @@
 // C/C++ includes
 #include <stdlib.h>
 
-std::string appVersion = "2.0";
+std::string appVersion = VERSION;
+std::string serverVersion = "";
 
 // Prototypes for private functions
 void initBC();
@@ -146,6 +147,16 @@ void initBC()
                            "bitheads",
                            "BCChat");
     pBCWrapper->getBCClient()->enableLogging(true);
+
+    pBCWrapper->getBCClient()->getAuthenticationService()->getServerVersion(new BCCallback(
+        [=](const Json::Value& result) // Success
+        {
+            serverVersion += result["data"]["serverVersion"].asString();
+        },
+        [](const std::string& status_message) // Error
+        {
+
+        }));
 }
 
 // User authenticated, handle the result
@@ -530,6 +541,8 @@ void uninitBC()
 // Reset application state, back to login screen
 void resetState()
 {
+    pBCWrapper->resetStoredAnonymousId();
+    pBCWrapper->resetStoredProfileId();
     state.chatData.globalChannels.clear();
     state.chatData.groups.clear();
     state.chatData.pActiveChannel.reset();

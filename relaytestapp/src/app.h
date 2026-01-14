@@ -22,6 +22,7 @@
 #include <braincloud/BrainCloudRelay.h>
 
 extern std::string appVersion;
+extern std::string serverVersion;
 
 struct Point;
 

@@ -41,7 +41,8 @@
 #include <iostream>
 #include <stdlib.h>
 
-std::string appVersion = "2.0";
+std::string appVersion = VERSION;
+std::string serverVersion = "";
 
 // Prototypes for private functions
 static void initBC();
@@ -142,7 +143,7 @@ public:
 //-----------------------------------------------------------------------------
 // Privates
 //-----------------------------------------------------------------------------
-static BrainCloud::BrainCloudWrapper *pBCWrapper = nullptr;
+BrainCloud::BrainCloudWrapper *pBCWrapper = nullptr;
 static std::string errorMessage;
 static bool dead = false;
 static bool isDisconnecting = false;
@@ -168,6 +169,16 @@ static void initBC()
                            "bitheads",
                            "RelayTestApp");
     pBCWrapper->getBCClient()->enableLogging(true);
+
+    pBCWrapper->getBCClient()->getAuthenticationService()->getServerVersion(new BCCallback(
+        [=](const Json::Value& result) // Success
+        {
+            serverVersion += result["data"]["serverVersion"].asString();
+        },
+        [](const std::string& status_message) // Error
+        {
+
+        }));
 }
 
 // User authenticated, handle the result
