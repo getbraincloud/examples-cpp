@@ -147,7 +147,6 @@ void initBC()
                            "bitheads",
                            "BCChat");
     pBCWrapper->getBCClient()->enableLogging(true);
-    pBCWrapper->getBCClient()->enableCompression(true);
 
     pBCWrapper->getBCClient()->getAuthenticationService()->getServerVersion(new BCCallback(
         [=](const Json::Value& result) // Success
