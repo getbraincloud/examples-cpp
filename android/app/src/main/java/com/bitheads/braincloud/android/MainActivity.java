@@ -29,17 +29,17 @@ public class MainActivity extends AppCompatActivity {
 
     private String saveCertPemFile()
     {
-        Context context=getApplicationContext();
-        String assetFileName="cacerts.pem";
+        Context context = getApplicationContext();
+        String assetFileName = "cacerts.pem";
 
-        if(context==null || !FileExistInAssets(assetFileName,context))
+        if(context == null || !FileExistInAssets(assetFileName,context))
         {
             Log.i("TestActivity", "Context is null or asset file doesnt exist");
             return null;
         }
         //destination path is data/data/packagename
-        String destPath=getApplicationContext().getApplicationInfo().dataDir;
-        String CertFilePath =destPath + "/" +assetFileName;
+        String destPath = getApplicationContext().getApplicationInfo().dataDir;
+        String CertFilePath = destPath + "/" +assetFileName;
         File file = new File(CertFilePath);
         if(file.exists())
         {
@@ -47,7 +47,7 @@ public class MainActivity extends AppCompatActivity {
             file.delete();
         }
         //copy to internal storage
-        if(CopyAssets(context,assetFileName,CertFilePath)==1) return CertFilePath;
+        if(CopyAssets(context,assetFileName,CertFilePath) == 1) return CertFilePath;
 
         return CertFilePath=null;
 
