@@ -7,7 +7,7 @@ cmake_minimum_required(VERSION 3.18.1)
 
 # Declares and names the project.
 
-project("android")
+project("braincloud_android")
 
 # Creates and names a library, sets it as either STATIC
 # or SHARED, and provides the relative paths to its source code.
@@ -15,7 +15,7 @@ project("android")
 # Gradle automatically packages shared libraries with your APK.
 
 add_library( # Sets the name of the library.
-        android
+        braincloud_android
 
         # Sets the library as a shared library.
         SHARED
@@ -29,12 +29,15 @@ add_library( # Sets the name of the library.
 # you want to add. CMake verifies that the library exists before
 # completing its build.
 
-find_library( # Sets the name of the path variable.
+find_library(
         log-lib
+        log
+)
 
-        # Specifies the name of the NDK library that
-        # you want CMake to locate.
-        log)
+find_library(
+        android-lib
+        android
+)
 
 #option(SSL_ALLOW_SELFSIGNED 1)
 #add_definitions(-DSSL_ALLOW_SELFSIGNED=ON)
@@ -48,11 +51,12 @@ add_subdirectory(../../../../../thirdparties/braincloud-cpp ./binary/braincloud)
 # build script, prebuilt third-party libraries, or system libraries.
 
 target_link_libraries( # Specifies the target library.
-        android
+        braincloud_android
 
         # Links the target library to the log library
         # included in the NDK.
         ${log-lib}
+        ${android-lib}
 
         # Link the target library to the brainCloud library
         brainCloud
