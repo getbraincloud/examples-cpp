@@ -46,19 +46,22 @@ std::string serverVersion = "";
 
 // Prototypes for private functions
 static void initBC();
-static void handlePlayerState(const Json::Value& result);
+static void handlePlayerState(const Json::Value &result);
 static void onLoggedIn();
 static void onRTTConnected();
-static void dieWithMessage(const std::string& message);
+static void dieWithMessage(const std::string &message);
+static void errorAndReturnToMenu(const std::string &message);
 static void uninitBC();
 static void resetState();
-static void submitName(const char* username);
-static void onLobbyEvent(const Json::Value& eventJson);
-static Lobby parseLobby(const Json::Value& lobbyJson, const std::string& lobbyId);
-static Server parseServer(const Json::Value& serverJson);
+static void submitName(const char *username);
+static void onLobbyEvent(const Json::Value &eventJson);
+static Lobby parseLobby(const Json::Value &lobbyJson, const std::string &lobbyId);
+static Server parseServer(const Json::Value &serverJson);
 static void startGame();
-static void onRelaySystemMessage(const Json::Value& json);
-static void onRelayMessage(int netId, const Json::Value& json);
+static void onRelaySystemMessage(const Json::Value &json);
+static void onRelayMessage(int netId, const Json::Value &json);
+
+static bool isDisconnecting = false;
 
 // brainCloud RTT Connection callbacks
 class RTTConnectCallback final : public BrainCloud::IRTTConnectCallback
@@ -69,9 +72,12 @@ public:
         onRTTConnected();
     }
 
-    void rttConnectFailure(const std::string& errorMessage) override
+    void rttConnectFailure(const std::string &errorMessage) override
     {
-        dieWithMessage("Disconnected from RTT:\n" + errorMessage);
+        // Ignore failure if we intentionally disconnected (avoids re-entrant loop)
+        if (isDisconnecting)
+            return;
+        errorAndReturnToMenu("Disconnected from RTT:\n" + errorMessage);
     }
 };
 
@@ -79,7 +85,7 @@ public:
 class RTTCallback final : public BrainCloud::IRTTCallback
 {
 public:
-    void rttCallback(const std::string& dataJson) override
+    void rttCallback(const std::string &dataJson) override
     {
         Json::Reader reader;
         Json::Value eventJson;
@@ -97,31 +103,32 @@ public:
 class RelayConnectCallback final : public BrainCloud::IRelayConnectCallback
 {
 public:
-    void relayConnectSuccess(const std::string& jsonResponse) override
+    void relayConnectSuccess(const std::string &jsonResponse) override
     {
+        printf("[DEBUG] Relay connect SUCCESS\n");
+        loading_status = "";
         state.screenState = ScreenState::Game;
     }
 
-    void relayConnectFailure(const std::string& errorMessage) override
+    void relayConnectFailure(const std::string &errorMessage) override
     {
-        if (!ignoreFailure)
+        printf("[DEBUG] Relay connect FAILURE: %s\n", errorMessage.c_str());
+        if (!isDisconnecting)
         {
-            dieWithMessage("Failed to connect to server, msg: " + errorMessage);
+            errorAndReturnToMenu("Failed to connect to relay server:\n" + errorMessage);
         }
     }
-
-    bool ignoreFailure = false;
 };
 
 // brainCloud Relay callbacks
 class RelayCallback final : public BrainCloud::IRelayCallback
 {
 public:
-    void relayCallback(int netId, const uint8_t* bytes, int size) override
+    void relayCallback(int netId, const uint8_t *bytes, int size) override
     {
         Json::Value json;
         Json::Reader reader;
-        std::string str((const char*)bytes, size);
+        std::string str((const char *)bytes, size);
         reader.parse(str, json);
         onRelayMessage(netId, json);
     }
@@ -131,7 +138,7 @@ public:
 class RelaySystemCallback final : public BrainCloud::IRelaySystemCallback
 {
 public:
-    void relaySystemCallback(const std::string& jsonResponse) override
+    void relaySystemCallback(const std::string &jsonResponse) override
     {
         Json::Value json;
         Json::Reader reader;
@@ -146,13 +153,14 @@ public:
 BrainCloud::BrainCloudWrapper *pBCWrapper = nullptr;
 static std::string errorMessage;
 static bool dead = false;
-static bool isDisconnecting = false;
 
 static RTTConnectCallback bcRTTConnectCallback;
 static RTTCallback bcRTTCallback;
 static RelayConnectCallback bcRelayConnectCallback;
 static RelayCallback bcRelayCallback;
 static RelaySystemCallback bcRelaySystemCallback;
+static bool reconnectAttempted = false;
+static bool relayConnectInitiated = false;
 
 // Initialize brainCloud
 static void initBC()
@@ -162,32 +170,32 @@ static void initBC()
         pBCWrapper = new BrainCloud::BrainCloudWrapper("");
     }
     dead = false;
-    pBCWrapper->initialize(BRAINCLOUD_SERVER_URL, 
-                           BRAINCLOUD_APP_SECRET, 
-                           BRAINCLOUD_APP_ID, 
+    pBCWrapper->initialize(BRAINCLOUD_SERVER_URL,
+                           BRAINCLOUD_APP_SECRET,
+                           BRAINCLOUD_APP_ID,
                            appVersion.c_str(),
                            "bitheads",
                            "RelayTestApp");
     pBCWrapper->getBCClient()->enableLogging(true);
 
     pBCWrapper->getBCClient()->getAuthenticationService()->getServerVersion(new BCCallback(
-        [=](const Json::Value& result) // Success
+        [=](const Json::Value &result) // Success
         {
             serverVersion += result["data"]["serverVersion"].asString();
         },
-        [](const std::string& status_message) // Error
+        [](const std::string &status_message) // Error
         {
 
         }));
 }
 
 // User authenticated, handle the result
-static void handlePlayerState(const Json::Value& result)
+static void handlePlayerState(const Json::Value &result)
 {
     state.user = User();
 
     // If no username is set for this user, ask for it
-    const auto& userName = result["data"]["playerName"].asString();
+    const auto &userName = result["data"]["playerName"].asString();
     if (userName.empty())
     {
         submitName(settings.username);
@@ -213,30 +221,50 @@ void onRTTConnected()
 
     // Find lobby
     pBCWrapper->getLobbyService()->findOrCreateLobby(
-        settings.lobbyType, // lobby type
-        0,              // rating
-        1,              // max steps
+        settings.lobbyType,                                                              // lobby type
+        0,                                                                               // rating
+        1,                                                                               // max steps
         "{\"strategy\":\"ranged-absolute\",\"alignment\":\"center\",\"ranges\":[1000]}", // algorithm
-        "{}",           // filters
-        {},             // other users
-        "{}",           // settings
-        false,          // ready
-        "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}", // extra
-        "all",          // team code
-        new BCCallback( // callback
-        [](const Json::Value& result) // Success
-        {
-            // Success of lobby found will be in the event onLobbyEvent
-        },
-        [](const std::string& status_message) // Error
-        {
-            dieWithMessage("Failed to find lobby:\n" + status_message);
-        })
-    );
+        "{}",                                                                            // filters
+        {},                                                                              // other users
+        "{}",                                                                            // settings
+        false,                                                                           // ready
+        "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}",                // extra
+        "all",                                                                           // team code
+        new BCCallback(                                                                  // callback
+            [](const Json::Value &result)                                                // Success
+            {
+                // Success of lobby found will be in the event onLobbyEvent
+            },
+            [](const std::string &status_message) // Error
+            {
+                errorAndReturnToMenu("Failed to find lobby:\n" + status_message);
+            }));
 }
 
-// Go back to login screen, with an error message
-void dieWithMessage(const std::string& message)
+// Show error and go back to MainMenu without logging out.
+// Use this for relay/lobby errors where the user is still authenticated.
+static void errorAndReturnToMenu(const std::string &message)
+{
+    isDisconnecting = true;
+    pBCWrapper->getRelayService()->deregisterRelayCallback();
+    pBCWrapper->getRelayService()->deregisterSystemCallback();
+    pBCWrapper->getRelayService()->disconnect();
+    pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
+    pBCWrapper->getRTTService()->disableRTT();
+
+    // Reset state but keep the user logged in
+    User user = state.user;
+    state = State();
+    state.user = user;
+    state.screenState = ScreenState::MainMenu;
+
+    errorMessage = message;
+    ImGui::OpenPopup("Error");
+}
+
+// Go back to login screen, with an error message (auth failures only)
+static void dieWithMessage(const std::string &message)
 {
     isDisconnecting = true;
 
@@ -247,7 +275,7 @@ void dieWithMessage(const std::string& message)
     pBCWrapper->getRTTService()->disableRTT();
 
     pBCWrapper->logout(false, nullptr);
-    
+
     errorMessage = message;
     ImGui::OpenPopup("Error");
     dead = true;
@@ -267,12 +295,12 @@ void resetState()
     state = State();
 }
 
-static void onRelaySystemMessage(const Json::Value& json)
+static void onRelaySystemMessage(const Json::Value &json)
 {
     if (json["op"].asString() == "DISCONNECT") // A member has disconnected from the game
     {
-        const auto& cxId = json["cxId"].asString();
-        for (auto& member : state.lobby.members)
+        const auto &cxId = json["cxId"].asString();
+        for (auto &member : state.lobby.members)
         {
             if (member.cxId == cxId)
             {
@@ -283,10 +311,10 @@ static void onRelaySystemMessage(const Json::Value& json)
     }
 }
 
-static void onRelayMessage(int netId, const Json::Value& json)
+static void onRelayMessage(int netId, const Json::Value &json)
 {
-    const auto& memberCxId = pBCWrapper->getRelayService()->getCxIdForNetId(netId);
-    for (auto& member : state.lobby.members)
+    const auto &memberCxId = pBCWrapper->getRelayService()->getCxIdForNetId(netId);
+    for (auto &member : state.lobby.members)
     {
         if (member.cxId == memberCxId)
         {
@@ -333,21 +361,23 @@ void app_update()
         else
         {
             initBC();
-            
-            if (pBCWrapper->getBCClient()->isInitialized() == false) {
+
+            if (pBCWrapper->getBCClient()->isInitialized() == false)
+            {
                 loading_text = "Initialize failed. Check ids.";
                 // Show loading screen
                 state.screenState = ScreenState::LoggingIn;
             }
         }
     }
-    
+
     // Add a menu at the top with an exit option to cleanly quit the app,
     // so we can test for exit crashes at any point
     if (ImGui::BeginMainMenuBar())
     {
         std::string app_text = "brainCloud ";
-        if(pBCWrapper && pBCWrapper->getBCClient()->isInitialized()) {
+        if (pBCWrapper && pBCWrapper->getBCClient()->isInitialized())
+        {
             app_text += pBCWrapper->getBCClient()->getBrainCloudClientVersion();
         }
         if (ImGui::BeginMenu(app_text.c_str()))
@@ -409,32 +439,32 @@ void app_update()
     // Display the proper screen
     switch (state.screenState)
     {
-        case ScreenState::Login:
-            if(pBCWrapper->canReconnect())
-                app_reconnect();
-            else
-                login_update();
-            break;
-        case ScreenState::LoggingIn:
-        case ScreenState::JoiningLobby:
-        case ScreenState::Starting:
-            loading_update();
-            break;
-        case ScreenState::MainMenu:
-            mainMenu_update();
-            break;
-        case ScreenState::Lobby:
-            lobby_update();
-            break;
-        case ScreenState::Game:
-            game_update();
-            break;
+    case ScreenState::Login:
+        if (!reconnectAttempted && settings.autoLogin && pBCWrapper->canReconnect())
+            app_reconnect();
+        else
+            login_update();
+        break;
+    case ScreenState::LoggingIn:
+    case ScreenState::JoiningLobby:
+    case ScreenState::Starting:
+        loading_update();
+        break;
+    case ScreenState::MainMenu:
+        mainMenu_update();
+        break;
+    case ScreenState::Lobby:
+        lobby_update();
+        break;
+    case ScreenState::Game:
+        game_update();
+        break;
     }
 
     // Error message popup
-    if (ImGui::BeginPopupModal("Error", NULL, 
+    if (ImGui::BeginPopupModal("Error", NULL,
                                ImGuiWindowFlags_AlwaysAutoResize |
-                               ImGuiWindowFlags_NoMove))
+                                   ImGuiWindowFlags_NoMove))
     {
         ImGui::Text("%s", errorMessage.c_str());
         if (ImGui::Button("OK", ImVec2(120, 0)))
@@ -448,6 +478,7 @@ void app_update()
 // Logs out the current user and goes back to login screen
 void app_logOut()
 {
+    reconnectAttempted = false;
     pBCWrapper->logout(true, nullptr);
     dead = true;
     resetState();
@@ -462,65 +493,65 @@ void app_exit()
 {
     extern bool done;
     done = true;
-    
-    if(pBCWrapper && pBCWrapper->getBCClient())
+
+    if (pBCWrapper && pBCWrapper->getBCClient())
     {
         pBCWrapper->logout(false, nullptr);
     }
-//#if defined(RELAYTESTAPP_UWP)
-//    Windows::ApplicationModel::Core::CoreApplication::Exit();
-//#else
-//    exit(0);
-//#endif
+    // #if defined(RELAYTESTAPP_UWP)
+    //     Windows::ApplicationModel::Core::CoreApplication::Exit();
+    // #else
+    //     exit(0);
+    // #endif
 }
 
 // Attempt login with the specific username/password
-void app_login(const char* username, const char* password)
+void app_login(const char *username, const char *password)
 {
 
     // Show loading screen
     loading_text = "Logging in ...";
     state.screenState = ScreenState::LoggingIn;
 
-    // Authenticate with brainCloud
+    //  Authenticate with brainCloud
     pBCWrapper->authenticateUniversal(
         username,
         password,
-        true, // Create if user doesn't exist
+        true, //  Create if user doesn't exist
         new BCCallback(
-        [](const Json::Value& result) // Success
-        {
-            handlePlayerState(result);
-        },
-        [](const std::string& status_message) // Error
-        {
-            dieWithMessage("Login Failed:\n" + status_message);
-        })
-    );
+            [](const Json::Value &result) // Success
+            {
+                handlePlayerState(result);
+            },
+            [](const std::string &status_message) // Error
+            {
+                dieWithMessage("Login Failed:\n" + status_message);
+            }));
 }
 
 // Attempt  reconnect with saved profile
 void app_reconnect()
 {
+    reconnectAttempted = true;
+
     // Show loading screen
     loading_text = "Reconnecting ...";
     state.screenState = ScreenState::LoggingIn;
 
     // Authenticate with brainCloud
     pBCWrapper->reconnect(new BCCallback(
-                                         [](const Json::Value& result) // Success
-                                         {
-                                             handlePlayerState(result);
-                                         },
-                                         [](const std::string& status_message) // Error
-                                         {
-                                             dieWithMessage("Reconnect Failed:\n" + status_message);
-                                         }));
-
+        [](const Json::Value &result) // Success
+        {
+            handlePlayerState(result);
+        },
+        [](const std::string &status_message) // Error
+        {
+            dieWithMessage("Reconnect Failed:\n" + status_message);
+        }));
 }
 
 // Submit user name to brainCloud to be assosiated with the current user
-static void submitName(const char* username)
+static void submitName(const char *username)
 {
     state.user.name = username;
 
@@ -528,16 +559,15 @@ static void submitName(const char* username)
     pBCWrapper->getPlayerStateService()->updateUserName(
         state.user.name.c_str(),
         new BCCallback(
-        [](const Json::Value& result) // Success
-        {
-            onLoggedIn();
-        },
-        [](const std::string& status_message) // Error
-        {
-            dieWithMessage("Failed to update username to brainCloud:\n" +
-                status_message);
-        })
-    );
+            [](const Json::Value &result) // Success
+            {
+                onLoggedIn();
+            },
+            [](const std::string &status_message) // Error
+            {
+                dieWithMessage("Failed to update username to brainCloud:\n" +
+                               status_message);
+            }));
 }
 
 // Start finding a lobby
@@ -551,26 +581,30 @@ void app_play(BrainCloud::eRelayConnectionType in_protocol)
     loading_text = "Joining lobby ...";
     state.screenState = ScreenState::JoiningLobby;
 
+    // Reset loading timer so elapsed time starts from when Play was clicked
+    loading_reset_timer();
+
     // Enable RTT
     pBCWrapper->getRTTService()->registerRTTLobbyCallback(&bcRTTCallback);
     pBCWrapper->getRTTService()->enableRTT(&bcRTTConnectCallback, true);
 }
 
 // Take in lobby json and id and build a lobby object
-static Lobby parseLobby(const Json::Value& lobbyJson, const std::string& lobbyId)
+static Lobby parseLobby(const Json::Value &lobbyJson, const std::string &lobbyId)
 {
     Lobby lobby;
 
     lobby.lobbyId = lobbyId;
     lobby.ownerCxId = lobbyJson["ownerCxId"].asString();
-    const auto& jsonMembers = lobbyJson["members"];
-    for (const auto& jsonMember : jsonMembers)
+    const auto &jsonMembers = lobbyJson["members"];
+    for (const auto &jsonMember : jsonMembers)
     {
         User user;
         user.cxId = jsonMember["cxId"].asString();
         user.name = jsonMember["name"].asString();
         user.colorIndex = jsonMember["extra"]["colorIndex"].asInt();
-        if (user.cxId == state.user.cxId) user.allowSendTo = false;
+        if (user.cxId == state.user.cxId)
+            user.allowSendTo = false;
         lobby.members.push_back(user);
     }
 
@@ -578,24 +612,36 @@ static Lobby parseLobby(const Json::Value& lobbyJson, const std::string& lobbyId
 }
 
 // Take in server json and build a server object
-static Server parseServer(const Json::Value& serverJson)
+static Server parseServer(const Json::Value &serverJson)
 {
     Server server;
 
+    const auto &ports = serverJson["connectData"]["ports"];
     server.host = serverJson["connectData"]["address"].asString();
-    server.wsPort = serverJson["connectData"]["ports"]["ws"].asInt();
-    server.tcpPort = serverJson["connectData"]["ports"]["tcp"].asInt();
-    server.udpPort = serverJson["connectData"]["ports"]["udp"].asInt();
+    if (!ports["ws"].isNull())
+        server.wsPort = ports["ws"].asInt();
+    if (!ports["tcp"].isNull())
+        server.tcpPort = ports["tcp"].asInt();
+    if (!ports["udp"].isNull())
+        server.udpPort = ports["udp"].asInt();
+    if (!ports["gamelift"].isNull())
+        server.gameLiftPort = ports["gamelift"].asInt();
+    if (!ports["i3d"].isNull())
+        server.i3dPort = ports["i3d"].asInt();
     server.passcode = serverJson["passcode"].asString();
     server.lobbyId = serverJson["lobbyId"].asString();
+
+    printf("[DEBUG] parseServer: host=%s ws=%d tcp=%d udp=%d gamelift=%d i3d=%d\n",
+           server.host.c_str(), server.wsPort, server.tcpPort, server.udpPort,
+           server.gameLiftPort, server.i3dPort);
 
     return server;
 }
 
 // We received a lobby event through RTT
-static void onLobbyEvent(const Json::Value& eventJson)
+static void onLobbyEvent(const Json::Value &eventJson)
 {
-    const auto& jsonData = eventJson["data"];
+    const auto &jsonData = eventJson["data"];
 
     // If there is a lobby object present in the message, update our lobby
     // state with it.
@@ -612,14 +658,30 @@ static void onLobbyEvent(const Json::Value& eventJson)
     }
 
     auto operation = eventJson["operation"].asString();
+    printf("[DEBUG] onLobbyEvent: op=%s\n", operation.c_str());
 
     if (operation == "DISBANDED")
     {
-        if (jsonData["reason"]["code"].asInt() != RTT_ROOM_READY)
+        int reasonCode = jsonData["reason"]["code"].asInt();
+        printf("[DEBUG] DISBANDED reason code=%d (RTT_ROOM_READY=%d)\n", reasonCode, RTT_ROOM_READY);
+        if (reasonCode != RTT_ROOM_READY)
         {
             // Disbanded for any other reason than ROOM_READY, means we failed to launch the game.
             app_closeGame();
         }
+    }
+    else if (operation == "MATCHMAKING_IN_PROGRESS")
+    {
+        loading_status = "Searching...";
+    }
+    else if (operation == "MEMBER_JOIN")
+    {
+        const auto &name = jsonData["member"]["name"].asString();
+        loading_status = "Joined: " + (name.empty() ? "unknown" : name);
+    }
+    else if (operation == "MEMBER_LEFT")
+    {
+        loading_status = "Player left";
     }
     else if (operation == "STARTING")
     {
@@ -627,12 +689,28 @@ static void onLobbyEvent(const Json::Value& eventJson)
         settings.colorIndex = state.user.colorIndex;
         saveConfigs();
 
+        loading_status = "Provisioning server...";
+
         // Go to loading screen
         state.screenState = ScreenState::Starting;
         loading_text = "Starting...";
     }
+    else if (operation == "ROOM_PROGRESS")
+    {
+        int curStep = jsonData["curStep"].asInt();
+        int ofStep = jsonData["ofStep"].asInt();
+        const auto &msg = jsonData["msg"].asString();
+        char buf[128];
+        snprintf(buf, sizeof(buf), "%d/%d: %s", curStep, ofStep, msg.c_str());
+        loading_status = buf;
+    }
+    else if (operation == "ROOM_ASSIGNED")
+    {
+        loading_status = "Server assigned...";
+    }
     else if (operation == "ROOM_READY")
     {
+        loading_status = "Connecting...";
         state.server = parseServer(jsonData);
         startGame();
     }
@@ -646,9 +724,29 @@ static void startGame()
     pBCWrapper->getRelayService()->registerRelayCallback(&bcRelayCallback);
     pBCWrapper->getRelayService()->registerSystemCallback(&bcRelaySystemCallback);
 
+    printf("[DEBUG] startGame: host=%s ws=%d tcp=%d udp=%d gamelift=%d i3d=%d protocol=%d\n",
+           state.server.host.c_str(), state.server.wsPort, state.server.tcpPort,
+           state.server.udpPort, state.server.gameLiftPort, state.server.i3dPort,
+           (int)settings.protocol);
+
+    // GameLift and i3D relay servers are WS-only; their single port is always a WS port.
+    // For standard servers the port is chosen by the user-selected protocol.
+    auto connectProtocol = settings.protocol;
     int port = 0;
-    switch (settings.protocol)
+    if (state.server.gameLiftPort != -1)
     {
+        port = state.server.gameLiftPort;
+        connectProtocol = BrainCloud::eRelayConnectionType::WS;
+    }
+    else if (state.server.i3dPort != -1)
+    {
+        port = state.server.i3dPort;
+        connectProtocol = BrainCloud::eRelayConnectionType::WS;
+    }
+    else
+    {
+        switch (settings.protocol)
+        {
         case BrainCloud::eRelayConnectionType::WS:
             port = state.server.wsPort;
             break;
@@ -660,19 +758,45 @@ static void startGame()
             break;
         case BrainCloud::eRelayConnectionType::WSS:
             break;
+        }
     }
 
-    pBCWrapper->getRelayService()->connect(settings.protocol, 
+    printf("[DEBUG] relay connect: protocol=%d port=%d\n", (int)connectProtocol, port);
+    pBCWrapper->getRelayService()->connect(connectProtocol,
                                            state.server.host,
-                                           port, 
-                                           state.server.passcode, 
-                                           state.server.lobbyId, 
+                                           port,
+                                           state.server.passcode,
+                                           state.server.lobbyId,
                                            &bcRelayConnectCallback);
 }
 
-// Cleanly close the game. Go back to main menu but don't log 
+// Cancel lobby search or leave lobby. Go back to main menu without logging out.
+void app_cancelLobby()
+{
+    isDisconnecting = true;
+
+    // Notify server we're leaving the lobby if we have one
+    if (!state.lobby.lobbyId.empty())
+    {
+        pBCWrapper->getLobbyService()->leaveLobby(state.lobby.lobbyId, nullptr);
+    }
+
+    pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
+    pBCWrapper->getRTTService()->disableRTT();
+
+    // Reset state but keep the user around
+    User user = state.user;
+    state = State();
+    state.user = user;
+    state.user.isAlive = false;
+    state.user.isReady = false;
+    state.screenState = ScreenState::MainMenu;
+}
+
+// Cleanly close the game. Go back to main menu but don't log
 void app_closeGame()
 {
+    isDisconnecting = true;
     pBCWrapper->getRelayService()->deregisterRelayCallback();
     pBCWrapper->getRelayService()->deregisterSystemCallback();
     pBCWrapper->getRelayService()->disconnect();
@@ -697,15 +821,14 @@ void app_startGame()
     pBCWrapper->getLobbyService()->updateReady(
         state.lobby.lobbyId,
         state.user.isReady,
-        "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}"
-    );
+        "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}");
 }
 
 // User changes his player color
 void app_changeUserColor(int colorIndex)
 {
     state.user.colorIndex = colorIndex;
-    for (auto& member : state.lobby.members)
+    for (auto &member : state.lobby.members)
     {
         if (state.user.cxId == member.cxId)
         {
@@ -717,17 +840,17 @@ void app_changeUserColor(int colorIndex)
     pBCWrapper->getLobbyService()->updateReady(
         state.lobby.lobbyId,
         state.user.isReady,
-        "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}"
-    );
+        "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}");
 }
 
 static uint64_t getPlayerMask()
 {
     uint64_t playerMask = 0;
 
-    for (const auto& user : state.lobby.members)
+    for (const auto &user : state.lobby.members)
     {
-        if (!user.allowSendTo) continue;
+        if (!user.allowSendTo)
+            continue;
         auto netId = pBCWrapper->getRelayService()->getNetIdForCxId(user.cxId);
         playerMask |= (uint64_t)1 << (uint64_t)netId;
     }
@@ -736,11 +859,11 @@ static uint64_t getPlayerMask()
 }
 
 // User moved mouse in the play area
-void app_mouseMoved(const Point& pos)
+void app_mouseMoved(const Point &pos)
 {
     state.user.isAlive = true;
     state.user.pos = pos;
-    for (auto& member : state.lobby.members)
+    for (auto &member : state.lobby.members)
     {
         if (state.user.cxId == member.cxId)
         {
@@ -760,14 +883,14 @@ void app_mouseMoved(const Point& pos)
     auto str = writer.write(json);
 
     pBCWrapper->getRelayService()->sendToAll(
-        (const uint8_t*)str.data(), (int)str.length(), 
+        (const uint8_t *)str.data(), (int)str.length(),
         settings.sendReliable, // Unreliable
-        settings.sendOrdered, // Ordered
+        settings.sendOrdered,  // Ordered
         (BrainCloud::eRelayChannel)settings.sendChannel);
 }
 
 // User clicked mouse in the play area
-void app_shockwave(const Point& pos)
+void app_shockwave(const Point &pos)
 {
     // Send to other players
     Json::Value json;
@@ -779,9 +902,9 @@ void app_shockwave(const Point& pos)
     auto str = writer.write(json);
 
     pBCWrapper->getRelayService()->sendToPlayers(
-        (const uint8_t*)str.data(), (int)str.length(), 
+        (const uint8_t *)str.data(), (int)str.length(),
         getPlayerMask(),
-        true, // Reliable
+        true,  // Reliable
         false, // Unordered
         (BrainCloud::eRelayChannel)settings.sendChannel);
 

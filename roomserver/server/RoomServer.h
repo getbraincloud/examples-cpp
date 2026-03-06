@@ -3,6 +3,7 @@
 #include <string>
 #include <json/json.h>
 #include <brainclouds2s.h>
+#include <brainclouds2s-prl.h>
 
 using namespace BrainCloud;
 
@@ -17,6 +18,7 @@ private:
     bool loadIds();
     bool loadEnvironmentVariables();
     void createS2S();
+    bool runPRL();
     std::string getS2SUrl() const;
     std::string buildRequest(const std::string& operation) const;
     bool loadLobbyJson();
@@ -31,4 +33,5 @@ private:
 
     S2SContextRef m_s2s;
     Json::Value m_lobbyJson;
+    BrainCloudS2SPRL m_prl;
 };

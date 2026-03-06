@@ -42,27 +42,63 @@ void mainMenu_update()
             (float)height / 2.0f - DIALOG_HEIGHT / 2.0f));
         ImGui::SetNextWindowSize(ImVec2(DIALOG_WIDTH, DIALOG_HEIGHT));
         ImGui::Begin("Main Menu", nullptr,
-            ImGuiWindowFlags_NoCollapse |
-            ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoResize);
+                     ImGuiWindowFlags_NoCollapse |
+                         ImGuiWindowFlags_NoMove |
+                         ImGuiWindowFlags_NoResize);
 
         // Protocol choice
-        if (ImGui::Combo("Protocol", (int*)&settings.protocol, "UDP\0TCP\0"))
+        if (ImGui::Combo("Protocol", (int *)&settings.protocol, "UDP\0TCP\0WS\0WSS\0"))
         {
             saveConfigs();
         }
 
         // Lobby type
-        int currentChoice = 0;
-        if (settings.lobbyType == "CursorPartyV2") currentChoice = 0;
-        else if (settings.lobbyType == "CursorPartyV2Backfill") currentChoice = 1;
-        if (ImGui::Combo("Lobby Type", &currentChoice, "Normal\0Backfill\0"))
+        static const char *LOBBY_TYPE_LABELS =
+            // "CursorParty\0"
+            "CursorPartyEdgeGap\0"
+            "CursorPartyGameLift\0"
+            "CursorPartyI3D\0"
+            "CursorPartyV2\0"
+            "CursorPartyV2_Ire\0"
+            "CursorPartyV2_NoRoomServer\0"
+            "CursorPartyV2_RoomServer\0"
+            "CursorPartyV2Backfill\0"
+            "CursorPartyV2DisbandOnStart\0"
+            "CursorPartyV2LongLive\0"
+            "SinglePlayerServerTest\0"
+            //"TeamCursorPartyV2\0"
+            //"TeamCursorPartyV2Backfill\0"
+            "\0";
+        static const char *LOBBY_TYPE_IDS[] = {
+            //"CursorParty",
+            "CursorPartyEdgeGap",
+            "CursorPartyGameLift",
+            "CursorPartyI3D",
+            "CursorPartyV2",
+            "CursorPartyV2_Ire",
+            "CursorPartyV2_NoRoomServer",
+            "CursorPartyV2_RoomServer",
+            "CursorPartyV2Backfill",
+            "CursorPartyV2DisbandOnStart",
+            "CursorPartyV2LongLive",
+            "SinglePlayerServerTest",
+            // "TeamCursorPartyV2",
+            //  "TeamCursorPartyV2Backfill",
+        };
+        static const int LOBBY_TYPE_COUNT = sizeof(LOBBY_TYPE_IDS) / sizeof(LOBBY_TYPE_IDS[0]);
+        int currentChoice = 3; // default: CursorPartyV2
+        for (int i = 0; i < LOBBY_TYPE_COUNT; ++i)
         {
-            switch (currentChoice)
+            if (settings.lobbyType == LOBBY_TYPE_IDS[i])
             {
-                case 0: settings.lobbyType = "CursorPartyV2"; break;
-                case 1: settings.lobbyType = "CursorPartyV2Backfill"; break;
+                currentChoice = i;
+                break;
             }
+        }
+        if (ImGui::Combo("Lobby Type", &currentChoice, LOBBY_TYPE_LABELS))
+        {
+            settings.lobbyType = LOBBY_TYPE_IDS[currentChoice];
+            saveConfigs();
         }
 
         // Join a game
@@ -77,11 +113,13 @@ void mainMenu_update()
         ImGui::SameLine();
 
         std::string app_text = "Client: ";
-        if (pBCWrapper && pBCWrapper->getBCClient()->isInitialized()) {
+        if (pBCWrapper && pBCWrapper->getBCClient()->isInitialized())
+        {
             app_text += pBCWrapper->getBCClient()->getBrainCloudClientVersion();
         }
 
-        if (pBCWrapper && pBCWrapper->getBCClient()->isInitialized()) {
+        if (pBCWrapper && pBCWrapper->getBCClient()->isInitialized())
+        {
             app_text += " Server: " + serverVersion;
         }
 

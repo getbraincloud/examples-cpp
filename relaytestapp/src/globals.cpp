@@ -80,6 +80,14 @@ void loadConfigs()
             {
                 settings.protocol = (BrainCloud::eRelayConnectionType)std::stoi(value);
             }
+            else if (strcmp(key, "lobbyType") == 0)
+            {
+                settings.lobbyType = value;
+            }
+            else if (strcmp(key, "autoLogin") == 0)
+            {
+                settings.autoLogin = std::stoi(value) != 0;
+            }
         }
         fclose(pFile);
     }
@@ -125,6 +133,8 @@ void saveConfigs()
         fprintf(pFile, "colorIndex = %i\n", settings.colorIndex);
         fprintf(pFile, "gameUIIScale = %i\n", settings.gameUIIScale);
         fprintf(pFile, "protocol = %i\n", (int)settings.protocol);
+        fprintf(pFile, "lobbyType = %s\n", settings.lobbyType.c_str());
+        fprintf(pFile, "autoLogin = %i\n", settings.autoLogin ? 1 : 0);
         fclose(pFile);
     }
 }

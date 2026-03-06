@@ -24,5 +24,11 @@
 // Draws a loading dialog
 void loading_update();
 
-// Point loading_text to the text that should be displayed in the dialog
+// Resets the elapsed timer and clears status (call when entering a lobby/loading flow)
+void loading_reset_timer();
+
+// Main text displayed in the loading dialog
 extern std::string loading_text;
+
+// Optional secondary status line (last lobby event, connection step, etc.)
+extern std::string loading_status;

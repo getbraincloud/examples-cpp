@@ -179,13 +179,15 @@ list(APPEND libs brainCloud)
 list(APPEND includes PUBLIC ../thirdparties/imgui/)
 list(APPEND includes PUBLIC ../thirdparties/imgui/backends)
 
-# Add a post-build command to copy the DLL
-add_custom_command(TARGET RelayTestApp POST_BUILD
-    COMMAND cmake -E copy_if_different
-        "${CMAKE_CURRENT_BINARY_DIR}/thirdparties/SDL/${CMAKE_BUILD_TYPE}/SDL3.dll"
-        "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/SDL3.dll"
-    COMMENT "Copying SDL3.dll to the output directory from ${SDL3_DLL_PATH} "
-)
+# Add a post-build command to copy the DLL (Windows only)
+if (WIN32)
+    add_custom_command(TARGET RelayTestApp POST_BUILD
+        COMMAND cmake -E copy_if_different
+            "${CMAKE_CURRENT_BINARY_DIR}/thirdparties/SDL/${CMAKE_BUILD_TYPE}/SDL3.dll"
+            "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/SDL3.dll"
+        COMMENT "Copying SDL3.dll to the output directory from ${SDL3_DLL_PATH} "
+    )
+endif()
 
 add_custom_command(TARGET RelayTestApp POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory

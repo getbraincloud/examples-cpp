@@ -1,5 +1,7 @@
+#include <chrono>
 #include <stdio.h>
 #include <sstream>
+#include <thread>
 #include "RoomServer.h"
 
 bool RoomServer::init()
@@ -10,8 +12,41 @@ bool RoomServer::init()
 
     createS2S();
 
+    if (!runPRL())
+        return false;
+
     if (!loadLobbyJson())
         return false;
+
+    return true;
+}
+
+bool RoomServer::runPRL()
+{
+    if (!m_prl.isPreReadyLaunch())
+        return true;
+
+    bool prlProceeded = false;
+    m_prl.start(m_s2s, m_lobbyId, [&prlProceeded](bool proceed) {
+        prlProceeded = proceed;
+    });
+
+    while (!m_prl.isComplete())
+    {
+        m_s2s->runCallbacks();
+        std::this_thread::sleep_for(std::chrono::milliseconds(100));
+    }
+
+    if (!prlProceeded)
+    {
+        m_prl.sendSessionEnded(m_s2s, nullptr);
+        for (int i = 0; i < 10; ++i)
+        {
+            m_s2s->runCallbacks();
+            std::this_thread::sleep_for(std::chrono::milliseconds(100));
+        }
+        return false;
+    }
 
     return true;
 }
