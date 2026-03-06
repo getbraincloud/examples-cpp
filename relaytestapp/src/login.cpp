@@ -75,6 +75,16 @@ void login_update()
             ImGui::PopStyleVar();
         }
 
+        // Auto Login toggle (hidden in multi-instance autoJoin mode)
+        if (!settings.autoJoin)
+        {
+            ImGui::SameLine();
+            if (ImGui::Checkbox("Auto Login", &settings.autoLogin))
+            {
+                saveConfigs();
+            }
+        }
+
         ImGui::End();
     }
 }

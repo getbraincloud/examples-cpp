@@ -45,10 +45,10 @@ void lobby_update()
             ImGuiWindowFlags_NoResize |
             ImGuiWindowFlags_NoTitleBar);
         
-        // Leave game
+        // Leave lobby
         if (ImGui::Button("Leave"))
         {
-            app_closeGame();
+            app_cancelLobby();
         }
 
         // We're the boss, so we can start the game

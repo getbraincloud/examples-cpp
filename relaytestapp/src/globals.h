@@ -93,6 +93,8 @@ struct Server
     int wsPort = -1;
     int tcpPort = -1;
     int udpPort = -1;
+    int gameLiftPort = -1;
+    int i3dPort = -1;
     std::string passcode;
     std::string lobbyId;
 };
@@ -128,6 +130,7 @@ struct Settings
     bool sendOrdered = true;
     int instanceIndex = 0;
     bool autoJoin = false;
+    bool autoLogin = true;
     BrainCloud::eRelayConnectionType protocol = BrainCloud::eRelayConnectionType::UDP;
     std::string lobbyType = "CursorPartyV2";
 };
