@@ -23,10 +23,10 @@
 
 // OpenGL
 #if defined(_WIN32) && !defined(APIENTRY)
-#define APIENTRY __stdcall                  // It is customary to use APIENTRY for OpenGL function pointer declarations on all platforms.  Additionally, the Windows OpenGL header needs APIENTRY.
+#define APIENTRY __stdcall // It is customary to use APIENTRY for OpenGL function pointer declarations on all platforms.  Additionally, the Windows OpenGL header needs APIENTRY.
 #endif
 #if defined(_WIN32) && !defined(WINGDIAPI)
-#define WINGDIAPI __declspec(dllimport)     // Some Windows OpenGL headers need this
+#define WINGDIAPI __declspec(dllimport) // Some Windows OpenGL headers need this
 #endif
 #if defined(__APPLE__)
 #include <OpenGL/gl.h>
@@ -62,12 +62,13 @@ bool loadConfigs()
     char value[256];
     bool perInstanceLoaded = false;
 
-    FILE* pFile = nullptr;
+    FILE *pFile = nullptr;
     if (settings.multiInstance || settings.instanceIndex > 0)
     {
         std::string instanceConfig = "configs_" + std::to_string(settings.instanceIndex) + ".txt";
         pFile = fopen(instanceConfig.c_str(), "r");
-        if (pFile) perInstanceLoaded = true;
+        if (pFile)
+            perInstanceLoaded = true;
     }
     if (!pFile)
         pFile = fopen("configs.txt", "r");
@@ -127,7 +128,7 @@ bool loadConfigs()
         glBindTexture(GL_TEXTURE_2D, texture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        //glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        // glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
         // Cleanup
@@ -148,15 +149,18 @@ bool loadConfigs()
 void saveConfigs()
 {
     std::string configFile = (settings.multiInstance || settings.instanceIndex > 0)
-        ? ("configs_" + std::to_string(settings.instanceIndex) + ".txt")
-        : "configs.txt";
+                                 ? ("configs_" + std::to_string(settings.instanceIndex) + ".txt")
+                                 : "configs.txt";
 
     auto pFile = fopen(configFile.c_str(), "w");
     if (pFile)
     {
         fprintf(pFile, "username = %s\n", settings.username);
-        if (strlen(settings.password) > 0)
+        // only use this on multi-mode otherwise never save this. EVER.
+        if (settings.multiInstance && strlen(settings.password) > 0)
+        {
             fprintf(pFile, "password = %s\n", settings.password);
+        }
         fprintf(pFile, "colorIndex = %i\n", settings.colorIndex);
         fprintf(pFile, "gameUIIScale = %i\n", settings.gameUIIScale);
         fprintf(pFile, "protocol = %i\n", (int)settings.protocol);
