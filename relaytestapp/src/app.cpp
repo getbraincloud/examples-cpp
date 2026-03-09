@@ -829,11 +829,11 @@ static void onLobbyEvent(const Json::Value &eventJson)
         settings.colorIndex = state.user.colorIndex;
         saveConfigs();
 
-        loading_status = "Provisioning server...";
-
-        // Go to loading screen
+        // Go to loading screen; reset timer so it counts from provisioning start
         state.screenState = ScreenState::Starting;
         loading_text = "Starting...";
+        loading_reset_timer();
+        loading_status = "Provisioning server...";
     }
     else if (operation == "ROOM_PROGRESS")
     {
@@ -958,6 +958,7 @@ void app_startGame()
     state.user.isReady = true;
     state.screenState = ScreenState::Starting;
     loading_text = "Starting...";
+    loading_reset_timer();
     pBCWrapper->getLobbyService()->updateReady(
         state.lobby.lobbyId,
         state.user.isReady,
