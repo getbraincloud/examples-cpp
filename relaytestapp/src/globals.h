@@ -160,6 +160,7 @@ struct State
     Lobby lobby;                                  /* Lobby with its members as received from brainCloud Lobby Service */
     Server server;                                /* Server info (IP, port, protocol, passcode) */
     std::vector<Shockwave> shockwaves;            /* Players' created shockwaves */
+    std::vector<std::string> appLobbies;          /* Lobby types fetched from AllLobbyTypes global property */
     int mouseX = 0;
     int mouseY = 0;
     long long gameStartTime = 0;  /* ms since epoch when current round started (0 = not in game) */

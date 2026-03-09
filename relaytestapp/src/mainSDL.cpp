@@ -155,8 +155,11 @@ int main(int argc, char *argv[])
             strncpy(settings.password, newName.c_str(), MAX_CREDENTIAL_CHAR - 1);
             settings.password[MAX_CREDENTIAL_CHAR - 1] = '\0';
             settings.autoLogin = true;
+            settings.lobbyType = "CursorParty";
             saveConfigs();
         }
+        // Multi-instance always uses CursorParty regardless of saved config
+        settings.lobbyType = "CursorParty";
         settings.colorIndex = settings.instanceIndex % NUM_COLORS;
     }
 

@@ -30,6 +30,7 @@
 
 // Third party includes
 #include <braincloud/BrainCloudWrapper.h>
+#include <braincloud/BrainCloudGlobalApp.h>
 #include <braincloud/IRTTCallback.h>
 #include <braincloud/IRelayConnectCallback.h>
 #include <braincloud/IRelayCallback.h>
@@ -235,11 +236,60 @@ static void handlePlayerState(const Json::Value &result)
     }
 }
 
-// User fully logged in. Enable RTT and listen for chat messages
+// Populate state.appLobbies from the parsed AllLobbyTypes global property.
+// Mirrors the JS RelayTestApp exactly:
+//   readProperties() -> AllLobbyTypes.value (JSON string)
+//   -> Object.values() -> each entry's "lobby" field
+// Falls back to {"CursorParty"} if the property is absent or unparseable.
+static void applyLobbyTypes(const Json::Value &result)
+{
+    state.appLobbies.clear();
+    const auto &prop = result["data"]["AllLobbyTypes"]["value"];
+    if (!prop.isNull())
+    {
+        Json::Value parsed;
+        Json::Reader reader;
+        if (reader.parse(prop.asString(), parsed) && parsed.isObject())
+        {
+            // Each value is an object {"lobby": "LobbyTypeName", ...}
+            // matching the JS: Object.values(parsedValue) -> lobby.lobby
+            for (const auto &key : parsed.getMemberNames())
+            {
+                const auto &entry = parsed[key];
+                if (entry.isObject() && entry.isMember("lobby"))
+                    state.appLobbies.push_back(entry["lobby"].asString());
+                else if (entry.isString())
+                    state.appLobbies.push_back(entry.asString());
+            }
+        }
+    }
+    if (state.appLobbies.empty())
+        state.appLobbies.push_back("CursorParty");
+
+    // Ensure saved lobbyType is still valid; reset to first if not
+    bool found = false;
+    for (const auto &lt : state.appLobbies)
+        if (lt == settings.lobbyType) { found = true; break; }
+    if (!found)
+        settings.lobbyType = state.appLobbies[0];
+
+    state.screenState = ScreenState::MainMenu;
+}
+
+// User fully logged in — fetch AllLobbyTypes then show main menu.
+// Uses readProperties() (full read) matching the JS RelayTestApp flow.
 void onLoggedIn()
 {
-    // Go to main menu screen
-    state.screenState = ScreenState::MainMenu;
+    loading_text = "Loading lobby types...";
+    pBCWrapper->getBCClient()->getGlobalAppService()->readProperties(
+        new BCCallback(
+            [](const Json::Value &result) { applyLobbyTypes(result); },
+            [](const std::string &) {
+                // Property missing or network error — fall back gracefully
+                if (state.appLobbies.empty())
+                    state.appLobbies.push_back("CursorParty");
+                state.screenState = ScreenState::MainMenu;
+            }));
 }
 
 // RTT connected. Go to main menu screen

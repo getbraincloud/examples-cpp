@@ -52,63 +52,32 @@ void mainMenu_update()
             saveConfigs();
         }
 
-        // Lobby type
-        static const char *LOBBY_TYPE_LABELS =
-            "CursorParty\0"
-            "CursorPartyEdgeGap\0"
-            "CursorPartyGameLift\0"
-            "CursorPartyI3D\0"
-            "CursorPartyV2\0"
-            "CursorPartyV2_Ire\0"
-            "CursorPartyV2_NoRoomServer\0"
-            "CursorPartyV2_RoomServer\0"
-            "CursorPartyV2Backfill\0"
-            "CursorPartyV2DisbandOnStart\0"
-            "CursorPartyV2LongLive\0"
-            "SinglePlayerServerTest\0"
-            "TeamCursorPartyV2\0"
-            "TeamCursorPartyV2Backfill\0"
-            "\0";
-        static const char *LOBBY_TYPE_IDS[] = {
-            "CursorParty",
-            "CursorPartyEdgeGap",
-            "CursorPartyGameLift",
-            "CursorPartyI3D",
-            "CursorPartyV2",
-            "CursorPartyV2_Ire",
-            "CursorPartyV2_NoRoomServer",
-            "CursorPartyV2_RoomServer",
-            "CursorPartyV2Backfill",
-            "CursorPartyV2DisbandOnStart",
-            "CursorPartyV2LongLive",
-            "SinglePlayerServerTest",
-            "TeamCursorPartyV2",
-            "TeamCursorPartyV2Backfill",
-        };
-        static const int LOBBY_TYPE_COUNT = sizeof(LOBBY_TYPE_IDS) / sizeof(LOBBY_TYPE_IDS[0]);
-        int currentChoice = 0; // default: CursorParty
-        for (int i = 0; i < LOBBY_TYPE_COUNT; ++i)
+        // Lobby type — populated dynamically from AllLobbyTypes global property
+        if (!state.appLobbies.empty())
         {
-            if (settings.lobbyType == LOBBY_TYPE_IDS[i])
+            if (ImGui::BeginCombo("Lobby Type", settings.lobbyType.c_str()))
             {
-                currentChoice = i;
-                break;
+                for (const auto &lobbyType : state.appLobbies)
+                {
+                    bool selected = (lobbyType == settings.lobbyType);
+                    if (ImGui::Selectable(lobbyType.c_str(), selected))
+                    {
+                        settings.lobbyType = lobbyType;
+                        if (settings.lobbyType.find("Team") == 0)
+                        {
+                            if (settings.teamCode == "all")
+                                settings.teamCode = "alpha";
+                        }
+                        else
+                        {
+                            settings.teamCode = "all";
+                        }
+                        saveConfigs();
+                    }
+                    if (selected) ImGui::SetItemDefaultFocus();
+                }
+                ImGui::EndCombo();
             }
-        }
-        if (ImGui::Combo("Lobby Type", &currentChoice, LOBBY_TYPE_LABELS))
-        {
-            settings.lobbyType = LOBBY_TYPE_IDS[currentChoice];
-            // Auto-set team code based on lobby type
-            if (settings.lobbyType.find("Team") == 0)
-            {
-                if (settings.teamCode == "all")
-                    settings.teamCode = "alpha";
-            }
-            else
-            {
-                settings.teamCode = "all";
-            }
-            saveConfigs();
         }
 
         // Team selection (only for Team lobby types)
