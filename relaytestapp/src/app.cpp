@@ -510,6 +510,17 @@ void app_update()
                 pBCWrapper->getRelayService()->deregisterSystemCallback();
                 pBCWrapper->getRelayService()->disconnect();
                 isDisconnecting = false;
+
+                // Non-host users re-ready for the next round now that we're back in the lobby.
+                // The host does NOT auto-ready — the host controls when the next match starts.
+                if (state.user.cxId != state.lobby.ownerCxId)
+                {
+                    state.user.isReady = true;
+                    pBCWrapper->getLobbyService()->updateReady(
+                        state.lobby.lobbyId, true,
+                        "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}",
+                        nullptr);
+                }
             }
         }
         else
@@ -844,6 +855,18 @@ static void onLobbyEvent(const Json::Value &eventJson)
         if (state.screenState == ScreenState::JoiningLobby)
         {
             state.screenState = ScreenState::Lobby;
+
+            // Non-host users auto-ready when arriving at the lobby so the host can
+            // start the round immediately without waiting for others to click Ready.
+            // The host does NOT auto-ready — the host controls when the match starts.
+            if (!state.user.isReady && state.user.cxId != state.lobby.ownerCxId)
+            {
+                state.user.isReady = true;
+                pBCWrapper->getLobbyService()->updateReady(
+                    state.lobby.lobbyId, true,
+                    "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}",
+                    nullptr);
+            }
         }
     }
 
