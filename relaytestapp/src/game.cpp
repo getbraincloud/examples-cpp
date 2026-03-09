@@ -48,16 +48,12 @@ void game_update()
             ImGui::TextDisabled("Only affect shockwaves");
             for (auto& user : state.lobby.members)
             {
-                auto color = COLORS[user.colorIndex];
+                auto color = COLORS[user.colorIndex % NUM_COLORS];
                 ImGui::PushStyleColor(ImGuiCol_Text, color);
-                if (user.cxId == state.user.cxId)
-                {
-                    ImGui::Checkbox((user.name + " (Echo)").c_str(), &user.allowSendTo);
-                }
-                else
-                {
-                    ImGui::Checkbox(user.name.c_str(), &user.allowSendTo);
-                }
+                std::string label = user.name;
+                if (user.cxId == state.lobby.ownerCxId) label += " [Host]";
+                if (user.cxId == state.user.cxId)       label += " (Echo)";
+                ImGui::Checkbox(label.c_str(), &user.allowSendTo);
                 ImGui::PopStyleColor();
             }
             ImGui::Unindent();
@@ -88,6 +84,49 @@ void game_update()
             ImGui::Checkbox("Ordered", &settings.sendOrdered);
             ImGui::Unindent();
         }
+
+        ImGui::Separator();
+
+        // Game session info
+        bool isHost = state.user.cxId == state.lobby.ownerCxId;
+        if (isHost)
+            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.0f, 1.0f), "HOST");
+
+        if (state.gameStartTime != 0)
+        {
+            auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+            long long elapsedMs = nowMs - state.gameStartTime;
+            long long elapsedSec = elapsedMs / 1000;
+            int minutes = (int)(elapsedSec / 60);
+            int seconds = (int)(elapsedSec % 60);
+            ImGui::Text("Game Time: %d:%02d", minutes, seconds);
+
+            // CursorParty: 1:30 round with 10-second countdown then auto end-match
+            if (settings.lobbyType == "CursorParty")
+            {
+                static const long long MATCH_DURATION_MS = 90000LL;
+                static const long long COUNTDOWN_FROM_MS = 80000LL;
+                static int matchEndRound = -1; // tracks which round end was already sent
+
+                if (elapsedMs >= MATCH_DURATION_MS)
+                {
+                    if (isHost && matchEndRound != state.roundNumber)
+                    {
+                        matchEndRound = state.roundNumber;
+                        app_endMatch();
+                    }
+                }
+                else if (elapsedMs >= COUNTDOWN_FROM_MS)
+                {
+                    long long remaining = (MATCH_DURATION_MS - elapsedMs + 999LL) / 1000LL;
+                    ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f),
+                                       "Ending in %lld...", remaining);
+                }
+            }
+        }
+        ImGui::Text("Round: %d", state.roundNumber);
+        ImGui::Text("Lobby: %s", state.lobby.lobbyId.c_str());
 
         ImGui::End();
     }
@@ -179,7 +218,7 @@ void game_update()
 
                 // Display
                 auto size = 64.0f * percent;
-                auto color = COLORS[shockwave.colorIndex];
+                auto color = COLORS[shockwave.colorIndex % NUM_COLORS];
                 color.w = 1.0f - percent;
                 pDrawList->AddCircleFilled(
                     ImVec2(framePos.x + (float)shockwave.pos.x * scale, framePos.y + (float)shockwave.pos.y * scale),
@@ -188,18 +227,39 @@ void game_update()
                 ++it;
             }
 
-            // Arrows
+            // Arrows — drawn as colored vector cursors so the color always
+            // matches the player's selection exactly (arrow PNGs are black-alpha
+            // masks and cannot be tinted to arbitrary palette colors).
             for (const auto& member : state.lobby.members)
             {
-                if (member.isAlive)
-                {
-                    pDrawList->AddImage(
-                        ARROWS[member.colorIndex],
-                        ImVec2(framePos.x + (float)member.pos.x * scale, 
-                               framePos.y + (float)member.pos.y * scale),
-                        ImVec2(framePos.x + (float)member.pos.x * scale + 64 * scale, 
-                               framePos.y + (float)member.pos.y * scale + 64 * scale));
-                }
+                if (!member.isAlive) continue;
+
+                float s  = 14.0f * scale;
+                ImVec2 p(framePos.x + (float)member.pos.x * scale,
+                         framePos.y + (float)member.pos.y * scale);
+                ImU32  col     = ImColor(COLORS[member.colorIndex % NUM_COLORS]);
+                ImU32  shadow  = IM_COL32(0, 0, 0, 160);
+
+                // NW-pointing cursor arrow built from three triangles:
+                //   - main body (tip → shaft)
+                //   - corner fill (shaft → shoulder)
+                //   - diagonal tail
+                ImVec2 tip(p.x,             p.y);
+                ImVec2 bl (p.x,             p.y + s);
+                ImVec2 sh (p.x + s * 0.35f, p.y + s * 0.65f);
+                ImVec2 t0 (p.x + s * 0.42f, p.y + s * 0.90f);
+                ImVec2 t1 (p.x + s * 0.62f, p.y + s * 0.75f);
+
+                // Drop shadow (offset 1.5px)
+                const float d = 1.5f;
+                pDrawList->AddTriangleFilled({tip.x+d,tip.y+d},{bl.x+d,bl.y+d},{sh.x+d,sh.y+d}, shadow);
+                pDrawList->AddTriangleFilled({sh.x+d,sh.y+d},{bl.x+d,bl.y+d},{t0.x+d,t0.y+d},  shadow);
+                pDrawList->AddTriangleFilled({sh.x+d,sh.y+d},{t0.x+d,t0.y+d},{t1.x+d,t1.y+d},  shadow);
+
+                // Colored fill
+                pDrawList->AddTriangleFilled(tip, bl,  sh,  col);
+                pDrawList->AddTriangleFilled(sh,  bl,  t0,  col);
+                pDrawList->AddTriangleFilled(sh,  t0,  t1,  col);
             }
         }
         ImGui::EndChildFrame();

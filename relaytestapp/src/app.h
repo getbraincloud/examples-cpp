@@ -52,6 +52,9 @@ void app_cancelLobby();
 // Cleanly close the game. Go back to main menu but don't log
 void app_closeGame();
 
+// End the current match and return all players to the lobby (owner only)
+void app_endMatch();
+
 // Ready up and signals RTT service we can start the game
 void app_startGame();
 

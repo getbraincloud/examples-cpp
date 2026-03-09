@@ -53,14 +53,14 @@ void login_update()
         auto canLogin = strlen(settings.username) && strlen(settings.password);
         if (!canLogin)
         {
-            settings.autoJoin = false;
             ImGui::PushStyleVar(
                 ImGuiStyleVar_Alpha,
                 ImGui::GetStyle().Alpha * 0.5f);
         }
 
-        // Login button
-        if ((ImGui::Button("Login") || settings.autoJoin) && canLogin)
+        // Login button — autoLogin drives automatic sign-in from config;
+        // autoJoin is reserved for auto-clicking Play in the main menu.
+        if ((ImGui::Button("Login") || settings.autoLogin) && canLogin)
         {
             // Save user/pass locally for next time
             saveConfigs();
@@ -75,8 +75,8 @@ void login_update()
             ImGui::PopStyleVar();
         }
 
-        // Auto Login toggle (hidden in multi-instance autoJoin mode)
-        if (!settings.autoJoin)
+        // Auto Login toggle — hidden in multi-instance mode (autoJoin drives play)
+        if (!settings.multiInstance)
         {
             ImGui::SameLine();
             if (ImGui::Checkbox("Auto Login", &settings.autoLogin))

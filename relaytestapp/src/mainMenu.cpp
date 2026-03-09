@@ -54,7 +54,7 @@ void mainMenu_update()
 
         // Lobby type
         static const char *LOBBY_TYPE_LABELS =
-            // "CursorParty\0"
+            "CursorParty\0"
             "CursorPartyEdgeGap\0"
             "CursorPartyGameLift\0"
             "CursorPartyI3D\0"
@@ -66,11 +66,11 @@ void mainMenu_update()
             "CursorPartyV2DisbandOnStart\0"
             "CursorPartyV2LongLive\0"
             "SinglePlayerServerTest\0"
-            //"TeamCursorPartyV2\0"
-            //"TeamCursorPartyV2Backfill\0"
+            "TeamCursorPartyV2\0"
+            "TeamCursorPartyV2Backfill\0"
             "\0";
         static const char *LOBBY_TYPE_IDS[] = {
-            //"CursorParty",
+            "CursorParty",
             "CursorPartyEdgeGap",
             "CursorPartyGameLift",
             "CursorPartyI3D",
@@ -82,11 +82,11 @@ void mainMenu_update()
             "CursorPartyV2DisbandOnStart",
             "CursorPartyV2LongLive",
             "SinglePlayerServerTest",
-            // "TeamCursorPartyV2",
-            //  "TeamCursorPartyV2Backfill",
+            "TeamCursorPartyV2",
+            "TeamCursorPartyV2Backfill",
         };
         static const int LOBBY_TYPE_COUNT = sizeof(LOBBY_TYPE_IDS) / sizeof(LOBBY_TYPE_IDS[0]);
-        int currentChoice = 3; // default: CursorPartyV2
+        int currentChoice = 0; // default: CursorParty
         for (int i = 0; i < LOBBY_TYPE_COUNT; ++i)
         {
             if (settings.lobbyType == LOBBY_TYPE_IDS[i])
@@ -98,7 +98,28 @@ void mainMenu_update()
         if (ImGui::Combo("Lobby Type", &currentChoice, LOBBY_TYPE_LABELS))
         {
             settings.lobbyType = LOBBY_TYPE_IDS[currentChoice];
+            // Auto-set team code based on lobby type
+            if (settings.lobbyType.find("Team") == 0)
+            {
+                if (settings.teamCode == "all")
+                    settings.teamCode = "alpha";
+            }
+            else
+            {
+                settings.teamCode = "all";
+            }
             saveConfigs();
+        }
+
+        // Team selection (only for Team lobby types)
+        if (settings.lobbyType.find("Team") == 0)
+        {
+            int teamChoice = (settings.teamCode == "beta") ? 1 : 0;
+            if (ImGui::Combo("Team", &teamChoice, "Alpha\0Beta\0\0"))
+            {
+                settings.teamCode = (teamChoice == 0) ? "alpha" : "beta";
+                saveConfigs();
+            }
         }
 
         // Join a game

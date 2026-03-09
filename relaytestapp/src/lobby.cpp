@@ -26,25 +26,20 @@
 #include <imgui.h>
 #include <stdio.h>
 
-// Login dialog dimensions
-#define DIALOG_WIDTH 275.0f
-#define DIALOG_HEIGHT 150.0f
-
 // Draws a login dialog and update its logic
 void lobby_update()
 {
-    // Main menu window, centered
+    // Lobby window: auto-sized, centered via pivot
     {
-        ImGui::SetNextWindowPos(ImVec2(
-            (float)width / 2.0f - DIALOG_WIDTH / 2.0f,
-            (float)height / 2.0f - DIALOG_HEIGHT / 2.0f + 10.0f));
-        ImGui::SetNextWindowSize(ImVec2(DIALOG_WIDTH, DIALOG_HEIGHT));
+        ImGui::SetNextWindowPos(
+            ImVec2((float)width / 2.0f, (float)height / 2.0f + 10.0f),
+            ImGuiCond_Always, ImVec2(0.5f, 0.5f));
         ImGui::Begin("Lobby", nullptr,
             ImGuiWindowFlags_NoCollapse |
             ImGuiWindowFlags_NoMove |
-            ImGuiWindowFlags_NoResize |
+            ImGuiWindowFlags_AlwaysAutoResize |
             ImGuiWindowFlags_NoTitleBar);
-        
+
         // Leave lobby
         if (ImGui::Button("Leave"))
         {
@@ -61,28 +56,37 @@ void lobby_update()
             }
         }
 
-        // Color picker buttons
-        for (int i = 0; i < 8; ++i)
+        // Color picker: 10 per row to fit up to 40 colors in a compact grid
+        for (int i = 0; i < NUM_COLORS; ++i)
         {
-            if (i) ImGui::SameLine();
+            if (i % 10 != 0) ImGui::SameLine();
             if (ImGui::ColorButton(("Col" + std::to_string(i)).c_str(), COLORS[i]))
             {
                 app_changeUserColor(i);
             }
         }
 
-        // Draw users
-        int i = 0;
+        // Lobby info
+        ImGui::Separator();
+        int maxMembers = maxLobbyMembers(settings.lobbyType);
+        ImGui::Text("Lobby: %s", state.lobby.lobbyId.c_str());
+        ImGui::TextDisabled("Players: %d / %d",
+            (int)state.lobby.members.size(), maxMembers);
+        if (state.roundNumber > 0)
+            ImGui::TextDisabled("Round: %d", state.roundNumber);
+
+        // Draw users in 4 columns (scales naturally to any member count)
         ImGui::Columns(4, 0, true);
         for (const auto& member : state.lobby.members)
         {
+            std::string label = member.name;
+            if (member.cxId == state.lobby.ownerCxId) label += " [Host]";
             auto pos = ImGui::GetCursorPos();
             ImGui::SetCursorPos({pos.x + 1, pos.y + 1});
-            ImGui::TextColored(ImVec4(0, 0, 0, 0.75f), "%s", member.name.c_str());
+            ImGui::TextColored(ImVec4(0, 0, 0, 0.75f), "%s", label.c_str());
             ImGui::SetCursorPos(pos);
-            ImGui::TextColored(COLORS[member.colorIndex], "%s", member.name.c_str());
+            ImGui::TextColored(COLORS[member.colorIndex % NUM_COLORS], "%s", label.c_str());
             ImGui::NextColumn();
-            ++i;
         }
         ImGui::Columns();
 

@@ -89,6 +89,12 @@ void loading_update()
         centerText(loading_text.c_str());
         centerTextDisabled(timerBuf);
 
+        if (!state.lobby.lobbyId.empty())
+        {
+            ImGui::Spacing();
+            centerTextDisabled(state.lobby.lobbyId.c_str());
+        }
+
         if (!loading_status.empty())
         {
             ImGui::Spacing();
