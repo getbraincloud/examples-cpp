@@ -40,7 +40,6 @@
 
 #include <cmath>
 
-
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 bool done = false;
 bool startfullscreen = false;
@@ -66,7 +65,7 @@ int main(int argc, char *argv[])
     }
 
     // Setup SDL
-    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER) != 0)
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0)
     {
         printf("Error: %s\n", SDL_GetError());
         return -1;
@@ -82,32 +81,35 @@ int main(int argc, char *argv[])
     int x = SDL_WINDOWPOS_CENTERED;
     int y = SDL_WINDOWPOS_CENTERED;
     Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
-    if(retval==0){ // only set window size if usable bounds ok
+    if (retval == 0)
+    { // only set window size if usable bounds ok
         if (argc > 2)
         {
             settings.instanceIndex = std::atoi(argv[argc - 2]);
             auto count = std::atoi(argv[argc - 1]);
             settings.multiInstance = true;
-            if (count > 1) settings.autoJoin = true;
+            if (count > 1)
+                settings.autoJoin = true;
 
             // Grid layout: tile instances across the screen without overlapping.
             // Window size capped at 1280×720; grid cell determines position.
             int cols = (int)std::ceil(std::sqrt((double)count));
             int rows = (int)std::ceil((double)count / (double)cols);
-            width  = std::min(1280, usable_bounds.w / cols);
-            height = std::min(720,  usable_bounds.h / rows);
+            width = std::min(1280, usable_bounds.w / cols);
+            height = std::min(720, usable_bounds.h / rows);
             int col_index = settings.instanceIndex % cols;
             int row_index = settings.instanceIndex / cols;
             x = usable_bounds.x + col_index * width;
             y = usable_bounds.y + row_index * height;
         }
-        else if(startfullscreen){
+        else if (startfullscreen)
+        {
             // when possible, use entire space
             width = usable_bounds.w;
             height = usable_bounds.h;
         }
     }
-    
+
     // Setup window
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
@@ -119,7 +121,7 @@ int main(int argc, char *argv[])
     std::string windowTitle = "brainCloud Relay Test App " + appVersion;
     if (settings.multiInstance)
         windowTitle += " [" + std::to_string(settings.instanceIndex + 1) + "]";
-    SDL_Window* window = SDL_CreateWindow(windowTitle.c_str(), width, height, flags);
+    SDL_Window *window = SDL_CreateWindow(windowTitle.c_str(), width, height, flags);
 
     // SDL3 CreateWindow doesn't take position; apply it now if set by grid layout
     if (settings.multiInstance)
@@ -131,7 +133,8 @@ int main(int argc, char *argv[])
     // Setup Dear ImGui binding
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO &io = ImGui::GetIO();
+    (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     // Init imgui GL renderer
@@ -149,7 +152,7 @@ int main(int argc, char *argv[])
         // matching password so the login form is pre-filled and autoLogin works.
         if (!instanceConfigLoaded)
         {
-            std::string newName = "steve_" + std::to_string(settings.instanceIndex + 1);
+            std::string newName = "smrj_" + std::to_string(settings.instanceIndex + 1);
             strncpy(settings.username, newName.c_str(), MAX_CREDENTIAL_CHAR - 1);
             settings.username[MAX_CREDENTIAL_CHAR - 1] = '\0';
             strncpy(settings.password, newName.c_str(), MAX_CREDENTIAL_CHAR - 1);
