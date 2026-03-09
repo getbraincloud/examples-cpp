@@ -31,6 +31,7 @@
 #include <SDL3/SDL_opengl.h>
 
 #include <stdio.h>
+#include <string>
 
 // App includes
 #include "app.h"
@@ -39,19 +40,32 @@
 
 #include <cmath>
 
-
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 bool done = false;
 bool startfullscreen = false;
 
 int main(int argc, char *argv[])
 {
-    // Make command prompt faster
-    static char stdOutBuffer[8192];
-    setvbuf(stdout, stdOutBuffer, _IOFBF, sizeof(stdOutBuffer));
+    // In multi-instance mode, redirect stdout/stderr to a per-instance log file
+    // so debug output from all instances is captured separately (log_N.txt).
+    if (argc > 2)
+    {
+        int instanceIdx = std::atoi(argv[argc - 2]);
+        std::string logPath = "log_" + std::to_string(instanceIdx) + ".txt";
+        freopen(logPath.c_str(), "w", stdout);
+        freopen(logPath.c_str(), "a", stderr);
+        // Line-buffered so writes appear immediately even through the redirect
+        setvbuf(stdout, nullptr, _IOLBF, 0);
+    }
+    else
+    {
+        // Make command prompt faster for single-instance mode
+        static char stdOutBuffer[8192];
+        setvbuf(stdout, stdOutBuffer, _IOFBF, sizeof(stdOutBuffer));
+    }
 
     // Setup SDL
-    if (SDL_Init(SDL_INIT_VIDEO|SDL_INIT_TIMER) != 0)
+    if (SDL_Init(SDL_INIT_VIDEO | SDL_INIT_TIMER) != 0)
     {
         printf("Error: %s\n", SDL_GetError());
         return -1;
@@ -67,31 +81,35 @@ int main(int argc, char *argv[])
     int x = SDL_WINDOWPOS_CENTERED;
     int y = SDL_WINDOWPOS_CENTERED;
     Uint32 flags = SDL_WINDOW_OPENGL | SDL_WINDOW_RESIZABLE;
-    if(retval==0){ // only set window size if usable bounds ok
+    if (retval == 0)
+    { // only set window size if usable bounds ok
         if (argc > 2)
         {
             settings.instanceIndex = std::atoi(argv[argc - 2]);
             auto count = std::atoi(argv[argc - 1]);
-            if (count > 1) settings.autoJoin = true;
-            auto count_per_col = (int)std::sqrt((double)count);
-            auto count_per_row = (int)std::ceil((double)count / (double)count_per_col);
-            auto col_index = settings.instanceIndex % count_per_row;
-            auto row_index = settings.instanceIndex / count_per_row;
-            
-            width = usable_bounds.w / count_per_row;
-            height = usable_bounds.h / count_per_col;
-            x = col_index * width;
-            y = row_index * height;
-            
-            flags |= SDL_WINDOW_BORDERLESS;
+            settings.multiInstance = true;
+            if (count > 1)
+                settings.autoJoin = true;
+
+            // Grid layout: tile instances across the screen without overlapping.
+            // Window size capped at 1280×720; grid cell determines position.
+            int cols = (int)std::ceil(std::sqrt((double)count));
+            int rows = (int)std::ceil((double)count / (double)cols);
+            width = std::min(1280, usable_bounds.w / cols);
+            height = std::min(720, usable_bounds.h / rows);
+            int col_index = settings.instanceIndex % cols;
+            int row_index = settings.instanceIndex / cols;
+            x = usable_bounds.x + col_index * width;
+            y = usable_bounds.y + row_index * height;
         }
-        else if(startfullscreen){
+        else if (startfullscreen)
+        {
             // when possible, use entire space
             width = usable_bounds.w;
             height = usable_bounds.h;
         }
     }
-    
+
     // Setup window
     SDL_GL_SetAttribute(SDL_GL_DOUBLEBUFFER, 1);
     SDL_GL_SetAttribute(SDL_GL_DEPTH_SIZE, 24);
@@ -100,7 +118,14 @@ int main(int argc, char *argv[])
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
     // using SDL3
-    SDL_Window* window = SDL_CreateWindow((std::string("brainCloud Relay Test App ") + appVersion).c_str() , width, height, flags);
+    std::string windowTitle = "brainCloud Relay Test App " + appVersion;
+    if (settings.multiInstance)
+        windowTitle += " [" + std::to_string(settings.instanceIndex + 1) + "]";
+    SDL_Window *window = SDL_CreateWindow(windowTitle.c_str(), width, height, flags);
+
+    // SDL3 CreateWindow doesn't take position; apply it now if set by grid layout
+    if (settings.multiInstance)
+        SDL_SetWindowPosition(window, x, y);
 
     SDL_GLContext gl_context = SDL_GL_CreateContext(window);
     SDL_GL_SetSwapInterval(1); // Enable vsync
@@ -108,7 +133,8 @@ int main(int argc, char *argv[])
     // Setup Dear ImGui binding
     IMGUI_CHECKVERSION();
     ImGui::CreateContext();
-    ImGuiIO& io = ImGui::GetIO(); (void)io;
+    ImGuiIO &io = ImGui::GetIO();
+    (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
 
     // Init imgui GL renderer
@@ -118,16 +144,26 @@ int main(int argc, char *argv[])
     ImGui::StyleColorsClassic();
 
     // Load app related stuff
-    loadConfigs();
-    if (settings.autoJoin)
+    auto instanceConfigLoaded = loadConfigs();
+    if (settings.multiInstance)
     {
-        if (settings.instanceIndex > 0)
+        // In multi-instance mode every instance owns its own configs_N.txt.
+        // If none was found, auto-generate one with a generic username and
+        // matching password so the login form is pre-filled and autoLogin works.
+        if (!instanceConfigLoaded)
         {
-            std::string newName(settings.username);
-            newName += std::to_string(settings.instanceIndex + 1);
-            strcpy(settings.username, newName.c_str());
+            std::string newName = "smrj_" + std::to_string(settings.instanceIndex + 1);
+            strncpy(settings.username, newName.c_str(), MAX_CREDENTIAL_CHAR - 1);
+            settings.username[MAX_CREDENTIAL_CHAR - 1] = '\0';
+            strncpy(settings.password, newName.c_str(), MAX_CREDENTIAL_CHAR - 1);
+            settings.password[MAX_CREDENTIAL_CHAR - 1] = '\0';
+            settings.autoLogin = true;
+            settings.lobbyType = "CursorParty";
+            saveConfigs();
         }
-        settings.colorIndex = settings.instanceIndex % 8;
+        // Multi-instance always uses CursorParty regardless of saved config
+        settings.lobbyType = "CursorParty";
+        settings.colorIndex = settings.instanceIndex % NUM_COLORS;
     }
 
     // Main loop

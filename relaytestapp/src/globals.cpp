@@ -23,10 +23,10 @@
 
 // OpenGL
 #if defined(_WIN32) && !defined(APIENTRY)
-#define APIENTRY __stdcall                  // It is customary to use APIENTRY for OpenGL function pointer declarations on all platforms.  Additionally, the Windows OpenGL header needs APIENTRY.
+#define APIENTRY __stdcall // It is customary to use APIENTRY for OpenGL function pointer declarations on all platforms.  Additionally, the Windows OpenGL header needs APIENTRY.
 #endif
 #if defined(_WIN32) && !defined(WINGDIAPI)
-#define WINGDIAPI __declspec(dllimport)     // Some Windows OpenGL headers need this
+#define WINGDIAPI __declspec(dllimport) // Some Windows OpenGL headers need this
 #endif
 #if defined(__APPLE__)
 #include <OpenGL/gl.h>
@@ -53,13 +53,26 @@ int height = 720;
 // Arrow textures
 ImTextureID ARROWS[8];
 
-// Load configuration file from disk (./config.txt)
-void loadConfigs()
+// Load configuration file from disk.
+// For multi-instance: tries configs_N.txt first, falls back to configs.txt.
+// Returns true if a per-instance config (configs_N.txt) was successfully loaded.
+bool loadConfigs()
 {
     char key[256];
     char value[256];
+    bool perInstanceLoaded = false;
 
-    auto pFile = fopen("configs.txt", "r");
+    FILE *pFile = nullptr;
+    if (settings.multiInstance || settings.instanceIndex > 0)
+    {
+        std::string instanceConfig = "configs_" + std::to_string(settings.instanceIndex) + ".txt";
+        pFile = fopen(instanceConfig.c_str(), "r");
+        if (pFile)
+            perInstanceLoaded = true;
+    }
+    if (!pFile)
+        pFile = fopen("configs.txt", "r");
+
     if (pFile)
     {
         while (fscanf(pFile, "%s = %s\n", key, value) == 2)
@@ -67,6 +80,10 @@ void loadConfigs()
             if (strcmp(key, "username") == 0)
             {
                 strcpy(settings.username, value);
+            }
+            else if (strcmp(key, "password") == 0)
+            {
+                strcpy(settings.password, value);
             }
             else if (strcmp(key, "colorIndex") == 0)
             {
@@ -88,6 +105,10 @@ void loadConfigs()
             {
                 settings.autoLogin = std::stoi(value) != 0;
             }
+            else if (strcmp(key, "teamCode") == 0)
+            {
+                settings.teamCode = value;
+            }
         }
         fclose(pFile);
     }
@@ -107,7 +128,7 @@ void loadConfigs()
         glBindTexture(GL_TEXTURE_2D, texture);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        //glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
+        // glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
 
         // Cleanup
@@ -119,21 +140,32 @@ void loadConfigs()
         // Restore state
         glBindTexture(GL_TEXTURE_2D, last_texture);
     }
+
+    return perInstanceLoaded;
 }
 
-// Save configuration file to disk (./config.txt)
+// Save configuration file to disk.
+// Instance 0 saves to configs.txt; instance N saves to configs_N.txt.
 void saveConfigs()
 {
-    if (settings.instanceIndex != 0) return; // Only first instance will save
+    std::string configFile = (settings.multiInstance || settings.instanceIndex > 0)
+                                 ? ("configs_" + std::to_string(settings.instanceIndex) + ".txt")
+                                 : "configs.txt";
 
-    auto pFile = fopen("configs.txt", "w");
+    auto pFile = fopen(configFile.c_str(), "w");
     if (pFile)
     {
         fprintf(pFile, "username = %s\n", settings.username);
+        // only use this on multi-mode otherwise never save this. EVER.
+        if (settings.multiInstance && strlen(settings.password) > 0)
+        {
+            fprintf(pFile, "password = %s\n", settings.password);
+        }
         fprintf(pFile, "colorIndex = %i\n", settings.colorIndex);
         fprintf(pFile, "gameUIIScale = %i\n", settings.gameUIIScale);
         fprintf(pFile, "protocol = %i\n", (int)settings.protocol);
         fprintf(pFile, "lobbyType = %s\n", settings.lobbyType.c_str());
+        fprintf(pFile, "teamCode = %s\n", settings.teamCode.c_str());
         fprintf(pFile, "autoLogin = %i\n", settings.autoLogin ? 1 : 0);
         fclose(pFile);
     }

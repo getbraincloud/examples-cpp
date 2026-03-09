@@ -30,6 +30,7 @@
 
 // Third party includes
 #include <braincloud/BrainCloudWrapper.h>
+#include <braincloud/BrainCloudGlobalApp.h>
 #include <braincloud/IRTTCallback.h>
 #include <braincloud/IRelayConnectCallback.h>
 #include <braincloud/IRelayCallback.h>
@@ -60,6 +61,9 @@ static Server parseServer(const Json::Value &serverJson);
 static void startGame();
 static void onRelaySystemMessage(const Json::Value &json);
 static void onRelayMessage(int netId, const Json::Value &json);
+static uint64_t getPlayerMask();
+static void sendGameStartToMask(uint64_t playerMask);
+static void onRelayConnected();
 
 static bool isDisconnecting = false;
 
@@ -105,14 +109,15 @@ class RelayConnectCallback final : public BrainCloud::IRelayConnectCallback
 public:
     void relayConnectSuccess(const std::string &jsonResponse) override
     {
-        printf("[DEBUG] Relay connect SUCCESS\n");
+        printf("[%d][DEBUG] Relay connect SUCCESS\n", settings.instanceIndex);
         loading_status = "";
         state.screenState = ScreenState::Game;
+        onRelayConnected();
     }
 
     void relayConnectFailure(const std::string &errorMessage) override
     {
-        printf("[DEBUG] Relay connect FAILURE: %s\n", errorMessage.c_str());
+        printf("[%d][DEBUG] Relay connect FAILURE: %s\n", settings.instanceIndex, errorMessage.c_str());
         if (!isDisconnecting)
         {
             errorAndReturnToMenu("Failed to connect to relay server:\n" + errorMessage);
@@ -167,15 +172,37 @@ static void initBC()
 {
     if (!pBCWrapper)
     {
-        pBCWrapper = new BrainCloud::BrainCloudWrapper("");
+        // Use the instance index as the wrapper name so each instance gets its
+        // own isolated SaveDataHelper file (bc_profile_0.txt, bc_profile_1.txt …).
+        // Single-instance mode uses "default".
+        std::string wrapperName = settings.multiInstance
+            ? std::to_string(settings.instanceIndex)
+            : "default";
+        pBCWrapper = new BrainCloud::BrainCloudWrapper(wrapperName.c_str());
     }
     dead = false;
+
+    // Always use the wrapper's initialize() so BrainCloudClient is properly
+    // constructed (the wrapper lazily allocates it there — calling getBCClient()
+    // before initialize() returns nullptr and crashes).
     pBCWrapper->initialize(BRAINCLOUD_SERVER_URL,
                            BRAINCLOUD_APP_SECRET,
                            BRAINCLOUD_APP_ID,
                            appVersion.c_str(),
                            "bitheads",
                            "RelayTestApp");
+
+    if (settings.multiInstance)
+    {
+        // initialize() unconditionally calls initializeIdentity() which generates
+        // a random anonymous ID and stores it — causing reconnect() to authenticate
+        // anonymously on subsequent calls.  Undo that here: clear both the
+        // SaveDataHelper store and the client's in-memory identity so the client
+        // has no anonymous context.  app_login() will authenticate via universal
+        // credentials only.
+        pBCWrapper->clearIds();
+        pBCWrapper->getBCClient()->initializeIdentity("", "");
+    }
     pBCWrapper->getBCClient()->enableLogging(true);
 
     pBCWrapper->getBCClient()->getAuthenticationService()->getServerVersion(new BCCallback(
@@ -194,9 +221,11 @@ static void handlePlayerState(const Json::Value &result)
 {
     state.user = User();
 
-    // If no username is set for this user, ask for it
+    // In multi-instance mode always force the name from the config so each
+    // instance shows its assigned username regardless of what's stored server-side.
+    // In single-instance mode only set the name when the account has none yet.
     const auto &userName = result["data"]["playerName"].asString();
-    if (userName.empty())
+    if (userName.empty() || settings.multiInstance)
     {
         submitName(settings.username);
     }
@@ -207,11 +236,60 @@ static void handlePlayerState(const Json::Value &result)
     }
 }
 
-// User fully logged in. Enable RTT and listen for chat messages
+// Populate state.appLobbies from the parsed AllLobbyTypes global property.
+// Mirrors the JS RelayTestApp exactly:
+//   readProperties() -> AllLobbyTypes.value (JSON string)
+//   -> Object.values() -> each entry's "lobby" field
+// Falls back to {"CursorParty"} if the property is absent or unparseable.
+static void applyLobbyTypes(const Json::Value &result)
+{
+    state.appLobbies.clear();
+    const auto &prop = result["data"]["AllLobbyTypes"]["value"];
+    if (!prop.isNull())
+    {
+        Json::Value parsed;
+        Json::Reader reader;
+        if (reader.parse(prop.asString(), parsed) && parsed.isObject())
+        {
+            // Each value is an object {"lobby": "LobbyTypeName", ...}
+            // matching the JS: Object.values(parsedValue) -> lobby.lobby
+            for (const auto &key : parsed.getMemberNames())
+            {
+                const auto &entry = parsed[key];
+                if (entry.isObject() && entry.isMember("lobby"))
+                    state.appLobbies.push_back(entry["lobby"].asString());
+                else if (entry.isString())
+                    state.appLobbies.push_back(entry.asString());
+            }
+        }
+    }
+    if (state.appLobbies.empty())
+        state.appLobbies.push_back("CursorParty");
+
+    // Ensure saved lobbyType is still valid; reset to first if not
+    bool found = false;
+    for (const auto &lt : state.appLobbies)
+        if (lt == settings.lobbyType) { found = true; break; }
+    if (!found)
+        settings.lobbyType = state.appLobbies[0];
+
+    state.screenState = ScreenState::MainMenu;
+}
+
+// User fully logged in — fetch AllLobbyTypes then show main menu.
+// Uses readProperties() (full read) matching the JS RelayTestApp flow.
 void onLoggedIn()
 {
-    // Go to main menu screen
-    state.screenState = ScreenState::MainMenu;
+    loading_text = "Loading lobby types...";
+    pBCWrapper->getBCClient()->getGlobalAppService()->readProperties(
+        new BCCallback(
+            [](const Json::Value &result) { applyLobbyTypes(result); },
+            [](const std::string &) {
+                // Property missing or network error — fall back gracefully
+                if (state.appLobbies.empty())
+                    state.appLobbies.push_back("CursorParty");
+                state.screenState = ScreenState::MainMenu;
+            }));
 }
 
 // RTT connected. Go to main menu screen
@@ -230,7 +308,7 @@ void onRTTConnected()
         "{}",                                                                            // settings
         false,                                                                           // ready
         "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}",                // extra
-        "all",                                                                           // team code
+        settings.teamCode,                                                               // team code
         new BCCallback(                                                                  // callback
             [](const Json::Value &result)                                                // Success
             {
@@ -295,6 +373,42 @@ void resetState()
     state = State();
 }
 
+// Send game start time and round number to specific players via relay
+static void sendGameStartToMask(uint64_t playerMask)
+{
+    if (playerMask == 0) return;
+
+    Json::Value json;
+    json["op"] = "game_start";
+    json["data"]["startTime"] = (Json::Int64)state.gameStartTime;
+    json["data"]["round"] = state.roundNumber;
+
+    Json::FastWriter writer;
+    auto str = writer.write(json);
+    pBCWrapper->getRelayService()->sendToPlayers(
+        (const uint8_t *)str.data(), (int)str.length(),
+        playerMask,
+        true,  // reliable
+        false, // unordered ok
+        (BrainCloud::eRelayChannel)0);
+}
+
+// Called when relay connection succeeds. Owner sets and broadcasts the authoritative game start time.
+static void onRelayConnected()
+{
+    ++state.roundNumber;
+
+    if (state.lobby.ownerCxId == state.user.cxId)
+    {
+        // Owner is the authoritative source for start time
+        auto now = std::chrono::system_clock::now();
+        state.gameStartTime = std::chrono::duration_cast<std::chrono::milliseconds>(
+            now.time_since_epoch()).count();
+        sendGameStartToMask(getPlayerMask());
+    }
+    // Non-owner players will receive game_start from the owner via relay message
+}
+
 static void onRelaySystemMessage(const Json::Value &json)
 {
     if (json["op"].asString() == "DISCONNECT") // A member has disconnected from the game
@@ -308,6 +422,29 @@ static void onRelaySystemMessage(const Json::Value &json)
                 break;
             }
         }
+    }
+    else if (json["op"].asString() == "CONNECT") // A new player joined mid-game (backfill)
+    {
+        // Owner re-sends game start time so the JIP player gets the correct elapsed time
+        if (state.lobby.ownerCxId == state.user.cxId && state.gameStartTime != 0)
+        {
+            const auto &cxId = json["cxId"].asString();
+            auto netId = pBCWrapper->getRelayService()->getNetIdForCxId(cxId);
+            uint64_t mask = (uint64_t)1 << (uint64_t)netId;
+            sendGameStartToMask(mask);
+        }
+    }
+    else if (json["op"].asString() == "END_MATCH") // Match ended, return all players to lobby
+    {
+        // Reset per-round state immediately
+        state.user.isAlive = false;
+        state.user.isReady = false;
+        state.shockwaves.clear();
+        state.gameStartTime = 0;
+        state.screenState = ScreenState::Lobby;
+
+        // Defer relay disconnect — cannot safely call deregister/disconnect from inside a relay callback
+        state.pendingEndMatch = true;
     }
 }
 
@@ -334,6 +471,12 @@ static void onRelayMessage(int netId, const Json::Value &json)
                 shockwave.startTime = std::chrono::high_resolution_clock::now();
                 state.shockwaves.push_back(shockwave);
             }
+            else if (op == "game_start")
+            {
+                // Owner's authoritative start time — sync for non-owners and JIP players
+                state.gameStartTime = json["data"]["startTime"].asInt64();
+                state.roundNumber = json["data"]["round"].asInt();
+            }
             break;
         }
     }
@@ -357,6 +500,28 @@ void app_update()
         if (pBCWrapper)
         {
             pBCWrapper->runCallbacks();
+
+            // Deferred END_MATCH disconnect — safe to call here, after callbacks have returned
+            if (state.pendingEndMatch)
+            {
+                state.pendingEndMatch = false;
+                isDisconnecting = true;
+                pBCWrapper->getRelayService()->deregisterRelayCallback();
+                pBCWrapper->getRelayService()->deregisterSystemCallback();
+                pBCWrapper->getRelayService()->disconnect();
+                isDisconnecting = false;
+
+                // Non-host users re-ready for the next round now that we're back in the lobby.
+                // The host does NOT auto-ready — the host controls when the next match starts.
+                if (state.user.cxId != state.lobby.ownerCxId)
+                {
+                    state.user.isReady = true;
+                    pBCWrapper->getLobbyService()->updateReady(
+                        state.lobby.lobbyId, true,
+                        "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}",
+                        nullptr);
+                }
+            }
         }
         else
         {
@@ -426,11 +591,37 @@ void app_update()
                     ImGui::EndMenu();
                 }
                 ImGui::Separator();
+                if (state.lobby.ownerCxId == state.user.cxId)
+                {
+                    if (ImGui::MenuItem("End Match"))
+                    {
+                        app_endMatch();
+                    }
+                    ImGui::Separator();
+                }
                 if (ImGui::MenuItem("Leave"))
                 {
                     app_closeGame();
                 }
                 ImGui::EndMenu();
+            }
+        }
+
+        // Right-aligned username: show brainCloud profile name when logged in,
+        // otherwise the local username from the config/login form.
+        {
+            const std::string& displayName = !state.user.name.empty()
+                ? state.user.name
+                : (settings.username[0] ? settings.username : "");
+            if (!displayName.empty())
+            {
+                auto color = COLORS[settings.colorIndex % NUM_COLORS];
+                std::string label = displayName;
+                if (settings.multiInstance)
+                    label = "[" + std::to_string(settings.instanceIndex + 1) + "] " + label;
+                float textWidth = ImGui::CalcTextSize(label.c_str()).x + ImGui::GetStyle().ItemSpacing.x * 2;
+                ImGui::SetCursorPosX(ImGui::GetWindowWidth() - textWidth);
+                ImGui::TextColored(color, "%s", label.c_str());
             }
         }
     }
@@ -513,20 +704,25 @@ void app_login(const char *username, const char *password)
     loading_text = "Logging in ...";
     state.screenState = ScreenState::LoggingIn;
 
-    //  Authenticate with brainCloud
-    pBCWrapper->authenticateUniversal(
-        username,
-        password,
-        true, //  Create if user doesn't exist
-        new BCCallback(
-            [](const Json::Value &result) // Success
-            {
-                handlePlayerState(result);
-            },
-            [](const std::string &status_message) // Error
-            {
-                dieWithMessage("Login Failed:\n" + status_message);
-            }));
+    auto onSuccess = new BCCallback(
+        [](const Json::Value &result) { handlePlayerState(result); },
+        [](const std::string &status_message) { dieWithMessage("Login Failed:\n" + status_message); });
+
+    if (settings.multiInstance)
+    {
+        // In multi-instance mode skip the wrapper's initializeIdentity() flow entirely.
+        // Each instance has its own wrapper name and SaveDataHelper file, so profile
+        // data is already isolated. Calling the client directly means no anonymous ID
+        // is generated or sent — the server authenticates purely on universal credentials.
+        pBCWrapper->getBCClient()->getAuthenticationService()->authenticateUniversal(
+            username, password, true, onSuccess);
+    }
+    else
+    {
+        // Single-instance: use the full wrapper flow (initializeIdentity + profile
+        // caching via DefaultSaveDataHelper) so reconnect/session resume works.
+        pBCWrapper->authenticateUniversal(username, password, true, onSuccess);
+    }
 }
 
 // Attempt  reconnect with saved profile
@@ -576,6 +772,11 @@ void app_play(BrainCloud::eRelayConnectionType in_protocol)
     settings.protocol = in_protocol;
     isDisconnecting = false;
     state.user.colorIndex = settings.colorIndex;
+
+    // Clear stale lobby data so the loading screen shows a fresh lobbyId
+    User savedUser = state.user;
+    state.lobby = Lobby();
+    state.user = savedUser;
 
     // Show loading screen
     loading_text = "Joining lobby ...";
@@ -654,6 +855,18 @@ static void onLobbyEvent(const Json::Value &eventJson)
         if (state.screenState == ScreenState::JoiningLobby)
         {
             state.screenState = ScreenState::Lobby;
+
+            // Non-host users auto-ready when arriving at the lobby so the host can
+            // start the round immediately without waiting for others to click Ready.
+            // The host does NOT auto-ready — the host controls when the match starts.
+            if (!state.user.isReady && state.user.cxId != state.lobby.ownerCxId)
+            {
+                state.user.isReady = true;
+                pBCWrapper->getLobbyService()->updateReady(
+                    state.lobby.lobbyId, true,
+                    "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}",
+                    nullptr);
+            }
         }
     }
 
@@ -689,11 +902,11 @@ static void onLobbyEvent(const Json::Value &eventJson)
         settings.colorIndex = state.user.colorIndex;
         saveConfigs();
 
-        loading_status = "Provisioning server...";
-
-        // Go to loading screen
+        // Go to loading screen; reset timer so it counts from provisioning start
         state.screenState = ScreenState::Starting;
         loading_text = "Starting...";
+        loading_reset_timer();
+        loading_status = "Provisioning server...";
     }
     else if (operation == "ROOM_PROGRESS")
     {
@@ -818,6 +1031,7 @@ void app_startGame()
     state.user.isReady = true;
     state.screenState = ScreenState::Starting;
     loading_text = "Starting...";
+    loading_reset_timer();
     pBCWrapper->getLobbyService()->updateReady(
         state.lobby.lobbyId,
         state.user.isReady,
@@ -887,6 +1101,19 @@ void app_mouseMoved(const Point &pos)
         settings.sendReliable, // Unreliable
         settings.sendOrdered,  // Ordered
         (BrainCloud::eRelayChannel)settings.sendChannel);
+}
+
+// End the current match and return all players to the lobby for another round.
+// Only the lobby owner should call this. RTT stays alive so the lobby persists.
+void app_endMatch()
+{
+    Json::Value extraJson;
+    extraJson["cxId"] = state.user.cxId;
+    extraJson["lobbyId"] = state.lobby.lobbyId;
+    extraJson["op"] = "END_MATCH";
+
+    Json::FastWriter writer;
+    pBCWrapper->getRelayService()->endMatch(writer.write(extraJson));
 }
 
 // User clicked mouse in the play area
