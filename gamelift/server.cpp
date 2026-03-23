@@ -1,7 +1,9 @@
+#include <chrono>
 #include <condition_variable>
 #include <mutex>
 #include <sstream>
 #include <string>
+#include <thread>
 #include <vector>
 
 #include <aws/gamelift/server/GameLiftServerAPI.h>
@@ -9,6 +11,7 @@
 #include <aws/gamelift/server/ProcessParameters.h>
 
 #include <brainclouds2s.h>
+#include <brainclouds2s-prl.h>
 #include <json/json.h>
 
 using namespace std;
@@ -31,6 +34,12 @@ static string SERVER_PORT;
 static string SERVER_NAME;
 static string SERVER_SECRET;
 static string LOBBY_ID;
+
+// PRL properties passed from brainCloud through GameLift game session properties.
+// These are forwarded to environment variables so BrainCloudS2SPRL can read them.
+static string PRE_READY_LAUNCH;
+static string SERVER_ID;
+static string SERVER_CONTEXT;
 
 // The port used for players to connect to your server. We should pass
 // this as an argument to the server launch.
@@ -56,7 +65,7 @@ int main(int argc, char **argv)
     // ALREADY_INITIALIZED. So make sure to check for that too.
     auto initOutcome = InitSDK();
     if (!initOutcome.IsSuccess() &&
-        initOutcome.GetError().GetErrorType() != 
+        initOutcome.GetError().GetErrorType() !=
             GAMELIFT_ERROR_TYPE::ALREADY_INITIALIZED)
     {
         return 1;
@@ -79,7 +88,7 @@ int main(int argc, char **argv)
     // Some GameLift calls seem to return an error with
     // ALREADY_INITIALIZED. So make sure to check for that too.
     auto readyOutcome = ProcessReady(processParameters);
-    if (!readyOutcome.IsSuccess() && 
+    if (!readyOutcome.IsSuccess() &&
         readyOutcome.GetError().GetErrorType() !=
             GAMELIFT_ERROR_TYPE::ALREADY_INITIALIZED)
     {
@@ -94,14 +103,46 @@ int main(int argc, char **argv)
 
     // Initialize brainCloud S2S
     {
-        auto url = "https://" + SERVER_HOST + 
+        auto url = "https://" + SERVER_HOST +
                    ":" + SERVER_PORT + "/s2sdispatcher";
-        s2s = S2SContext::create(APP_ID, 
-                                 SERVER_NAME, 
-                                 SERVER_SECRET, 
-                                 url, 
+        s2s = S2SContext::create(APP_ID,
+                                 SERVER_NAME,
+                                 SERVER_SECRET,
+                                 url,
                                  true);
-        s2s->setLogEnabled(true);   
+        s2s->setLogEnabled(true);
+    }
+
+    // Pre-Ready Launch (PRL) flow.
+    // When brainCloud sets PRE_READY_LAUNCH to "true" via GameLift game session
+    // properties, the server must wait for the lobby to reach the "starting"
+    // state before calling ActivateGameSession() and SYS_ROOM_READY.
+    BrainCloud::BrainCloudS2SPRL prl;
+    if (prl.isPreReadyLaunch())
+    {
+        bool prlProceeded = false;
+        prl.start(s2s, LOBBY_ID, [&prlProceeded](bool proceed) {
+            prlProceeded = proceed;
+        });
+
+        while (!prl.isComplete())
+        {
+            s2s->runCallbacks();
+            this_thread::sleep_for(chrono::milliseconds(100));
+        }
+
+        if (!prlProceeded)
+        {
+            // Lobby was disbanded or timed out — notify brainCloud and exit cleanly.
+            prl.sendSessionEnded(s2s, nullptr);
+            for (int i = 0; i < 10; ++i)
+            {
+                s2s->runCallbacks();
+                this_thread::sleep_for(chrono::milliseconds(100));
+            }
+            ProcessEnding();
+            return 1;
+        }
     }
 
     // Get Lobby from S2S
@@ -128,13 +169,13 @@ int main(int argc, char **argv)
     // Once gameplay is done, send stats to brainCloud through S2S
     // ... collect and send player stats, leaderboard, etc.
 
-    // If the Lobby is backfille (Join in progress), we need to let
+    // If the Lobby is backfilled (Join in progress), we need to let
     // brainCloud know we're stopping the server. As a simple rule,
     // always do this.
     sendLobbyRequest("SYS_ROOM_STOPPED");
 
-    // Let GameLift know we're about to shutdown. After this, 
-    // GameLift will give us about 30sec to cleanup properly and 
+    // Let GameLift know we're about to shutdown. After this,
+    // GameLift will give us about 30sec to cleanup properly and
     // then exit with code 0.
     ProcessEnding();
 
@@ -158,6 +199,12 @@ void onStartGameSession(GameSession gameSession)
         if (key == "SERVER_NAME") SERVER_NAME = value;
         if (key == "SERVER_SECRET") SERVER_SECRET = value;
         if (key == "LOBBY_ID") LOBBY_ID = value;
+
+        // PRL properties: forwarded to environment variables so
+        // BrainCloudS2SPRL can read them transparently.
+        if (key == "PRE_READY_LAUNCH") { PRE_READY_LAUNCH = value; setenv("PRE_READY_LAUNCH", value.c_str(), 1); }
+        if (key == "SERVER_ID")        { SERVER_ID = value;        setenv("SERVER_ID",         value.c_str(), 1); }
+        if (key == "SERVER_CONTEXT")   { SERVER_CONTEXT = value;   setenv("SERVER_CONTEXT",    value.c_str(), 1); }
     }
 
     // Notify our gameloop that we are ready
