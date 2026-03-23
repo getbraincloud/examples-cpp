@@ -108,7 +108,7 @@ void game_update()
             ImGui::Text("Game Time: %d:%02d", minutes, seconds);
 
             // CursorParty: 1:30 round with 10-second countdown then auto end-match
-            if (settings.lobbyType == "CursorParty")
+            if (isCursorPartyLobby(settings.lobbyType))
             {
                 static const long long MATCH_DURATION_MS = 90000LL;
                 static const long long COUNTDOWN_FROM_MS = 80000LL;

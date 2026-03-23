@@ -178,6 +178,9 @@ struct State
     int splotchDurationSec = -1;  /* -1 = forever; from SplotchDuration global property */
 };
 
+// Change this one line to switch the default lobby type everywhere.
+static const std::string DEFAULT_LOBBY_TYPE = "CursorPartyGameLift";
+
 struct Settings
 {
     char username[MAX_CREDENTIAL_CHAR] = {'\0'};
@@ -192,7 +195,7 @@ struct Settings
     bool autoJoin = false;
     bool autoLogin = true;
     BrainCloud::eRelayConnectionType protocol = BrainCloud::eRelayConnectionType::UDP;
-    std::string lobbyType = "CursorParty";
+    std::string lobbyType = DEFAULT_LOBBY_TYPE;
     std::string teamCode = "all"; /* "all" for non-team lobbies, "alpha"/"beta" for team lobbies */
 };
 
@@ -203,11 +206,18 @@ extern Settings settings;
 bool loadConfigs();
 void saveConfigs();
 
+// True for any lobby type in the CursorParty family (name starts with "CursorParty").
+// Add new CursorParty variants without touching any other file.
+inline bool isCursorPartyLobby(const std::string &lobbyType)
+{
+    return lobbyType.find("CursorParty") == 0;
+}
+
 // Returns max lobby member count for the given lobby type.
-// CursorParty supports up to 40; all other types cap at 8.
+// CursorParty variants support up to 40; all other types cap at 8.
 inline int maxLobbyMembers(const std::string &lobbyType)
 {
-    return (lobbyType == "CursorParty") ? 40 : 8;
+    return isCursorPartyLobby(lobbyType) ? 40 : 8;
 }
 
 // Main application state instance

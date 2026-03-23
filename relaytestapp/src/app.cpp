@@ -265,7 +265,7 @@ static void applyLobbyTypes(const Json::Value &result)
         }
     }
     if (state.appLobbies.empty())
-        state.appLobbies.push_back("CursorParty");
+        state.appLobbies.push_back(DEFAULT_LOBBY_TYPE);
 
     // Ensure saved lobbyType is still valid; reset to first if not
     bool found = false;
@@ -295,7 +295,7 @@ void onLoggedIn()
             [](const std::string &) {
                 // Property missing or network error — fall back gracefully
                 if (state.appLobbies.empty())
-                    state.appLobbies.push_back("CursorParty");
+                    state.appLobbies.push_back(DEFAULT_LOBBY_TYPE);
                 state.screenState = ScreenState::MainMenu;
             }));
 }

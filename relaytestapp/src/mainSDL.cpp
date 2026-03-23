@@ -158,11 +158,11 @@ int main(int argc, char *argv[])
             strncpy(settings.password, newName.c_str(), MAX_CREDENTIAL_CHAR - 1);
             settings.password[MAX_CREDENTIAL_CHAR - 1] = '\0';
             settings.autoLogin = true;
-            settings.lobbyType = "CursorParty";
+            settings.lobbyType = DEFAULT_LOBBY_TYPE;
             saveConfigs();
         }
-        // Multi-instance always uses CursorParty regardless of saved config
-        settings.lobbyType = "CursorParty";
+        // Multi-instance always uses CursorPartyGameLift regardless of saved config
+        settings.lobbyType = DEFAULT_LOBBY_TYPE;
         settings.colorIndex = settings.instanceIndex % NUM_COLORS;
     }
 
