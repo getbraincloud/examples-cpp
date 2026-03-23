@@ -152,6 +152,14 @@ struct Shockwave
     std::chrono::high_resolution_clock::time_point startTime;
 };
 
+// Permanent color splotch left behind by a shockwave
+struct Splotch
+{
+    Point pos;
+    int colorIndex;
+    long long startTimeMs; /* ms since epoch — used for expiry and JIP sync */
+};
+
 // Main application state. This contain all of the "live" data.
 struct State
 {
@@ -160,12 +168,14 @@ struct State
     Lobby lobby;                                  /* Lobby with its members as received from brainCloud Lobby Service */
     Server server;                                /* Server info (IP, port, protocol, passcode) */
     std::vector<Shockwave> shockwaves;            /* Players' created shockwaves */
+    std::vector<Splotch> splotches;               /* Persistent splotches left by shockwaves */
     std::vector<std::string> appLobbies;          /* Lobby types fetched from AllLobbyTypes global property */
     int mouseX = 0;
     int mouseY = 0;
     long long gameStartTime = 0;  /* ms since epoch when current round started (0 = not in game) */
     int roundNumber = 0;          /* Increments each relay round within the same lobby session */
     bool pendingEndMatch = false; /* Deferred END_MATCH disconnect (cannot call disconnect inside relay callback) */
+    int splotchDurationSec = -1;  /* -1 = forever; from SplotchDuration global property */
 };
 
 struct Settings

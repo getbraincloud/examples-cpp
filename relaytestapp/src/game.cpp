@@ -90,7 +90,12 @@ void game_update()
         // Game session info
         bool isHost = state.user.cxId == state.lobby.ownerCxId;
         if (isHost)
+        {
             ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.0f, 1.0f), "HOST");
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Clear Splotches"))
+                app_clearSplotches();
+        }
 
         if (state.gameStartTime != 0)
         {
@@ -192,6 +197,41 @@ void game_update()
                 }
             }
             lastMouseDown = mouseDown;
+
+            // Splotches — persistent marks left by shockwaves, drawn under the transient rings
+            {
+                auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count();
+                for (auto it = state.splotches.begin(); it != state.splotches.end();)
+                {
+                    auto &splotch = *it;
+                    long long ageSec = (nowMs - splotch.startTimeMs) / 1000LL;
+
+                    if (state.splotchDurationSec >= 0 && ageSec >= state.splotchDurationSec)
+                    {
+                        it = state.splotches.erase(it);
+                        continue;
+                    }
+
+                    float alpha = 0.55f;
+                    // Fade out over the last 3 seconds when a finite duration is set
+                    if (state.splotchDurationSec > 0)
+                    {
+                        long long remaining = (long long)state.splotchDurationSec - ageSec;
+                        if (remaining <= 3)
+                            alpha *= (float)remaining / 3.0f;
+                    }
+
+                    auto color = COLORS[splotch.colorIndex % NUM_COLORS];
+                    color.w = alpha;
+                    pDrawList->AddCircleFilled(
+                        ImVec2(framePos.x + (float)splotch.pos.x * scale,
+                               framePos.y + (float)splotch.pos.y * scale),
+                        20.0f * scale, ImColor(color), 32);
+
+                    ++it;
+                }
+            }
 
             // Shockwaves
             auto now = std::chrono::high_resolution_clock::now();
