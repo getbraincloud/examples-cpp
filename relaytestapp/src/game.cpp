@@ -227,7 +227,7 @@ void game_update()
                     pDrawList->AddCircleFilled(
                         ImVec2(framePos.x + (float)splotch.pos.x * scale,
                                framePos.y + (float)splotch.pos.y * scale),
-                        20.0f * scale, ImColor(color), 32);
+                        16.0f * scale, ImColor(color), 32);
 
                     ++it;
                 }

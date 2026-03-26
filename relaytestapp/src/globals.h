@@ -39,8 +39,8 @@
 // Total number of distinct player colors (supports up to this many simultaneous players)
 #define NUM_COLORS 40
 
-// Color choices for the game (0xFFRRGGBB format).
-// All colors are bright/mid-tone enough to read on a dark background.
+// Color palette matching JS (#RRGGBB) and Java (Color.decode) exactly.
+// Uses IM_COL32(r,g,b,a) which correctly packs into ImGui's ABGR uint32 format.
 // Palette is spread across the hue wheel in four tonal rows:
 //   Row 1 ( 0- 9): vivid saturated
 //   Row 2 (10-19): vivid-medium / complementary hues
@@ -48,49 +48,49 @@
 //   Row 4 (30-39): medium-depth / muted
 static const ImVec4 COLORS[NUM_COLORS] = {
     // --- Row 1: vivid saturated ---
-    ImGui::ColorConvertU32ToFloat4(0xFFFF3333), // vivid red
-    ImGui::ColorConvertU32ToFloat4(0xFFFF8800), // vivid orange
-    ImGui::ColorConvertU32ToFloat4(0xFFFFD700), // gold
-    ImGui::ColorConvertU32ToFloat4(0xFF88FF00), // vivid lime
-    ImGui::ColorConvertU32ToFloat4(0xFF00EE44), // vivid green
-    ImGui::ColorConvertU32ToFloat4(0xFF00DDDD), // vivid cyan
-    ImGui::ColorConvertU32ToFloat4(0xFF00AAFF), // vivid sky blue
-    ImGui::ColorConvertU32ToFloat4(0xFF3355FF), // vivid blue
-    ImGui::ColorConvertU32ToFloat4(0xFFAA00FF), // vivid purple
-    ImGui::ColorConvertU32ToFloat4(0xFFFF00BB), // vivid magenta
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0x33, 0x33, 0xFF)), // vivid red
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0x88, 0x00, 0xFF)), // vivid orange
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0xD7, 0x00, 0xFF)), // gold
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x88, 0xFF, 0x00, 0xFF)), // vivid lime
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x00, 0xEE, 0x44, 0xFF)), // vivid green
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x00, 0xDD, 0xDD, 0xFF)), // vivid cyan
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x00, 0xAA, 0xFF, 0xFF)), // vivid sky blue
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x33, 0x55, 0xFF, 0xFF)), // vivid blue
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xAA, 0x00, 0xFF, 0xFF)), // vivid purple
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0x00, 0xBB, 0xFF)), // vivid magenta
     // --- Row 2: vivid-medium / complementary hues ---
-    ImGui::ColorConvertU32ToFloat4(0xFFFF5566), // coral
-    ImGui::ColorConvertU32ToFloat4(0xFFFFAA00), // amber
-    ImGui::ColorConvertU32ToFloat4(0xFFAADD00), // yellow-green
-    ImGui::ColorConvertU32ToFloat4(0xFF00FF88), // spring green
-    ImGui::ColorConvertU32ToFloat4(0xFF00FFCC), // aqua
-    ImGui::ColorConvertU32ToFloat4(0xFF0088FF), // azure
-    ImGui::ColorConvertU32ToFloat4(0xFF8833FF), // violet
-    ImGui::ColorConvertU32ToFloat4(0xFFFF44AA), // hot pink
-    ImGui::ColorConvertU32ToFloat4(0xFF77FF33), // chartreuse
-    ImGui::ColorConvertU32ToFloat4(0xFFFF6688), // rose
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0x55, 0x66, 0xFF)), // coral
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0xAA, 0x00, 0xFF)), // amber
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xAA, 0xDD, 0x00, 0xFF)), // yellow-green
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x00, 0xFF, 0x88, 0xFF)), // spring green
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x00, 0xFF, 0xCC, 0xFF)), // aqua
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x00, 0x88, 0xFF, 0xFF)), // azure
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x88, 0x33, 0xFF, 0xFF)), // violet
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0x44, 0xAA, 0xFF)), // hot pink
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x77, 0xFF, 0x33, 0xFF)), // chartreuse
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0x66, 0x88, 0xFF)), // rose
     // --- Row 3: pastel / light (readable on dark) ---
-    ImGui::ColorConvertU32ToFloat4(0xFFFF9999), // light red
-    ImGui::ColorConvertU32ToFloat4(0xFFFFCC88), // peach
-    ImGui::ColorConvertU32ToFloat4(0xFFFFFF88), // pale yellow
-    ImGui::ColorConvertU32ToFloat4(0xFFAAFFAA), // pale green
-    ImGui::ColorConvertU32ToFloat4(0xFF88FFEE), // pale cyan
-    ImGui::ColorConvertU32ToFloat4(0xFFAABBFF), // periwinkle
-    ImGui::ColorConvertU32ToFloat4(0xFFDDBBFF), // lavender
-    ImGui::ColorConvertU32ToFloat4(0xFFFFBBDD), // light pink
-    ImGui::ColorConvertU32ToFloat4(0xFFCCFFDD), // mint
-    ImGui::ColorConvertU32ToFloat4(0xFFFFEECC), // cream
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0x99, 0x99, 0xFF)), // light red
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0xCC, 0x88, 0xFF)), // peach
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0xFF, 0x88, 0xFF)), // pale yellow
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xAA, 0xFF, 0xAA, 0xFF)), // pale green
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x88, 0xFF, 0xEE, 0xFF)), // pale cyan
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xAA, 0xBB, 0xFF, 0xFF)), // periwinkle
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xDD, 0xBB, 0xFF, 0xFF)), // lavender
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0xBB, 0xDD, 0xFF)), // light pink
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xCC, 0xFF, 0xDD, 0xFF)), // mint
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xFF, 0xEE, 0xCC, 0xFF)), // cream
     // --- Row 4: medium-depth / muted ---
-    ImGui::ColorConvertU32ToFloat4(0xFFCC1133), // crimson
-    ImGui::ColorConvertU32ToFloat4(0xFFCC5500), // burnt orange
-    ImGui::ColorConvertU32ToFloat4(0xFF88AA00), // olive
-    ImGui::ColorConvertU32ToFloat4(0xFF228855), // forest green
-    ImGui::ColorConvertU32ToFloat4(0xFF009999), // deep teal
-    ImGui::ColorConvertU32ToFloat4(0xFF3366AA), // steel blue
-    ImGui::ColorConvertU32ToFloat4(0xFF7744CC), // medium purple
-    ImGui::ColorConvertU32ToFloat4(0xFFAA3366), // dark rose
-    ImGui::ColorConvertU32ToFloat4(0xFFAA6633), // brown
-    ImGui::ColorConvertU32ToFloat4(0xFF7788AA), // slate
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xCC, 0x11, 0x33, 0xFF)), // crimson
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xCC, 0x55, 0x00, 0xFF)), // burnt orange
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x88, 0xAA, 0x00, 0xFF)), // olive
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x22, 0x88, 0x55, 0xFF)), // forest green
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x00, 0x99, 0x99, 0xFF)), // deep teal
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x33, 0x66, 0xAA, 0xFF)), // steel blue
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x77, 0x44, 0xCC, 0xFF)), // medium purple
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xAA, 0x33, 0x66, 0xFF)), // dark rose
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0xAA, 0x66, 0x33, 0xFF)), // brown
+    ImGui::ColorConvertU32ToFloat4(IM_COL32(0x77, 0x88, 0xAA, 0xFF)), // slate
 };
 
 // Screen state enum.

@@ -442,8 +442,8 @@ static void sendSplotchSyncToMask(uint64_t mask)
     for (const auto &s : state.splotches)
     {
         Json::Value entry;
-        entry["x"] = s.pos.x;
-        entry["y"] = s.pos.y;
+        entry["x"] = s.pos.x / 800.0f;
+        entry["y"] = s.pos.y / 600.0f;
         entry["c"] = s.colorIndex;
         entry["t"] = (Json::Int64)s.startTimeMs;
 
@@ -528,14 +528,14 @@ static void onRelayMessage(int netId, const Json::Value &json)
             if (op == "move")
             {
                 member.isAlive = true;
-                member.pos.x = json["data"]["x"].asInt();
-                member.pos.y = json["data"]["y"].asInt();
+                member.pos.x = (int)(json["data"]["x"].asFloat() * 800.0f);
+                member.pos.y = (int)(json["data"]["y"].asFloat() * 600.0f);
             }
             else if (op == "shockwave")
             {
                 Shockwave shockwave;
-                shockwave.pos.x = json["data"]["x"].asInt();
-                shockwave.pos.y = json["data"]["y"].asInt();
+                shockwave.pos.x = (int)(json["data"]["x"].asFloat() * 800.0f);
+                shockwave.pos.y = (int)(json["data"]["y"].asFloat() * 600.0f);
                 shockwave.colorIndex = member.colorIndex;
                 shockwave.startTime = std::chrono::high_resolution_clock::now();
                 state.shockwaves.push_back(shockwave);
@@ -557,7 +557,7 @@ static void onRelayMessage(int netId, const Json::Value &json)
                 for (const auto &entry : json["data"]["splotches"])
                 {
                     Splotch s;
-                    s.pos         = {entry["x"].asInt(), entry["y"].asInt()};
+                    s.pos         = {(int)(entry["x"].asFloat() * 800.0f), (int)(entry["y"].asFloat() * 600.0f)};
                     s.colorIndex  = entry["c"].asInt();
                     s.startTimeMs = entry["t"].asInt64();
                     state.splotches.push_back(s);
@@ -1114,12 +1114,16 @@ void app_cancelLobby()
     pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
     pBCWrapper->getRTTService()->disableRTT();
 
-    // Reset state but keep the user around
+    // Reset state but keep the user and app-level config around
     User user = state.user;
+    auto appLobbies = state.appLobbies;
+    int splotchDurationSec = state.splotchDurationSec;
     state = State();
     state.user = user;
     state.user.isAlive = false;
     state.user.isReady = false;
+    state.appLobbies = appLobbies;
+    state.splotchDurationSec = splotchDurationSec;
     state.screenState = ScreenState::MainMenu;
 }
 
@@ -1133,12 +1137,16 @@ void app_closeGame()
     pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
     pBCWrapper->getRTTService()->disableRTT();
 
-    // Reset state but keep the user around
+    // Reset state but keep the user and app-level config around
     User user = state.user;
+    auto appLobbies = state.appLobbies;
+    int splotchDurationSec = state.splotchDurationSec;
     state = State();
     state.user = user;
     state.user.isAlive = false;
     state.user.isReady = false;
+    state.appLobbies = appLobbies;
+    state.splotchDurationSec = splotchDurationSec;
     state.screenState = ScreenState::MainMenu;
 }
 
@@ -1207,8 +1215,8 @@ void app_mouseMoved(const Point &pos)
     // Send to other players
     Json::Value json;
     json["op"] = "move";
-    json["data"]["x"] = pos.x;
-    json["data"]["y"] = pos.y;
+    json["data"]["x"] = pos.x / 800.0f;
+    json["data"]["y"] = pos.y / 600.0f;
 
     Json::FastWriter writer;
     auto str = writer.write(json);
@@ -1239,8 +1247,9 @@ void app_shockwave(const Point &pos)
     // Send to other players
     Json::Value json;
     json["op"] = "shockwave";
-    json["data"]["x"] = pos.x;
-    json["data"]["y"] = pos.y;
+    json["data"]["x"] = pos.x / 800.0f;
+    json["data"]["y"] = pos.y / 600.0f;
+    json["data"]["teamCode"] = 0;
 
     Json::FastWriter writer;
     auto str = writer.write(json);
