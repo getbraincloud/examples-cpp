@@ -66,3 +66,6 @@ void app_mouseMoved(const Point& pos);
 
 // User clicked mouse in the play area
 void app_shockwave(const Point& pos);
+
+// Host clears all splotches on every client
+void app_clearSplotches();

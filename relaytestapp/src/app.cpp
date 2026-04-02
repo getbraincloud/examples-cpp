@@ -63,6 +63,7 @@ static void onRelaySystemMessage(const Json::Value &json);
 static void onRelayMessage(int netId, const Json::Value &json);
 static uint64_t getPlayerMask();
 static void sendGameStartToMask(uint64_t playerMask);
+static void sendSplotchSyncToMask(uint64_t mask);
 static void onRelayConnected();
 
 static bool isDisconnecting = false;
@@ -264,7 +265,7 @@ static void applyLobbyTypes(const Json::Value &result)
         }
     }
     if (state.appLobbies.empty())
-        state.appLobbies.push_back("CursorParty");
+        state.appLobbies.push_back(DEFAULT_LOBBY_TYPE);
 
     // Ensure saved lobbyType is still valid; reset to first if not
     bool found = false;
@@ -272,6 +273,13 @@ static void applyLobbyTypes(const Json::Value &result)
         if (lt == settings.lobbyType) { found = true; break; }
     if (!found)
         settings.lobbyType = state.appLobbies[0];
+
+    // SplotchDuration: seconds a splotch persists on the canvas (-1 = forever)
+    const auto &durProp = result["data"]["SplotchDuration"]["value"];
+    if (!durProp.isNull())
+        state.splotchDurationSec = durProp.asInt();
+    else
+        state.splotchDurationSec = -1;
 
     state.screenState = ScreenState::MainMenu;
 }
@@ -287,7 +295,7 @@ void onLoggedIn()
             [](const std::string &) {
                 // Property missing or network error — fall back gracefully
                 if (state.appLobbies.empty())
-                    state.appLobbies.push_back("CursorParty");
+                    state.appLobbies.push_back(DEFAULT_LOBBY_TYPE);
                 state.screenState = ScreenState::MainMenu;
             }));
 }
@@ -393,6 +401,63 @@ static void sendGameStartToMask(uint64_t playerMask)
         (BrainCloud::eRelayChannel)0);
 }
 
+// Send all current splotches to a player mask in chunked packets that stay under
+// the 1024-byte relay message limit.  The first packet carries "first":true so the
+// receiver knows to clear its local canvas before appending; subsequent packets
+// carry "first":false and are appended.
+static void sendSplotchSyncToMask(uint64_t mask)
+{
+    if (state.splotches.empty() || mask == 0) return;
+
+    static const int MAX_RELAY_BYTES = 900; // conservative margin below 1024
+
+    // Overhead of the outer envelope with "first":false (longest variant):
+    // {"op":"splotch_sync","data":{"first":false,"splotches":[]}}  ~60 chars
+    static const int ENVELOPE_OVERHEAD = 65;
+
+    Json::FastWriter writer;
+    bool isFirst = true;
+    std::vector<Json::Value> chunk;
+    int currentSize = ENVELOPE_OVERHEAD;
+
+    auto flushChunk = [&]()
+    {
+        if (chunk.empty()) return;
+        Json::Value syncJson;
+        syncJson["op"] = "splotch_sync";
+        syncJson["data"]["first"] = isFirst;
+        Json::Value arr(Json::arrayValue);
+        for (const auto &entry : chunk)
+            arr.append(entry);
+        syncJson["data"]["splotches"] = arr;
+        auto str = writer.write(syncJson);
+        pBCWrapper->getRelayService()->sendToPlayers(
+            (const uint8_t *)str.data(), (int)str.length(),
+            mask, true, false, (BrainCloud::eRelayChannel)0);
+        isFirst = false;
+        chunk.clear();
+        currentSize = ENVELOPE_OVERHEAD;
+    };
+
+    for (const auto &s : state.splotches)
+    {
+        Json::Value entry;
+        entry["x"] = s.pos.x / 800.0f;
+        entry["y"] = s.pos.y / 600.0f;
+        entry["c"] = s.colorIndex;
+        entry["t"] = (Json::Int64)s.startTimeMs;
+
+        // Measure this entry's serialized size (+1 for the separating comma)
+        int entrySize = (int)writer.write(entry).size() + 1;
+        if (currentSize + entrySize > MAX_RELAY_BYTES && !chunk.empty())
+            flushChunk();
+
+        chunk.push_back(std::move(entry));
+        currentSize += entrySize;
+    }
+    flushChunk();
+}
+
 // Called when relay connection succeeds. Owner sets and broadcasts the authoritative game start time.
 static void onRelayConnected()
 {
@@ -425,13 +490,16 @@ static void onRelaySystemMessage(const Json::Value &json)
     }
     else if (json["op"].asString() == "CONNECT") // A new player joined mid-game (backfill)
     {
-        // Owner re-sends game start time so the JIP player gets the correct elapsed time
+        // Owner re-sends game start time and current splotch canvas so the JIP player syncs up
         if (state.lobby.ownerCxId == state.user.cxId && state.gameStartTime != 0)
         {
             const auto &cxId = json["cxId"].asString();
             auto netId = pBCWrapper->getRelayService()->getNetIdForCxId(cxId);
             uint64_t mask = (uint64_t)1 << (uint64_t)netId;
             sendGameStartToMask(mask);
+
+            // Send existing splotches in size-bounded chunks so the JIP canvas matches everyone else's
+            sendSplotchSyncToMask(mask);
         }
     }
     else if (json["op"].asString() == "END_MATCH") // Match ended, return all players to lobby
@@ -440,6 +508,7 @@ static void onRelaySystemMessage(const Json::Value &json)
         state.user.isAlive = false;
         state.user.isReady = false;
         state.shockwaves.clear();
+        state.splotches.clear();
         state.gameStartTime = 0;
         state.screenState = ScreenState::Lobby;
 
@@ -459,17 +528,44 @@ static void onRelayMessage(int netId, const Json::Value &json)
             if (op == "move")
             {
                 member.isAlive = true;
-                member.pos.x = json["data"]["x"].asInt();
-                member.pos.y = json["data"]["y"].asInt();
+                member.pos.x = (int)(json["data"]["x"].asFloat() * 800.0f);
+                member.pos.y = (int)(json["data"]["y"].asFloat() * 600.0f);
             }
             else if (op == "shockwave")
             {
                 Shockwave shockwave;
-                shockwave.pos.x = json["data"]["x"].asInt();
-                shockwave.pos.y = json["data"]["y"].asInt();
+                shockwave.pos.x = (int)(json["data"]["x"].asFloat() * 800.0f);
+                shockwave.pos.y = (int)(json["data"]["y"].asFloat() * 600.0f);
                 shockwave.colorIndex = member.colorIndex;
                 shockwave.startTime = std::chrono::high_resolution_clock::now();
                 state.shockwaves.push_back(shockwave);
+
+                // Leave a persistent splotch at the same location
+                Splotch splotch;
+                splotch.pos = shockwave.pos;
+                splotch.colorIndex = member.colorIndex;
+                splotch.startTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count();
+                state.splotches.push_back(splotch);
+            }
+            else if (op == "splotch_sync")
+            {
+                // JIP: host sends canvas state in one or more chunked packets.
+                // "first":true means this is the opening packet — clear before appending.
+                if (json["data"]["first"].asBool())
+                    state.splotches.clear();
+                for (const auto &entry : json["data"]["splotches"])
+                {
+                    Splotch s;
+                    s.pos         = {(int)(entry["x"].asFloat() * 800.0f), (int)(entry["y"].asFloat() * 600.0f)};
+                    s.colorIndex  = entry["c"].asInt();
+                    s.startTimeMs = entry["t"].asInt64();
+                    state.splotches.push_back(s);
+                }
+            }
+            else if (op == "clear_splotches")
+            {
+                state.splotches.clear();
             }
             else if (op == "game_start")
             {
@@ -650,6 +746,27 @@ void app_update()
     case ScreenState::Game:
         game_update();
         break;
+    }
+
+    // Version overlay — bottom-left, always visible on every screen
+    {
+        const float PAD = 8.0f;
+        ImGui::SetNextWindowPos(ImVec2(PAD, (float)height - PAD), ImGuiCond_Always, ImVec2(0.0f, 1.0f));
+        ImGui::SetNextWindowBgAlpha(0.45f);
+        ImGui::Begin("##version_overlay",nullptr,
+            ImGuiWindowFlags_NoDecoration |
+            ImGuiWindowFlags_NoInputs     |
+            ImGuiWindowFlags_NoNav        |
+            ImGuiWindowFlags_NoMove       |
+            ImGuiWindowFlags_NoSavedSettings |
+            ImGuiWindowFlags_AlwaysAutoResize);
+        ImGui::Text("App:    %s", VERSION);
+        if (pBCWrapper && pBCWrapper->getBCClient()->isInitialized())
+        {
+            ImGui::Text("Client: %s", pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str());
+            ImGui::Text("Server: %s", serverVersion.c_str());
+        }
+        ImGui::End();
     }
 
     // Error message popup
@@ -997,12 +1114,16 @@ void app_cancelLobby()
     pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
     pBCWrapper->getRTTService()->disableRTT();
 
-    // Reset state but keep the user around
+    // Reset state but keep the user and app-level config around
     User user = state.user;
+    auto appLobbies = state.appLobbies;
+    int splotchDurationSec = state.splotchDurationSec;
     state = State();
     state.user = user;
     state.user.isAlive = false;
     state.user.isReady = false;
+    state.appLobbies = appLobbies;
+    state.splotchDurationSec = splotchDurationSec;
     state.screenState = ScreenState::MainMenu;
 }
 
@@ -1016,12 +1137,16 @@ void app_closeGame()
     pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
     pBCWrapper->getRTTService()->disableRTT();
 
-    // Reset state but keep the user around
+    // Reset state but keep the user and app-level config around
     User user = state.user;
+    auto appLobbies = state.appLobbies;
+    int splotchDurationSec = state.splotchDurationSec;
     state = State();
     state.user = user;
     state.user.isAlive = false;
     state.user.isReady = false;
+    state.appLobbies = appLobbies;
+    state.splotchDurationSec = splotchDurationSec;
     state.screenState = ScreenState::MainMenu;
 }
 
@@ -1090,8 +1215,8 @@ void app_mouseMoved(const Point &pos)
     // Send to other players
     Json::Value json;
     json["op"] = "move";
-    json["data"]["x"] = pos.x;
-    json["data"]["y"] = pos.y;
+    json["data"]["x"] = pos.x / 800.0f;
+    json["data"]["y"] = pos.y / 600.0f;
 
     Json::FastWriter writer;
     auto str = writer.write(json);
@@ -1122,8 +1247,9 @@ void app_shockwave(const Point &pos)
     // Send to other players
     Json::Value json;
     json["op"] = "shockwave";
-    json["data"]["x"] = pos.x;
-    json["data"]["y"] = pos.y;
+    json["data"]["x"] = pos.x / 800.0f;
+    json["data"]["y"] = pos.y / 600.0f;
+    json["data"]["teamCode"] = 0;
 
     Json::FastWriter writer;
     auto str = writer.write(json);
@@ -1141,4 +1267,26 @@ void app_shockwave(const Point &pos)
     shockwave.colorIndex = state.user.colorIndex;
     shockwave.startTime = std::chrono::high_resolution_clock::now();
     state.shockwaves.push_back(shockwave);
+
+    // Leave a persistent splotch at the same location
+    Splotch splotch;
+    splotch.pos = pos;
+    splotch.colorIndex = state.user.colorIndex;
+    splotch.startTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    state.splotches.push_back(splotch);
+}
+
+// Host clears all splotches on every client
+void app_clearSplotches()
+{
+    state.splotches.clear();
+
+    Json::Value json;
+    json["op"] = "clear_splotches";
+    Json::FastWriter writer;
+    auto str = writer.write(json);
+    pBCWrapper->getRelayService()->sendToAll(
+        (const uint8_t *)str.data(), (int)str.length(),
+        true, false, (BrainCloud::eRelayChannel)0);
 }

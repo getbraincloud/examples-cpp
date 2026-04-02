@@ -40,7 +40,7 @@
 
 #include <cmath>
 
-ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
+ImVec4 clear_color = ImVec4(0.157f, 0.173f, 0.204f, 1.00f); // #282c34 — matches JS/Java background
 bool done = false;
 bool startfullscreen = false;
 
@@ -118,7 +118,7 @@ int main(int argc, char *argv[])
     SDL_GL_SetAttribute(SDL_GL_CONTEXT_MINOR_VERSION, 2);
 
     // using SDL3
-    std::string windowTitle = "brainCloud Relay Test App " + appVersion;
+    std::string windowTitle = "Cursor Party";
     if (settings.multiInstance)
         windowTitle += " [" + std::to_string(settings.instanceIndex + 1) + "]";
     SDL_Window *window = SDL_CreateWindow(windowTitle.c_str(), width, height, flags);
@@ -141,8 +141,8 @@ int main(int argc, char *argv[])
     ImGui_ImplSDL3_InitForOpenGL(window, gl_context);
     ImGui_ImplOpenGL2_Init();
 
-    ImGui::StyleColorsClassic();
-
+    // ImGui::StyleColorsClassic();
+    ImGui::StyleColorsDark(); // looks more aligned with the other examples
     // Load app related stuff
     auto instanceConfigLoaded = loadConfigs();
     if (settings.multiInstance)
@@ -158,11 +158,11 @@ int main(int argc, char *argv[])
             strncpy(settings.password, newName.c_str(), MAX_CREDENTIAL_CHAR - 1);
             settings.password[MAX_CREDENTIAL_CHAR - 1] = '\0';
             settings.autoLogin = true;
-            settings.lobbyType = "CursorParty";
+            settings.lobbyType = DEFAULT_LOBBY_TYPE;
             saveConfigs();
         }
-        // Multi-instance always uses CursorParty regardless of saved config
-        settings.lobbyType = "CursorParty";
+        // Multi-instance always uses CursorPartyGameLift regardless of saved config
+        settings.lobbyType = DEFAULT_LOBBY_TYPE;
         settings.colorIndex = settings.instanceIndex % NUM_COLORS;
     }
 
