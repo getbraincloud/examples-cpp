@@ -266,6 +266,70 @@ inline std::string edgeGapRegionToLobbyType(const std::string &region)
     return it != kMap.end() ? it->second : "";
 }
 
+// True when the lobby type is the generic GameLift umbrella type.
+// Selecting this type causes the app to ping GameLift regions and then
+// route to the best region-specific CursorPartyGameLift_* lobby type.
+inline bool isGameLiftLobby(const std::string &lobbyType)
+{
+    return lobbyType == "CursorPartyGameLift";
+}
+
+// Maps a GameLift ping-region name to its corresponding specific lobby type.
+// Returns an empty string if the region is unknown.
+// NOTE: verify these region key strings against actual pingRegions() data for GameLift.
+inline std::string gameLiftRegionToLobbyType(const std::string &region)
+{
+    static const std::map<std::string, std::string> kMap = {
+        {"ca-central-1", "CursorPartyGameLift_canada"},
+        {"eu-central-1", "CursorPartyGameLift_frankfurt"},
+        {"eu-west-1",    "CursorPartyGameLift_ireland"},
+        {"us-west-2",    "CursorPartyGameLift_oregon"},
+    };
+    auto it = kMap.find(region);
+    return it != kMap.end() ? it->second : "";
+}
+
+// True when the lobby type is the generic CursorPartyV2 umbrella type.
+// Selecting this type causes the app to ping V2 regions and then
+// route to the best region-specific CursorPartyV2_* lobby type.
+inline bool isV2RegionalLobby(const std::string &lobbyType)
+{
+    return lobbyType == "CursorPartyV2";
+}
+
+// Maps a V2 ping-region name to its corresponding specific lobby type.
+// Returns an empty string if the region is unknown.
+// NOTE: verify these region key strings against actual pingRegions() data for CursorPartyV2.
+inline std::string v2RegionToLobbyType(const std::string &region)
+{
+    static const std::map<std::string, std::string> kMap = {
+        {"ca-central-1", "CursorPartyV2_canada"},
+        {"eu-west-1",    "CursorPartyV2_ireland"},
+        {"us-west-2",    "CursorPartyV2_oregon"},
+    };
+    auto it = kMap.find(region);
+    return it != kMap.end() ? it->second : "";
+}
+
+// True when the lobby type is a regional-cycling umbrella (EdgeGap, GameLift, or V2).
+// These types use ping-based region cycling in the auto geo test.
+// All other lobby types use passive recording (server-chosen region).
+inline bool isRegionalCyclingLobby(const std::string &lobbyType)
+{
+    return isEdgeGapLobby(lobbyType) || isGameLiftLobby(lobbyType) || isV2RegionalLobby(lobbyType);
+}
+
+// Maps a ping region to the specific lobby type for the given umbrella lobby.
+// Dispatches to the correct regional map based on the umbrella type.
+// Returns empty string if the region has no defined specific lobby.
+inline std::string regionToSpecificLobbyType(const std::string &umbrellaLobby, const std::string &region)
+{
+    if (isEdgeGapLobby(umbrellaLobby))  return edgeGapRegionToLobbyType(region);
+    if (isGameLiftLobby(umbrellaLobby)) return gameLiftRegionToLobbyType(region);
+    if (isV2RegionalLobby(umbrellaLobby)) return v2RegionToLobbyType(region);
+    return "";
+}
+
 // Main application state instance
 extern State state;
 

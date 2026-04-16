@@ -99,30 +99,30 @@ void mainMenu_update()
             saveConfigs();
         }
 
-        // Auto geo test: EdgeGap cycles through all regions (client-side routing);
-        // V2/GameLift connect once and record whichever region the server chose.
+        // Auto geo test: EdgeGap/GameLift cycle through all regions (client-side routing);
+        // V2/others connect once and record whichever region the server chose.
         if (ImGui::Checkbox("Auto Geo Test", &settings.autoGeoTest))
             saveConfigs();
         if (settings.autoGeoTest)
         {
             ImGui::SameLine();
-            if (isEdgeGapLobby(settings.lobbyType))
+            if (isRegionalCyclingLobby(settings.lobbyType))
                 ImGui::TextDisabled("(cycles all regions)");
             else
                 ImGui::TextDisabled("(records server-chosen region)");
         }
 
         // Stop condition differs by type:
-        //   EdgeGap   — every region that has a defined specific lobby type has been tested
-        //   V2/others — at least one region confirmed (server always picks the same fastest)
+        //   EdgeGap/GameLift — every region that has a defined specific lobby type has been tested
+        //   V2/others        — at least one region confirmed (server always picks the same fastest)
         bool geoTestComplete = false;
         if (settings.autoGeoTest && !state.pingData.empty())
         {
-            if (isEdgeGapLobby(settings.lobbyType))
+            if (isRegionalCyclingLobby(settings.lobbyType))
             {
                 int mappable = 0;
                 for (const auto &kv : state.pingData)
-                    if (!edgeGapRegionToLobbyType(kv.first).empty())
+                    if (!regionToSpecificLobbyType(settings.lobbyType, kv.first).empty())
                         ++mappable;
                 geoTestComplete = mappable > 0 && (int)state.geoTestedRegions.size() >= mappable;
             }
@@ -146,8 +146,8 @@ void mainMenu_update()
         if (!state.pingData.empty())
         {
             ImGui::Separator();
-            if (isEdgeGapLobby(settings.lobbyType))
-                ImGui::TextDisabled("Geo Region Test  (EdgeGap — cycles all regions)");
+            if (isRegionalCyclingLobby(settings.lobbyType))
+                ImGui::TextDisabled("Geo Region Test  (cycles all regions)");
             else
                 ImGui::TextDisabled("Geo Region Test  (records server-chosen region)");
 
@@ -159,12 +159,12 @@ void mainMenu_update()
 
             const auto &tested = state.geoTestedRegions;
 
-            if (isEdgeGapLobby(settings.lobbyType))
+            if (isRegionalCyclingLobby(settings.lobbyType))
             {
-                // EdgeGap: only show regions that have a defined specific lobby type
+                // Regional cycling: only show regions that have a defined specific lobby type
                 std::vector<std::pair<int, std::string>> mapped;
                 for (const auto &p : sorted)
-                    if (!edgeGapRegionToLobbyType(p.second).empty())
+                    if (!regionToSpecificLobbyType(settings.lobbyType, p.second).empty())
                         mapped.push_back(p);
 
                 bool allTested = !mapped.empty();
@@ -175,7 +175,7 @@ void mainMenu_update()
                         break;
                     }
                 if (allTested && !tested.empty())
-                    ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.0f, 1.0f), "All EdgeGap lobbies tested — will wrap around");
+                    ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.0f, 1.0f), "All lobbies tested — will wrap around");
 
                 std::string nextRegion;
                 for (const auto &p : mapped)
@@ -198,7 +198,7 @@ void mainMenu_update()
             }
             else
             {
-                // V2 / GameLift: show ping table; highlight which region the server confirmed
+                // V2 / specific regional: show ping table; highlight which region the server confirmed
                 if (tested.empty())
                     ImGui::TextDisabled("Run test to confirm server-chosen region");
                 for (const auto &p : sorted)

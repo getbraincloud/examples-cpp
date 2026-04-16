@@ -413,20 +413,19 @@ void onRTTConnected()
                             state.pingData = pBCWrapper->getLobbyService()->getPingData();
                             state.expectedPingRegions.clear(); // stop per-frame polling
 
-                            // For EdgeGap, route to the best region-specific lobby type.
-                            // EdgeGap geo-test: cycle through only the regions that have a
-                            // defined specific lobby type. Unmapped ping regions are ignored
-                            // entirely — they have no EdgeGap lobby to route to.
+                            // For regional cycling lobbies (EdgeGap, GameLift), route to the
+                            // best region-specific lobby type based on ping data.
+                            // Unmapped ping regions are ignored entirely.
                             std::string lobbyType = settings.lobbyType;
                             s_geoTestRegion.clear();
-                            if (isEdgeGapLobby(settings.lobbyType) && !state.pingData.empty())
+                            if (isRegionalCyclingLobby(settings.lobbyType) && !state.pingData.empty())
                             {
                                 std::string bestRegion;
                                 int bestPing = INT_MAX;
-                                // Pick fastest un-tested region that has a defined EdgeGap lobby
+                                // Pick fastest un-tested region that has a defined specific lobby
                                 for (const auto &kv : state.pingData)
                                 {
-                                    if (edgeGapRegionToLobbyType(kv.first).empty()) continue;
+                                    if (regionToSpecificLobbyType(settings.lobbyType, kv.first).empty()) continue;
                                     const auto &tested = state.geoTestedRegions;
                                     bool alreadyTested = std::find(tested.begin(), tested.end(), kv.first) != tested.end();
                                     if (!alreadyTested && kv.second < bestPing)
@@ -441,11 +440,11 @@ void onRTTConnected()
                                     bestPing = INT_MAX;
                                     for (const auto &kv : state.pingData)
                                     {
-                                        if (edgeGapRegionToLobbyType(kv.first).empty()) continue;
+                                        if (regionToSpecificLobbyType(settings.lobbyType, kv.first).empty()) continue;
                                         if (kv.second < bestPing) { bestPing = kv.second; bestRegion = kv.first; }
                                     }
-                                    printf("[GeoTest] All EdgeGap lobbies tested — wrapping to %s (%dms)\n",
-                                           bestRegion.c_str(), bestPing);
+                                    printf("[GeoTest] All %s lobbies tested — wrapping to %s (%dms)\n",
+                                           settings.lobbyType.c_str(), bestRegion.c_str(), bestPing);
                                 }
                                 else
                                 {
@@ -455,7 +454,7 @@ void onRTTConnected()
                                            (int)state.pingData.size());
                                 }
                                 s_geoTestRegion = bestRegion;
-                                lobbyType = edgeGapRegionToLobbyType(bestRegion);
+                                lobbyType = regionToSpecificLobbyType(settings.lobbyType, bestRegion);
                             }
 
                             if (settings.usePingData)
@@ -810,9 +809,10 @@ void app_update()
             // starts with a clean slate:
             //   1. endMatch()    — signal the relay server we are done (graceful close)
             //   2. deregister + relay disconnect
-            //   3. leaveLobby() — remove us from the brainCloud lobby so the next
-            //                     findOrCreateLobby can place us in a fresh one
-            //   4. RTT teardown + state reset
+            //   3. RTT teardown + state reset
+            // NOTE: leaveLobby is intentionally skipped here. endMatch causes the server
+            // to disband the lobby immediately, so by the time leaveLobby would be sent
+            // the lobby is already gone and the call returns "Unrecognized lobby".
             if (state.pendingGeoTestDisconnect)
             {
                 state.pendingGeoTestDisconnect = false;
@@ -821,7 +821,7 @@ void app_update()
                 printf("[GeoTest] Graceful disconnect — %d region(s) tested so far\n",
                        (int)state.geoTestedRegions.size());
 
-                // 1. Gracefully end the relay match
+                // 1. Gracefully end the relay match (server disbands the lobby)
                 app_endMatch();
 
                 // 2. Deregister relay callbacks and disconnect from relay server
@@ -829,11 +829,7 @@ void app_update()
                 pBCWrapper->getRelayService()->deregisterSystemCallback();
                 pBCWrapper->getRelayService()->disconnect();
 
-                // 3. Leave the brainCloud lobby so the next test gets a fresh lobby
-                if (!state.lobby.lobbyId.empty())
-                    pBCWrapper->getLobbyService()->leaveLobby(state.lobby.lobbyId, nullptr);
-
-                // 4. Tear down RTT
+                // 3. Tear down RTT
                 pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
                 pBCWrapper->getRTTService()->disableRTT();
 
@@ -1295,6 +1291,9 @@ static void onLobbyEvent(const Json::Value &eventJson)
 
     if (operation == "DISBANDED")
     {
+        // Lobby is gone — clear the id so any subsequent leaveLobby calls are suppressed.
+        state.lobby.lobbyId.clear();
+
         int reasonCode = jsonData["reason"]["code"].asInt();
         printf("[DEBUG] DISBANDED reason code=%d (RTT_ROOM_READY=%d)\n", reasonCode, RTT_ROOM_READY);
         if (reasonCode != RTT_ROOM_READY)
@@ -1448,12 +1447,14 @@ void app_cancelLobby()
     pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
     pBCWrapper->getRTTService()->disableRTT();
 
-    // Reset state but keep the user and app-level config around
+    // Reset state but keep the user and app-level config around.
+    // Manual cancel during an auto geo test clears the tested-region list so the
+    // next run starts fresh rather than resuming a partially-completed cycle.
     User user = state.user;
     auto appLobbies = state.appLobbies;
     int splotchDurationSec = state.splotchDurationSec;
     auto pingData = state.pingData;
-    auto geoTestedRegions = state.geoTestedRegions;
+    auto geoTestedRegions = settings.autoGeoTest ? std::vector<std::string>{} : state.geoTestedRegions;
     s_geoTestRegion.clear();
     state = State();
     state.user = user;
@@ -1466,7 +1467,7 @@ void app_cancelLobby()
     state.screenState = ScreenState::MainMenu;
 }
 
-// Cleanly close the game. Go back to main menu but don't log
+// Cleanly close the game. Go back to main menu but don't log out.
 void app_closeGame()
 {
     isDisconnecting = true;
@@ -1476,12 +1477,14 @@ void app_closeGame()
     pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
     pBCWrapper->getRTTService()->disableRTT();
 
-    // Reset state but keep the user and app-level config around
+    // Reset state but keep the user and app-level config around.
+    // Manual leave during an auto geo test clears the tested-region list so the
+    // next run starts fresh rather than resuming a partially-completed cycle.
     User user = state.user;
     auto appLobbies = state.appLobbies;
     int splotchDurationSec = state.splotchDurationSec;
     auto pingData = state.pingData;
-    auto geoTestedRegions = state.geoTestedRegions;
+    auto geoTestedRegions = settings.autoGeoTest ? std::vector<std::string>{} : state.geoTestedRegions;
     s_geoTestRegion.clear();
     state = State();
     state.user = user;
