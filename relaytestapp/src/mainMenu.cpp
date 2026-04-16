@@ -189,7 +189,22 @@ void mainMenu_update()
                 {
                     bool wasTested = std::find(tested.begin(), tested.end(), p.second) != tested.end();
                     if (wasTested)
-                        ImGui::TextDisabled("[done] %s  (%dms)", p.second.c_str(), p.first);
+                    {
+                        auto resIt = state.geoTestResults.find(p.second);
+                        if (resIt != state.geoTestResults.end() && resIt->second > 0)
+                        {
+                            int relayMs = resIt->second;
+                            bool pass = relayMs <= p.first + 100;
+                            if (pass)
+                                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f),
+                                    "[done] %s  beacon:%dms  relay:%dms  PASS", p.second.c_str(), p.first, relayMs);
+                            else
+                                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+                                    "[done] %s  beacon:%dms  relay:%dms  FAIL", p.second.c_str(), p.first, relayMs);
+                        }
+                        else
+                            ImGui::TextDisabled("[done] %s  (%dms)", p.second.c_str(), p.first);
+                    }
                     else if (p.second == nextRegion)
                         ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), ">>> %s  (%dms)", p.second.c_str(), p.first);
                     else
@@ -205,7 +220,22 @@ void mainMenu_update()
                 {
                     bool confirmed = std::find(tested.begin(), tested.end(), p.second) != tested.end();
                     if (confirmed)
-                        ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "[confirmed] %s  (%dms)", p.second.c_str(), p.first);
+                    {
+                        auto resIt = state.geoTestResults.find(p.second);
+                        if (resIt != state.geoTestResults.end() && resIt->second > 0)
+                        {
+                            int relayMs = resIt->second;
+                            bool pass = relayMs <= p.first + 100;
+                            if (pass)
+                                ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f),
+                                    "[confirmed] %s  beacon:%dms  relay:%dms  PASS", p.second.c_str(), p.first, relayMs);
+                            else
+                                ImGui::TextColored(ImVec4(1.0f, 0.4f, 0.4f, 1.0f),
+                                    "[confirmed] %s  beacon:%dms  relay:%dms  FAIL", p.second.c_str(), p.first, relayMs);
+                        }
+                        else
+                            ImGui::TextColored(ImVec4(0.4f, 1.0f, 0.4f, 1.0f), "[confirmed] %s  (%dms)", p.second.c_str(), p.first);
+                    }
                     else
                         ImGui::TextDisabled("[  ?  ] %s  (%dms)", p.second.c_str(), p.first);
                 }
@@ -214,7 +244,10 @@ void mainMenu_update()
             if (!tested.empty())
             {
                 if (ImGui::Button("Reset Geo Test"))
+                {
                     state.geoTestedRegions.clear();
+                    state.geoTestResults.clear();
+                }
             }
         }
         // -------------------------------------------------------------------------

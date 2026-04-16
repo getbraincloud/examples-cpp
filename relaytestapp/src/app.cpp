@@ -493,11 +493,13 @@ static void errorAndReturnToMenu(const std::string &message)
     User user = state.user;
     auto pingData = state.pingData;
     auto geoTestedRegions = state.geoTestedRegions;
+    auto geoTestResults = state.geoTestResults;
     s_geoTestRegion.clear();
     state = State();
     state.user = user;
     state.pingData = pingData;
     state.geoTestedRegions = geoTestedRegions;
+    state.geoTestResults = geoTestResults;
     state.screenState = ScreenState::MainMenu;
 
     errorMessage = message;
@@ -818,8 +820,12 @@ void app_update()
                 state.pendingGeoTestDisconnect = false;
                 isDisconnecting = true; // suppress any in-flight relay callbacks
 
-                printf("[GeoTest] Graceful disconnect — %d region(s) tested so far\n",
-                       (int)state.geoTestedRegions.size());
+                // Capture the relay RTT now, before teardown, so the panel can compare
+                // it against the pre-game beacon ping to determine pass/fail.
+                int relayPingAtSoak = pBCWrapper->getRelayService()->getPing();
+
+                printf("[GeoTest] Graceful disconnect — %d region(s) tested so far (relay ping: %dms)\n",
+                       (int)state.geoTestedRegions.size(), relayPingAtSoak);
 
                 // 1. Gracefully end the relay match (server disbands the lobby)
                 app_endMatch();
@@ -839,6 +845,10 @@ void app_update()
                 int splotchDurationSec = state.splotchDurationSec;
                 auto pingData = state.pingData;
                 auto geoTestedRegions = state.geoTestedRegions;
+                auto geoTestResults = state.geoTestResults;
+                // Record observed relay ping for the region that was just tested
+                if (!geoTestedRegions.empty())
+                    geoTestResults[geoTestedRegions.back()] = (relayPingAtSoak > 0) ? relayPingAtSoak : -1;
                 s_geoTestRegion.clear();
                 state = State();
                 state.user = user;
@@ -848,6 +858,7 @@ void app_update()
                 state.splotchDurationSec = splotchDurationSec;
                 state.pingData = pingData;
                 state.geoTestedRegions = geoTestedRegions;
+                state.geoTestResults = geoTestResults;
                 state.screenState = ScreenState::MainMenu;
 
                 return; // state has been reset; skip rest of this frame's game update
@@ -1455,6 +1466,7 @@ void app_cancelLobby()
     int splotchDurationSec = state.splotchDurationSec;
     auto pingData = state.pingData;
     auto geoTestedRegions = settings.autoGeoTest ? std::vector<std::string>{} : state.geoTestedRegions;
+    auto geoTestResults = settings.autoGeoTest ? std::map<std::string, int>{} : state.geoTestResults;
     s_geoTestRegion.clear();
     state = State();
     state.user = user;
@@ -1464,6 +1476,7 @@ void app_cancelLobby()
     state.splotchDurationSec = splotchDurationSec;
     state.pingData = pingData;
     state.geoTestedRegions = geoTestedRegions;
+    state.geoTestResults = geoTestResults;
     state.screenState = ScreenState::MainMenu;
 }
 
@@ -1485,6 +1498,7 @@ void app_closeGame()
     int splotchDurationSec = state.splotchDurationSec;
     auto pingData = state.pingData;
     auto geoTestedRegions = settings.autoGeoTest ? std::vector<std::string>{} : state.geoTestedRegions;
+    auto geoTestResults = settings.autoGeoTest ? std::map<std::string, int>{} : state.geoTestResults;
     s_geoTestRegion.clear();
     state = State();
     state.user = user;
@@ -1494,6 +1508,7 @@ void app_closeGame()
     state.splotchDurationSec = splotchDurationSec;
     state.pingData = pingData;
     state.geoTestedRegions = geoTestedRegions;
+    state.geoTestResults = geoTestResults;
     state.screenState = ScreenState::MainMenu;
 }
 

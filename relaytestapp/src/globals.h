@@ -177,6 +177,7 @@ struct State
     std::map<std::string, int> pingData;          /* Our measured region latencies (ms), preserved across sessions */
     std::vector<std::string> expectedPingRegions; /* Regions currently being pinged; empty when not in ping phase */
     std::vector<std::string> geoTestedRegions;    /* EdgeGap regions already launched into during geo test cycling */
+    std::map<std::string, int> geoTestResults;    /* region -> relay RTT (ms) observed during geo test soak; -1 = not captured */
     int mouseX = 0;
     int mouseY = 0;
     long long gameStartTime = 0;                                   /* ms since epoch when current round started (0 = not in game) */
