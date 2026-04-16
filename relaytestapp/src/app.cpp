@@ -68,6 +68,14 @@ static void onRelayConnected();
 
 static bool isDisconnecting = false;
 
+// Incremented on every app_play() call.  Each ping-flow lambda captures the value at
+// creation time and checks it before acting.  Any callback whose captured generation
+// doesn't match the current one is from a previous play session and is silently dropped.
+// This prevents RTT reconnects (which re-fire onRTTConnected) from stacking up duplicate
+// getRegionsForLobbies/pingRegions flows, and also kills stale relay callbacks that fire
+// after the session has already been torn down.
+static int s_playGeneration = 0;
+
 // Tracks the EdgeGap beacon region chosen for the current lobby attempt.
 // Set when we pick the best un-tested region; recorded to geoTestedRegions on ROOM_READY.
 static std::string s_geoTestRegion;
@@ -123,10 +131,15 @@ public:
     void relayConnectFailure(const std::string &errorMessage) override
     {
         printf("[%d][DEBUG] Relay connect FAILURE: %s\n", settings.instanceIndex, errorMessage.c_str());
-        if (!isDisconnecting)
-        {
-            errorAndReturnToMenu("Failed to connect to relay server:\n" + errorMessage);
-        }
+        if (isDisconnecting)
+            return;
+        // Only meaningful if we are actually in a state where relay should be connecting.
+        // Any other state (MainMenu, JoiningLobby, …) means this is a stale callback from
+        // a session we already tore down — suppress it so no false error popup appears.
+        if (state.screenState != ScreenState::Starting &&
+            state.screenState != ScreenState::Game)
+            return;
+        errorAndReturnToMenu("Failed to connect to relay server:\n" + errorMessage);
     }
 };
 
@@ -387,13 +400,26 @@ void onRTTConnected()
     if (state.screenState != ScreenState::JoiningLobby)
         return;
 
+    // Guard: each app_play() increments s_playGeneration.  If RTT reconnects mid-ping
+    // we must NOT start a second getRegionsForLobbies + pingRegions flow — that would
+    // stack concurrent HTTP callbacks and corrupt the heap.  Track which generation
+    // already started the ping flow and bail if this reconnect is for the same session.
+    static int s_pingStartedGen = -1;
+    if (s_pingStartedGen == s_playGeneration)
+        return;
+    s_pingStartedGen = s_playGeneration;
+
+    // Capture the current generation so the lambdas below can detect if app_play()
+    // was called again (starting a new session) before their HTTP response arrives.
+    const int gen = s_playGeneration;
+
     loading_status = "Getting regions...";
     pBCWrapper->getLobbyService()->getRegionsForLobbies(
         {settings.lobbyType},
         new BCCallback(
-            [](const Json::Value &result)
+            [gen](const Json::Value &result)
             {
-                if (isDisconnecting) return;
+                if (isDisconnecting || gen != s_playGeneration) return;
 
                 // Collect region names so app_update() can show per-region progress
                 state.expectedPingRegions.clear();
@@ -407,9 +433,9 @@ void onRTTConnected()
 
                 pBCWrapper->getLobbyService()->pingRegions(
                     new BCCallback(
-                        [](const Json::Value &)
+                        [gen](const Json::Value &)
                         {
-                            if (isDisconnecting) return;
+                            if (isDisconnecting || gen != s_playGeneration) return;
                             state.pingData = pBCWrapper->getLobbyService()->getPingData();
                             state.expectedPingRegions.clear(); // stop per-frame polling
 
@@ -462,18 +488,18 @@ void onRTTConnected()
                             else
                                 doFindOrCreateLobby(lobbyType);
                         },
-                        [](const std::string &)
+                        [gen](const std::string &)
                         {
                             // Ping failed — fall back gracefully to standard lobby creation
-                            if (isDisconnecting) return;
+                            if (isDisconnecting || gen != s_playGeneration) return;
                             state.expectedPingRegions.clear();
                             doFindOrCreateLobby(settings.lobbyType);
                         }));
             },
-            [](const std::string &)
+            [gen](const std::string &)
             {
                 // Region lookup failed — proceed without ping data
-                if (isDisconnecting) return;
+                if (isDisconnecting || gen != s_playGeneration) return;
                 doFindOrCreateLobby(settings.lobbyType);
             }));
 }
@@ -1155,6 +1181,7 @@ void app_play(BrainCloud::eRelayConnectionType in_protocol)
 {
     settings.protocol = in_protocol;
     isDisconnecting = false;
+    ++s_playGeneration; // invalidate any in-flight callbacks from a previous session
     state.user.colorIndex = settings.colorIndex;
 
     // Clear stale lobby data so the loading screen shows a fresh lobbyId
