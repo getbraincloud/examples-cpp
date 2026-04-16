@@ -69,3 +69,6 @@ void app_shockwave(const Point& pos);
 
 // Host clears all splotches on every client
 void app_clearSplotches();
+
+// Broadcast our current relay ping to all other players (called periodically in-game)
+void app_broadcastRelayPing();

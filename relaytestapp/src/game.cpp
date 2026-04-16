@@ -25,6 +25,7 @@
 #include "globals.h"
 
 // C/C++ includes
+#include <algorithm>
 #include <imgui.h>
 #include <stdio.h>
 #include <chrono>
@@ -42,19 +43,32 @@ void game_update()
                      ImGuiWindowFlags_NoResize |
                      ImGuiWindowFlags_AlwaysAutoResize);
 
-        ImGui::Text("Player mask");
+        ImGui::Text("Players");
         {
             ImGui::Indent();
-            ImGui::TextDisabled("Only affect shockwaves");
+            if (!state.lobby.regionId.empty())
+                ImGui::TextDisabled("Est. region: %s", state.lobby.regionId.c_str());
+            ImGui::TextDisabled("Mask = shockwave targets only");
             for (auto& user : state.lobby.members)
             {
                 auto color = COLORS[user.colorIndex % NUM_COLORS];
                 ImGui::PushStyleColor(ImGuiCol_Text, color);
                 std::string label = user.name;
-                if (user.cxId == state.lobby.ownerCxId) label += " [Host]";
-                if (user.cxId == state.user.cxId)       label += " (Echo)";
+                if (user.cxId == state.lobby.ownerCxId) label += " [H]";
+                if (user.cxId == state.user.cxId)       label += " (me)";
                 ImGui::Checkbox(label.c_str(), &user.allowSendTo);
                 ImGui::PopStyleColor();
+                ImGui::SameLine();
+                char pingBuf[16];
+                if (user.activePing < 0)
+                    ImGui::TextDisabled("...");
+                else if (user.activePing >= 999)
+                    ImGui::TextDisabled("T/O");
+                else
+                {
+                    snprintf(pingBuf, sizeof(pingBuf), "%d ms", user.activePing);
+                    ImGui::TextDisabled("%s", pingBuf);
+                }
             }
             ImGui::Unindent();
         }
@@ -309,13 +323,19 @@ void game_update()
     }
 
 #if RESEND_AT_60_FPS
-    // Send mouse position at 60 fps
+    // Send mouse position at 60 fps and broadcast relay ping every 2 seconds
     static auto lastTime = std::chrono::high_resolution_clock::now();
+    static auto lastPingBroadcastTime = std::chrono::high_resolution_clock::now();
     auto now = std::chrono::high_resolution_clock::now();;
     if (now - lastTime >= std::chrono::microseconds(1000000 / 60))
     {
         lastTime = now;
         app_mouseMoved({state.mouseX, state.mouseY});
+    }
+    if (now - lastPingBroadcastTime >= std::chrono::seconds(2))
+    {
+        lastPingBroadcastTime = now;
+        app_broadcastRelayPing();
     }
 #endif
 }
