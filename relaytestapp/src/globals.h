@@ -304,7 +304,20 @@ inline bool isV2RegionalLobby(const std::string &lobbyType)
 inline std::string v2RegionToLobbyType(const std::string &region)
 {
     static const std::map<std::string, std::string> kMap = {
+        // prod regions
+        {"us-west-1",    "CursorPartyV2_california"},
         {"ca-central-1", "CursorPartyV2_canada"},
+        {"eu-central-1", "CursorPartyV2_frankfurt"},
+        {"eu-south-1",   "CursorPartyV2_milan"},
+        {"ap-south-1",   "CursorPartyV2_mumbai"},
+        {"us-east-2",    "CursorPartyV2_ohio"},
+        {"eu-west-3",    "CursorPartyV2_paris"},
+        {"sa-east-1",    "CursorPartyV2_south_america"},
+        {"eu-south-2",   "CursorPartyV2_spain"},
+        {"eu-north-1",   "CursorPartyV2_stockholm"},
+        {"ap-southeast-2","CursorPartyV2_sydney"},
+        {"ap-northeast-1","CursorPartyV2_tokyo"},
+        // internal regions (absent on prod — skipped automatically when not returned by pingRegions)
         {"eu-west-1",    "CursorPartyV2_ireland"},
         {"us-west-2",    "CursorPartyV2_oregon"},
     };
