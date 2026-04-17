@@ -47,7 +47,12 @@ void game_update()
         {
             ImGui::Indent();
             if (!state.lobby.regionId.empty())
-                ImGui::TextDisabled("Est. region: %s", state.lobby.regionId.c_str());
+            {
+                bool isActual = !regionFromLobbyId(state.lobby.lobbyId).empty();
+                ImGui::TextDisabled("%s: %s",
+                    isActual ? "Region" : "Est. region",
+                    state.lobby.regionId.c_str());
+            }
             ImGui::TextDisabled("Mask = shockwave targets only");
             for (auto& user : state.lobby.members)
             {

@@ -53,33 +53,31 @@ void mainMenu_update()
             saveConfigs();
         }
 
-        // Lobby type — populated dynamically from AllLobbyTypes global property
-        if (!state.appLobbies.empty())
+        // Lobby type — populated dynamically from AllLobbyTypes global property.
+        // Always shown so it remains visible alongside the Play button even on error.
+        if (ImGui::BeginCombo("Lobby Type", settings.lobbyType.c_str()))
         {
-            if (ImGui::BeginCombo("Lobby Type", settings.lobbyType.c_str()))
+            for (const auto &lobbyType : state.appLobbies)
             {
-                for (const auto &lobbyType : state.appLobbies)
+                bool selected = (lobbyType == settings.lobbyType);
+                if (ImGui::Selectable(lobbyType.c_str(), selected))
                 {
-                    bool selected = (lobbyType == settings.lobbyType);
-                    if (ImGui::Selectable(lobbyType.c_str(), selected))
+                    settings.lobbyType = lobbyType;
+                    if (settings.lobbyType.find("Team") == 0)
                     {
-                        settings.lobbyType = lobbyType;
-                        if (settings.lobbyType.find("Team") == 0)
-                        {
-                            if (settings.teamCode == "all")
-                                settings.teamCode = "alpha";
-                        }
-                        else
-                        {
-                            settings.teamCode = "all";
-                        }
-                        saveConfigs();
+                        if (settings.teamCode == "all")
+                            settings.teamCode = "alpha";
                     }
-                    if (selected)
-                        ImGui::SetItemDefaultFocus();
+                    else
+                    {
+                        settings.teamCode = "all";
+                    }
+                    saveConfigs();
                 }
-                ImGui::EndCombo();
+                if (selected)
+                    ImGui::SetItemDefaultFocus();
             }
+            ImGui::EndCombo();
         }
 
         // Team selection (only for Team lobby types)

@@ -153,7 +153,8 @@ void lobby_update()
                                       : ImVec4(0.9f, 0.2f, 0.2f, 1.0f); // red: suboptimal region
                 }
             }
-            const std::string regionLabel = "Server Region: " + state.lobby.regionId;
+            bool isActual = !regionFromLobbyId(state.lobby.lobbyId).empty();
+            const std::string regionLabel = (isActual ? "Region: " : "Est. Region: ") + state.lobby.regionId;
             float tw = ImGui::CalcTextSize(regionLabel.c_str()).x;
             ImGui::SetCursorPosX((ImGui::GetWindowSize().x - tw) * 0.5f);
             ImGui::TextColored(regionColor, "%s", regionLabel.c_str());
@@ -185,7 +186,8 @@ void lobby_update()
         }
         ImGui::Columns();
 
-        // Ping data section — shown when at least one member has shared ping results
+        // Ping data section — only shown when ping region data is enabled
+        if (settings.usePingData)
         {
             // Collect all unique region names across all members + our own data
             std::vector<std::string> regions;

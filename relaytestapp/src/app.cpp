@@ -388,8 +388,7 @@ static void doFindOrCreateLobbyWithPingData(const std::string &lobbyType)
             }));
 }
 
-// RTT connected — always collect ping data so all members share their latencies
-// in the lobby/game UI. usePingData only controls whether ping-aware matchmaking is used.
+// RTT connected — kick off region ping if needed, then find/create lobby.
 void onRTTConnected()
 {
     state.user.cxId = pBCWrapper->getRTTService()->getRTTConnectionId();
@@ -408,6 +407,14 @@ void onRTTConnected()
     if (s_pingStartedGen == s_playGeneration)
         return;
     s_pingStartedGen = s_playGeneration;
+
+    // Skip region fetch + ping entirely when neither ping-aware matchmaking nor
+    // geo testing is requested — go straight to a plain lobby join.
+    if (!settings.usePingData && !settings.autoGeoTest)
+    {
+        doFindOrCreateLobby(settings.lobbyType);
+        return;
+    }
 
     // Capture the current generation so the lambdas below can detect if app_play()
     // was called again (starting a new session) before their HTTP response arrives.
@@ -439,12 +446,12 @@ void onRTTConnected()
                             state.pingData = pBCWrapper->getLobbyService()->getPingData();
                             state.expectedPingRegions.clear(); // stop per-frame polling
 
-                            // For regional cycling lobbies (EdgeGap, GameLift), route to the
-                            // best region-specific lobby type based on ping data.
-                            // Unmapped ping regions are ignored entirely.
+                            // In geo-test mode only: remap umbrella lobby types (EdgeGap, GameLift, V2)
+                            // to a best-ping specific lobby. Without geo-test, use the selected
+                            // lobby type directly with no remapping.
                             std::string lobbyType = settings.lobbyType;
                             s_geoTestRegion.clear();
-                            if (isRegionalCyclingLobby(settings.lobbyType) && !state.pingData.empty())
+                            if (settings.autoGeoTest && isRegionalCyclingLobby(settings.lobbyType) && !state.pingData.empty())
                             {
                                 std::string bestRegion;
                                 int bestPing = INT_MAX;
@@ -517,12 +524,16 @@ static void errorAndReturnToMenu(const std::string &message)
 
     // Reset state but keep the user logged in
     User user = state.user;
+    auto appLobbies = state.appLobbies;
+    int splotchDurationSec = state.splotchDurationSec;
     auto pingData = state.pingData;
     auto geoTestedRegions = state.geoTestedRegions;
     auto geoTestResults = state.geoTestResults;
     s_geoTestRegion.clear();
     state = State();
     state.user = user;
+    state.appLobbies = appLobbies;
+    state.splotchDurationSec = splotchDurationSec;
     state.pingData = pingData;
     state.geoTestedRegions = geoTestedRegions;
     state.geoTestResults = geoTestResults;
@@ -1259,7 +1270,10 @@ static Lobby parseLobby(const Json::Value &lobbyJson, const std::string &lobbyId
             int avg = (int)(kv.second.first / kv.second.second);
             if (avg < bestAvg) { bestAvg = avg; bestRegion = kv.first; }
         }
-        lobby.regionId = bestRegion;
+        // Prefer the actual server region encoded in the lobbyId (format "region:LobbyType:N").
+        // Fall back to the lowest-mean-ping estimate only when the lobbyId has no region prefix.
+        std::string actual = regionFromLobbyId(lobbyId);
+        lobby.regionId = actual.empty() ? bestRegion : actual;
     }
 
     return lobby;
