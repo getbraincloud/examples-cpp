@@ -109,6 +109,10 @@ bool loadConfigs()
             {
                 settings.teamCode = value;
             }
+            else if (strcmp(key, "usePingData") == 0)
+            {
+                settings.usePingData = std::stoi(value) != 0;
+            }
         }
         fclose(pFile);
     }
@@ -166,6 +170,7 @@ void saveConfigs()
         fprintf(pFile, "protocol = %i\n", (int)settings.protocol);
         fprintf(pFile, "lobbyType = %s\n", settings.lobbyType.c_str());
         fprintf(pFile, "teamCode = %s\n", settings.teamCode.c_str());
+        fprintf(pFile, "usePingData = %i\n", settings.usePingData ? 1 : 0);
         fprintf(pFile, "autoLogin = %i\n", settings.autoLogin ? 1 : 0);
         fclose(pFile);
     }
