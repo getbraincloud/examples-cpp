@@ -62,13 +62,13 @@ void lobby_update()
             float spacing    = ImGui::GetStyle().ItemSpacing.x;
             float gridWidth  = 10.0f * buttonSize + 9.0f * spacing;
             float startX     = (ImGui::GetWindowSize().x - gridWidth) * 0.5f;
-            for (int i = 0; i < NUM_COLORS; ++i)
+            for (int i = 0; i < colorCount(); ++i)
             {
                 if (i % 10 == 0)
                     ImGui::SetCursorPosX(startX);
                 else
                     ImGui::SameLine();
-                if (ImGui::ColorButton(("Col" + std::to_string(i)).c_str(), COLORS[i]))
+                if (ImGui::ColorButton(("Col" + std::to_string(i)).c_str(), getColor(i)))
                     app_changeUserColor(i);
             }
         }
@@ -134,10 +134,80 @@ void lobby_update()
             ImGui::SetCursorPos({pos.x + indent + 1, pos.y + 1});
             ImGui::TextColored(ImVec4(0, 0, 0, 0.75f), "%s", label.c_str());
             ImGui::SetCursorPos({pos.x + indent, pos.y});
-            ImGui::TextColored(COLORS[member.colorIndex % NUM_COLORS], "%s", label.c_str());
+            ImGui::TextColored(getColor(member.colorIndex % colorCount()), "%s", label.c_str());
             ImGui::NextColumn();
         }
         ImGui::Columns();
+
+        // Ping data section — only shown when ping region data is enabled
+        if (settings.usePingData)
+        {
+            // Collect all unique region names across all members + our own data
+            std::vector<std::string> regions;
+            auto addRegion = [&](const std::string &r)
+            {
+                if (std::find(regions.begin(), regions.end(), r) == regions.end())
+                    regions.push_back(r);
+            };
+            for (const auto &kv : state.pingData)
+                addRegion(kv.first);
+            for (const auto &m : state.lobby.members)
+                for (const auto &kv : m.pings)
+                    addRegion(kv.first);
+            std::sort(regions.begin(), regions.end());
+
+            if (!regions.empty())
+            {
+                ImGui::Separator();
+                centerText("Ping Data (ms)");
+
+                // Header row: region names
+                {
+                    std::string header = "                 "; // name column indent
+                    for (const auto &r : regions)
+                        header += "  " + r;
+                    centerTextDisabled(header);
+                }
+
+                // One row per member who has ping data
+                for (const auto &member : state.lobby.members)
+                {
+                    // Prefer member.pings (shared via extra); fall back to state.pingData for self
+                    const std::map<std::string, int> *pPings = &member.pings;
+                    std::map<std::string, int> selfPings;
+                    if (pPings->empty() && member.cxId == state.user.cxId && !state.pingData.empty())
+                    {
+                        selfPings = state.pingData;
+                        pPings = &selfPings;
+                    }
+                    if (pPings->empty())
+                        continue;
+
+                    std::string label = member.name;
+                    if (member.cxId == state.lobby.ownerCxId)
+                        label += " [Host]";
+                    // Pad name to fixed width for alignment
+                    while ((int)label.size() < 16)
+                        label += ' ';
+                    label += ":";
+                    for (const auto &r : regions)
+                    {
+                        auto it = pPings->find(r);
+                        char buf[16];
+                        if (it != pPings->end())
+                            snprintf(buf, sizeof(buf), it->second >= 999 ? "  T/O" : " %5d", it->second);
+                        else
+                            snprintf(buf, sizeof(buf), "     -");
+                        label += buf;
+                    }
+                    // Highlight the row for the local user
+                    if (member.cxId == state.user.cxId)
+                        ImGui::TextColored(getColor(member.colorIndex % colorCount()), "%s", label.c_str());
+                    else
+                        ImGui::TextDisabled("%s", label.c_str());
+                }
+            }
+        }
 
         ImGui::End();
     }

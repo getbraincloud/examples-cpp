@@ -48,7 +48,7 @@ void game_update()
             ImGui::TextDisabled("Only affect shockwaves");
             for (auto& user : state.lobby.members)
             {
-                auto color = COLORS[user.colorIndex % NUM_COLORS];
+                auto color = getColor(user.colorIndex % colorCount());
                 ImGui::PushStyleColor(ImGuiCol_Text, color);
                 std::string label = user.name;
                 if (user.cxId == state.lobby.ownerCxId) label += " [Host]";
@@ -200,6 +200,17 @@ void game_update()
 
             // Splotches — persistent marks left by shockwaves, drawn under the transient rings
             {
+                // Spring-overshoot pop: 0→~1.2 peak→1.0 settle over 0.3s (mirrors GDScript Splotch.gd)
+                auto splatSize = [](float t) -> float {
+                    if (t <= 0.0f) return 0.0f;
+                    if (t >= 1.0f) return 1.0f;
+                    const float a = 0.6f, b = 0.4f;
+                    float grow   = (1.0f + b) * t / a;
+                    float shrink = -(((1.0f + b) * t) - ((2.0f + b) * a)) / a;
+                    float s = std::min(grow, shrink);
+                    return std::max(0.0f, std::min(1.0f + b, s));
+                };
+
                 auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::system_clock::now().time_since_epoch()).count();
                 for (auto it = state.splotches.begin(); it != state.splotches.end();)
@@ -214,7 +225,6 @@ void game_update()
                     }
 
                     float alpha = 0.55f;
-                    // Fade out over the last 3 seconds when a finite duration is set
                     if (state.splotchDurationSec > 0)
                     {
                         long long remaining = (long long)state.splotchDurationSec - ageSec;
@@ -222,12 +232,32 @@ void game_update()
                             alpha *= (float)remaining / 3.0f;
                     }
 
-                    auto color = COLORS[splotch.colorIndex % NUM_COLORS];
-                    color.w = alpha;
-                    pDrawList->AddCircleFilled(
-                        ImVec2(framePos.x + (float)splotch.pos.x * scale,
-                               framePos.y + (float)splotch.pos.y * scale),
-                        16.0f * scale, ImColor(color), 32);
+                    // Jittered color matching GDScript Splotch.gd setup()
+                    auto base = getColor(splotch.colorIndex % colorCount());
+                    ImVec4 color(
+                        std::max(0.0f, std::min(1.0f, base.x + splotch.jR)),
+                        std::max(0.0f, std::min(1.0f, base.y + splotch.jG)),
+                        std::max(0.0f, std::min(1.0f, base.z + splotch.jB)),
+                        alpha);
+
+                    float elapsedSec = (float)(nowMs - splotch.startTimeMs) / 1000.0f;
+                    float t = std::min(elapsedSec / 0.3f, 1.0f);
+                    float sizeScale = splatSize(t);
+                    ImVec2 center(framePos.x + (float)splotch.pos.x * scale,
+                                  framePos.y + (float)splotch.pos.y * scale);
+
+                    pDrawList->AddCircleFilled(center, 16.0f * scale * sizeScale, ImColor(color), 32);
+
+                    // Satellite droplets — appear 0.05s after main blob
+                    float satT = std::min(std::max((elapsedSec - 0.05f) / 0.3f, 0.0f), 1.0f);
+                    ImVec4 satColor(color.x, color.y, color.z, color.w * 0.75f);
+                    for (int si = 0; si < SPLOTCH_SAT_COUNT; ++si)
+                    {
+                        ImVec2 satPos(center.x + splotch.satellites[si].dx * scale,
+                                      center.y + splotch.satellites[si].dy * scale);
+                        pDrawList->AddCircleFilled(satPos, splotch.satellites[si].radius * satT * scale,
+                                                   ImColor(satColor), 12);
+                    }
 
                     ++it;
                 }
@@ -258,7 +288,7 @@ void game_update()
 
                 // Display
                 auto size = 64.0f * percent;
-                auto color = COLORS[shockwave.colorIndex % NUM_COLORS];
+                auto color = getColor(shockwave.colorIndex % colorCount());
                 color.w = 1.0f - percent;
                 pDrawList->AddCircleFilled(
                     ImVec2(framePos.x + (float)shockwave.pos.x * scale, framePos.y + (float)shockwave.pos.y * scale),
@@ -277,7 +307,7 @@ void game_update()
                 float s  = 14.0f * scale;
                 ImVec2 p(framePos.x + (float)member.pos.x * scale,
                          framePos.y + (float)member.pos.y * scale);
-                ImU32  col     = ImColor(COLORS[member.colorIndex % NUM_COLORS]);
+                ImU32  col     = ImColor(getColor(member.colorIndex % colorCount()));
                 ImU32  shadow  = IM_COL32(0, 0, 0, 160);
 
                 // NW-pointing cursor arrow built from three triangles:

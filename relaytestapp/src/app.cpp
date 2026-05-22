@@ -274,6 +274,33 @@ static void applyLobbyTypes(const Json::Value &result)
     if (!found)
         settings.lobbyType = state.appLobbies[0];
 
+    // Colours: comma-separated hex RGB values (same format as GDScript / JS clients)
+    const auto &coloursProp = result["data"]["Colours"]["value"];
+    if (!coloursProp.isNull())
+    {
+        g_colors.clear();
+        std::string csv = coloursProp.asString();
+        size_t start = 0;
+        while (start < csv.size())
+        {
+            size_t end = csv.find(',', start);
+            if (end == std::string::npos) end = csv.size();
+            std::string token = csv.substr(start, end - start);
+            // Trim whitespace
+            while (!token.empty() && (token.front() == ' ' || token.front() == '\t')) token.erase(token.begin());
+            while (!token.empty() && (token.back()  == ' ' || token.back()  == '\t')) token.pop_back();
+            if (token.size() >= 6)
+            {
+                unsigned int r = 0, g = 0, b = 0;
+                if (sscanf(token.c_str(), "%02x%02x%02x", &r, &g, &b) == 3)
+                    g_colors.push_back(ImVec4(r / 255.0f, g / 255.0f, b / 255.0f, 1.0f));
+            }
+            start = end + 1;
+        }
+        if (g_colors.empty())
+            g_colors.clear(); // parse failed — getColor() falls back to COLORS[]
+    }
+
     // SplotchDuration: seconds a splotch persists on the canvas (-1 = forever)
     const auto &durProp = result["data"]["SplotchDuration"]["value"];
     if (!durProp.isNull())
@@ -446,6 +473,7 @@ static void sendSplotchSyncToMask(uint64_t mask)
         entry["y"] = s.pos.y / 600.0f;
         entry["c"] = s.colorIndex;
         entry["t"] = (Json::Int64)s.startTimeMs;
+        entry["s"] = (Json::UInt)s.seed;
 
         // Measure this entry's serialized size (+1 for the separating comma)
         int entrySize = (int)writer.write(entry).size() + 1;
@@ -540,12 +568,16 @@ static void onRelayMessage(int netId, const Json::Value &json)
                 shockwave.startTime = std::chrono::high_resolution_clock::now();
                 state.shockwaves.push_back(shockwave);
 
-                // Leave a persistent splotch at the same location
+                // Leave a persistent splotch — use seed from message so all clients match
+                uint32_t seed = json["data"].isMember("seed")
+                    ? json["data"]["seed"].asUInt()
+                    : (uint32_t)rand();
                 Splotch splotch;
                 splotch.pos = shockwave.pos;
                 splotch.colorIndex = member.colorIndex;
                 splotch.startTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::system_clock::now().time_since_epoch()).count();
+                splotchInit(splotch, seed);
                 state.splotches.push_back(splotch);
             }
             else if (op == "splotch_sync")
@@ -560,6 +592,8 @@ static void onRelayMessage(int netId, const Json::Value &json)
                     s.pos         = {(int)(entry["x"].asFloat() * 800.0f), (int)(entry["y"].asFloat() * 600.0f)};
                     s.colorIndex  = entry["c"].asInt();
                     s.startTimeMs = entry["t"].asInt64();
+                    uint32_t jipSeed = entry.isMember("s") ? entry["s"].asUInt() : (uint32_t)rand();
+                    splotchInit(s, jipSeed);
                     state.splotches.push_back(s);
                 }
             }
@@ -711,7 +745,7 @@ void app_update()
                 : (settings.username[0] ? settings.username : "");
             if (!displayName.empty())
             {
-                auto color = COLORS[settings.colorIndex % NUM_COLORS];
+                auto color = getColor(settings.colorIndex % colorCount());
                 std::string label = displayName;
                 if (settings.multiInstance)
                     label = "[" + std::to_string(settings.instanceIndex + 1) + "] " + label;
@@ -1244,12 +1278,14 @@ void app_endMatch()
 // User clicked mouse in the play area
 void app_shockwave(const Point &pos)
 {
+    uint32_t seed = (uint32_t)rand();
+
     // Send to other players
     Json::Value json;
     json["op"] = "shockwave";
-    json["data"]["x"] = pos.x / 800.0f;
-    json["data"]["y"] = pos.y / 600.0f;
-    json["data"]["teamCode"] = 0;
+    json["data"]["x"]    = pos.x / 800.0f;
+    json["data"]["y"]    = pos.y / 600.0f;
+    json["data"]["seed"] = (Json::UInt)seed;
 
     Json::FastWriter writer;
     auto str = writer.write(json);
@@ -1274,6 +1310,7 @@ void app_shockwave(const Point &pos)
     splotch.colorIndex = state.user.colorIndex;
     splotch.startTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
+    splotchInit(splotch, seed);
     state.splotches.push_back(splotch);
 }
 

@@ -26,6 +26,9 @@
 
 // C/C++ includes
 #include <chrono>
+#include <cmath>
+#include <cstdlib>
+#include <map>
 #include <string>
 #include <vector>
 #include <memory>
@@ -93,6 +96,19 @@ static const ImVec4 COLORS[NUM_COLORS] = {
     ImGui::ColorConvertU32ToFloat4(IM_COL32(0x77, 0x88, 0xAA, 0xFF)), // slate
 };
 
+// Runtime palette fetched from braincloud "Colours" property; empty = use COLORS[] fallback.
+extern std::vector<ImVec4> g_colors;
+
+inline int colorCount() { return g_colors.empty() ? NUM_COLORS : (int)g_colors.size(); }
+inline ImVec4 getColor(int i) {
+    if (!g_colors.empty()) return g_colors[i % (int)g_colors.size()];
+    return COLORS[i % NUM_COLORS];
+}
+
+// Satellite droplets around a splotch (spring-overshoot pop effect)
+static const int SPLOTCH_SAT_COUNT = 5;
+struct SplatDrop { float dx, dy, radius; };
+
 // Screen state enum.
 enum class ScreenState : int
 {
@@ -158,7 +174,44 @@ struct Splotch
     Point pos;
     int colorIndex;
     long long startTimeMs; /* ms since epoch — used for expiry and JIP sync */
+    uint32_t seed;         /* RNG seed — synced via relay so all clients see identical satellites */
+    SplatDrop satellites[SPLOTCH_SAT_COUNT];
+    float jR, jG, jB; /* per-channel color jitter offsets, range ±0.07 */
 };
+
+// Splotch LCG and visual constants — must match Splotch.gd exactly.
+static constexpr uint32_t SPLOTCH_LCG_MUL      = 1664525u;
+static constexpr uint32_t SPLOTCH_LCG_INC      = 1013904223u;
+static constexpr float    SPLOTCH_LCG_NORM     = 4294967296.0f; // 2^32
+static constexpr float    SPLOTCH_COLOR_JITTER = 0.07f;
+static constexpr float    SPLOTCH_SAT_DIST_MIN = 14.0f;
+static constexpr float    SPLOTCH_SAT_DIST_MAX = 26.0f;
+static constexpr float    SPLOTCH_SAT_RAD_MIN  = 3.0f;
+static constexpr float    SPLOTCH_SAT_RAD_MAX  = 6.0f;
+static constexpr float    SPLOTCH_TAU          = 6.28318530f; // 2π
+
+// Deterministic LCG matching GDScript Splotch.gd — both use identical parameters so satellite
+// positions and color jitter are pixel-identical on every client given the same seed.
+inline void splotchInit(Splotch &s, uint32_t seed)
+{
+    s.seed = seed;
+    uint32_t st = seed;
+    auto lcg = [&]() -> uint32_t { st = st * SPLOTCH_LCG_MUL + SPLOTCH_LCG_INC; return st; };
+    auto rf  = [&](float lo, float hi) -> float {
+        return lo + (float)lcg() / SPLOTCH_LCG_NORM * (hi - lo);
+    };
+    s.jR = rf(-SPLOTCH_COLOR_JITTER, SPLOTCH_COLOR_JITTER);
+    s.jG = rf(-SPLOTCH_COLOR_JITTER, SPLOTCH_COLOR_JITTER);
+    s.jB = rf(-SPLOTCH_COLOR_JITTER, SPLOTCH_COLOR_JITTER);
+    for (int i = 0; i < SPLOTCH_SAT_COUNT; ++i)
+    {
+        float angle = rf(0.0f, SPLOTCH_TAU);
+        float dist  = rf(SPLOTCH_SAT_DIST_MIN, SPLOTCH_SAT_DIST_MAX);
+        s.satellites[i].dx     = cosf(angle) * dist;
+        s.satellites[i].dy     = sinf(angle) * dist;
+        s.satellites[i].radius = rf(SPLOTCH_SAT_RAD_MIN, SPLOTCH_SAT_RAD_MAX);
+    }
+}
 
 // Main application state. This contain all of the "live" data.
 struct State
@@ -218,6 +271,122 @@ inline bool isCursorPartyLobby(const std::string &lobbyType)
 inline int maxLobbyMembers(const std::string &lobbyType)
 {
     return isCursorPartyLobby(lobbyType) ? 40 : 8;
+}
+
+// Extracts the region prefix from a brainCloud lobbyId (format: "region:LobbyType:N").
+// Returns empty string if the lobbyId doesn't follow that convention.
+inline std::string regionFromLobbyId(const std::string &lobbyId)
+{
+    auto pos = lobbyId.find(':');
+    return (pos != std::string::npos && pos > 0) ? lobbyId.substr(0, pos) : "";
+}
+
+// True when the lobby type is the generic EdgeGap umbrella type.
+// Selecting this type causes the app to ping EdgeGap beacon regions and then
+// route to the best region-specific CP_E_* lobby type automatically.
+inline bool isEdgeGapLobby(const std::string &lobbyType)
+{
+    return lobbyType == "CursorPartyEdgeGap";
+}
+
+// Maps an EdgeGap beacon region name to its corresponding specific lobby type.
+// Returns an empty string if the region is unknown (caller should fall back to
+// the original lobby type in that case).
+inline std::string edgeGapRegionToLobbyType(const std::string &region)
+{
+    static const std::map<std::string, std::string> kMap = {
+        {"asia-east", "CursorPartyEdgeGap_AsiaEast"},
+        {"asia-south", "CursorPartyEdgeGap_AsiaSouth"},
+        {"europe-central", "CursorPartyEdgeGap_Europe_Central"},
+        {"na-east", "CursorPartyEdgeGap_NorthAmerica_East"},
+        {"na-west", "CursorPartyEdgeGap_NorthAmerica_West"},
+        {"sa-central", "CursorPartyEdgeGap_SouthAmerica_Central"},
+        {"us-south", "CursorPartyEdgeGap_UnitedStates_South"},
+    };
+    auto it = kMap.find(region);
+    return it != kMap.end() ? it->second : "";
+}
+
+// True when the lobby type is the generic GameLift umbrella type.
+// Selecting this type causes the app to ping GameLift regions and then
+// route to the best region-specific CursorPartyGameLift_* lobby type.
+inline bool isGameLiftLobby(const std::string &lobbyType)
+{
+    return lobbyType == "CursorPartyGameLift";
+}
+
+// Maps a GameLift ping-region name to its corresponding specific lobby type.
+// Returns an empty string if the region is unknown.
+// NOTE: verify these region key strings against actual pingRegions() data for GameLift.
+inline std::string gameLiftRegionToLobbyType(const std::string &region)
+{
+    static const std::map<std::string, std::string> kMap = {
+        {"ca-central-1", "CursorPartyGameLift_canada"},
+        {"eu-central-1", "CursorPartyGameLift_frankfurt"},
+        {"eu-west-1", "CursorPartyGameLift_ireland"},
+        {"us-west-2", "CursorPartyGameLift_oregon"},
+    };
+    auto it = kMap.find(region);
+    return it != kMap.end() ? it->second : "";
+}
+
+// True when the lobby type is the generic CursorPartyV2 umbrella type.
+// Selecting this type causes the app to ping V2 regions and then
+// route to the best region-specific CursorPartyV2_* lobby type.
+inline bool isV2RegionalLobby(const std::string &lobbyType)
+{
+    return lobbyType == "CursorPartyV2";
+}
+
+// Maps a V2 ping-region name to its corresponding specific lobby type.
+// Returns an empty string if the region is unknown.
+// NOTE: verify these region key strings against actual pingRegions() data for CursorPartyV2.
+inline std::string v2RegionToLobbyType(const std::string &region)
+{
+    static const std::map<std::string, std::string> kMap = {
+        // prod regions
+        {"us-west-1", "CursorPartyV2_california"},
+        {"ca-central-1", "CursorPartyV2_canada"},
+        {"eu-central-1", "CursorPartyV2_frankfurt"},
+        {"eu-south-1", "CursorPartyV2_milan"},
+        {"ap-south-1", "CursorPartyV2_mumbai"},
+        {"us-east-2", "CursorPartyV2_ohio"},
+        {"eu-west-3", "CursorPartyV2_paris"},
+        {"sa-east-1", "CursorPartyV2_south_america"},
+        {"eu-south-2", "CursorPartyV2_spain"},
+        {"eu-north-1", "CursorPartyV2_stockholm"},
+        {"ap-southeast-2", "CursorPartyV2_sydney"},
+        {"ap-northeast-1", "CursorPartyV2_tokyo"},
+        // internal regions (absent on prod — skipped automatically when not returned by pingRegions)
+        {"eu-west-1", "CursorPartyV2_ireland"},
+        {"us-west-2", "CursorPartyV2_oregon"},
+
+        {"canadacentral", "CursorPartyV2_canada"},
+    };
+    auto it = kMap.find(region);
+    return it != kMap.end() ? it->second : "";
+}
+
+// True when the lobby type is a regional-cycling umbrella (EdgeGap, GameLift, or V2).
+// These types use ping-based region cycling in the auto geo test.
+// All other lobby types use passive recording (server-chosen region).
+inline bool isRegionalCyclingLobby(const std::string &lobbyType)
+{
+    return isEdgeGapLobby(lobbyType) || isGameLiftLobby(lobbyType) || isV2RegionalLobby(lobbyType);
+}
+
+// Maps a ping region to the specific lobby type for the given umbrella lobby.
+// Dispatches to the correct regional map based on the umbrella type.
+// Returns empty string if the region has no defined specific lobby.
+inline std::string regionToSpecificLobbyType(const std::string &umbrellaLobby, const std::string &region)
+{
+    if (isEdgeGapLobby(umbrellaLobby))
+        return edgeGapRegionToLobbyType(region);
+    if (isGameLiftLobby(umbrellaLobby))
+        return gameLiftRegionToLobbyType(region);
+    if (isV2RegionalLobby(umbrellaLobby))
+        return v2RegionToLobbyType(region);
+    return "";
 }
 
 // Main application state instance

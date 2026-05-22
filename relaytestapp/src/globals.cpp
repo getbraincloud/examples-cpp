@@ -40,6 +40,9 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 
+// Runtime color palette (populated from braincloud "Colours" property after login)
+std::vector<ImVec4> g_colors;
+
 // Main application state instance
 State state;
 
