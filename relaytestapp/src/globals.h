@@ -137,6 +137,7 @@ struct User
     bool allowSendTo = true;
     Point pos = {0, 0};
     std::map<std::string, int> pings; /* per-region ping data shared via lobby extra */
+    int activePing = -1;              /* live relay RTT broadcast during gameplay (ms); -1 = not yet received */
 };
 
 // Lobby
@@ -144,6 +145,7 @@ struct Lobby
 {
     std::string lobbyId;
     std::string ownerCxId;
+    std::string regionId; /* region extracted from lobbyId prefix (e.g. "na-east") */
     std::vector<User> members;
 };
 

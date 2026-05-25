@@ -42,19 +42,37 @@ void game_update()
                      ImGuiWindowFlags_NoResize |
                      ImGuiWindowFlags_AlwaysAutoResize);
 
-        ImGui::Text("Player mask");
+        ImGui::Text("Players");
         {
             ImGui::Indent();
-            ImGui::TextDisabled("Only affect shockwaves");
+            if (!state.lobby.regionId.empty())
+            {
+                bool isActual = !regionFromLobbyId(state.lobby.lobbyId).empty();
+                ImGui::TextDisabled("%s: %s",
+                    isActual ? "Region" : "Est. region",
+                    state.lobby.regionId.c_str());
+            }
+            ImGui::TextDisabled("Mask = shockwave targets only");
             for (auto& user : state.lobby.members)
             {
                 auto color = getColor(user.colorIndex % colorCount());
                 ImGui::PushStyleColor(ImGuiCol_Text, color);
                 std::string label = user.name;
-                if (user.cxId == state.lobby.ownerCxId) label += " [Host]";
-                if (user.cxId == state.user.cxId)       label += " (Echo)";
+                if (user.cxId == state.lobby.ownerCxId) label += " [H]";
+                if (user.cxId == state.user.cxId)       label += " (me)";
                 ImGui::Checkbox(label.c_str(), &user.allowSendTo);
                 ImGui::PopStyleColor();
+                ImGui::SameLine();
+                char pingBuf[16];
+                if (user.activePing < 0)
+                    ImGui::TextDisabled("...");
+                else if (user.activePing >= 999)
+                    ImGui::TextDisabled("T/O");
+                else
+                {
+                    snprintf(pingBuf, sizeof(pingBuf), "%d ms", user.activePing);
+                    ImGui::TextDisabled("%s", pingBuf);
+                }
             }
             ImGui::Unindent();
         }

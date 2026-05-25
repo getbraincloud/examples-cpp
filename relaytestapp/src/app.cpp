@@ -740,6 +740,10 @@ static void onRelayMessage(int netId, const Json::Value &json)
                 state.gameStartTime = json["data"]["startTime"].asInt64();
                 state.roundNumber = json["data"]["round"].asInt();
             }
+            else if (op == "relay_ping")
+            {
+                member.activePing = json["data"]["ping"].asInt();
+            }
             break;
         }
     }
