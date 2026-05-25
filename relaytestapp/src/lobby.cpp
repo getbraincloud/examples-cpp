@@ -49,10 +49,18 @@ void lobby_update()
         // We're the boss, so we can start the game
         if (state.user.cxId == state.lobby.ownerCxId)
         {
-            ImGui::SameLine();
-            if (ImGui::Button("Start"))
+            if (settings.autoGeoTest)
             {
-                app_startGame();
+                // Auto-start after a 1.5s delay so the lobby state settles
+                auto elapsed = std::chrono::steady_clock::now() - state.geoTestLobbyArrivalTime;
+                if (elapsed >= std::chrono::milliseconds(1500))
+                    app_startGame();
+            }
+            else
+            {
+                ImGui::SameLine();
+                if (ImGui::Button("Start"))
+                    app_startGame();
             }
         }
 

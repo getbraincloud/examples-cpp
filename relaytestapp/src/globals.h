@@ -105,9 +105,8 @@ inline ImVec4 getColor(int i) {
     return COLORS[i % NUM_COLORS];
 }
 
-// Satellite droplets around a splotch (spring-overshoot pop effect)
-static const int SPLOTCH_SAT_COUNT = 5;
-struct SplatDrop { float dx, dy, radius; };
+// Display diameter of the splotch sprite in game-world units — matches _DISPLAY_SIZE in Splotch.gd
+static constexpr float SPLOTCH_DISPLAY_SIZE = 64.0f;
 
 // Screen state enum.
 enum class ScreenState : int
@@ -137,6 +136,7 @@ struct User
     bool isAlive = false;
     bool allowSendTo = true;
     Point pos = {0, 0};
+    std::map<std::string, int> pings; /* per-region ping data shared via lobby extra */
 };
 
 // Lobby
@@ -171,47 +171,13 @@ struct Shockwave
 // Permanent color splotch left behind by a shockwave
 struct Splotch
 {
-    Point pos;
-    int colorIndex;
+    Point     pos;
+    int       colorIndex;
     long long startTimeMs; /* ms since epoch — used for expiry and JIP sync */
-    uint32_t seed;         /* RNG seed — synced via relay so all clients see identical satellites */
-    SplatDrop satellites[SPLOTCH_SAT_COUNT];
-    float jR, jG, jB; /* per-channel color jitter offsets, range ±0.07 */
+    float     rotation;    /* radians — transmitted in relay message so all clients match */
 };
 
-// Splotch LCG and visual constants — must match Splotch.gd exactly.
-static constexpr uint32_t SPLOTCH_LCG_MUL      = 1664525u;
-static constexpr uint32_t SPLOTCH_LCG_INC      = 1013904223u;
-static constexpr float    SPLOTCH_LCG_NORM     = 4294967296.0f; // 2^32
-static constexpr float    SPLOTCH_COLOR_JITTER = 0.07f;
-static constexpr float    SPLOTCH_SAT_DIST_MIN = 14.0f;
-static constexpr float    SPLOTCH_SAT_DIST_MAX = 26.0f;
-static constexpr float    SPLOTCH_SAT_RAD_MIN  = 3.0f;
-static constexpr float    SPLOTCH_SAT_RAD_MAX  = 6.0f;
-static constexpr float    SPLOTCH_TAU          = 6.28318530f; // 2π
-
-// Deterministic LCG matching GDScript Splotch.gd — both use identical parameters so satellite
-// positions and color jitter are pixel-identical on every client given the same seed.
-inline void splotchInit(Splotch &s, uint32_t seed)
-{
-    s.seed = seed;
-    uint32_t st = seed;
-    auto lcg = [&]() -> uint32_t { st = st * SPLOTCH_LCG_MUL + SPLOTCH_LCG_INC; return st; };
-    auto rf  = [&](float lo, float hi) -> float {
-        return lo + (float)lcg() / SPLOTCH_LCG_NORM * (hi - lo);
-    };
-    s.jR = rf(-SPLOTCH_COLOR_JITTER, SPLOTCH_COLOR_JITTER);
-    s.jG = rf(-SPLOTCH_COLOR_JITTER, SPLOTCH_COLOR_JITTER);
-    s.jB = rf(-SPLOTCH_COLOR_JITTER, SPLOTCH_COLOR_JITTER);
-    for (int i = 0; i < SPLOTCH_SAT_COUNT; ++i)
-    {
-        float angle = rf(0.0f, SPLOTCH_TAU);
-        float dist  = rf(SPLOTCH_SAT_DIST_MIN, SPLOTCH_SAT_DIST_MAX);
-        s.satellites[i].dx     = cosf(angle) * dist;
-        s.satellites[i].dy     = sinf(angle) * dist;
-        s.satellites[i].radius = rf(SPLOTCH_SAT_RAD_MIN, SPLOTCH_SAT_RAD_MAX);
-    }
-}
+static constexpr float SPLOTCH_TAU = 6.28318530f; // 2π — upper bound for random rotation
 
 // Main application state. This contain all of the "live" data.
 struct State
@@ -223,11 +189,18 @@ struct State
     std::vector<Shockwave> shockwaves;            /* Players' created shockwaves */
     std::vector<Splotch> splotches;               /* Persistent splotches left by shockwaves */
     std::vector<std::string> appLobbies;          /* Lobby types fetched from AllLobbyTypes global property */
+    std::vector<std::string> expectedPingRegions; /* Regions currently being pinged; empty when not in ping phase */
+    std::vector<std::string> geoTestedRegions;    /* Regions already launched into during geo test cycling */
+    std::map<std::string, int> geoTestResults;    /* region → relay RTT (ms) observed during geo test soak; -1 = not captured */
+    std::map<std::string, int> pingData;          /* local player's own per-region ping measurements */
     int mouseX = 0;
     int mouseY = 0;
     long long gameStartTime = 0;  /* ms since epoch when current round started (0 = not in game) */
     int roundNumber = 0;          /* Increments each relay round within the same lobby session */
     bool pendingEndMatch = false; /* Deferred END_MATCH disconnect (cannot call disconnect inside relay callback) */
+    bool pendingGeoTestDisconnect = false;                          /* Deferred auto-geo-test disconnect after relay connect confirmed */
+    std::chrono::steady_clock::time_point geoTestLobbyArrivalTime; /* When we entered Lobby state during a geo test (for 1.5s auto-start delay) */
+    std::chrono::steady_clock::time_point geoTestRelayConnectTime; /* When relay connected during a geo test (for 2.5s soak before disconnect) */
     int splotchDurationSec = -1;  /* -1 = forever; from SplotchDuration global property */
 };
 
@@ -247,6 +220,8 @@ struct Settings
     bool multiInstance = false; /* true when launched with instance/count args */
     bool autoJoin = false;
     bool autoLogin = true;
+    bool usePingData = false;
+    bool autoGeoTest = false; /* automatically cycle through all regions; disconnects after each relay connect */
     BrainCloud::eRelayConnectionType protocol = BrainCloud::eRelayConnectionType::UDP;
     std::string lobbyType = DEFAULT_LOBBY_TYPE;
     std::string teamCode = "all"; /* "all" for non-team lobbies, "alpha"/"beta" for team lobbies */
@@ -398,3 +373,6 @@ extern int height;
 
 // Arrow textures
 extern ImTextureID ARROWS[8];
+
+// Splotch texture (PaintSplatter1.png — white-on-transparent, tinted at draw time)
+extern ImTextureID SPLOTCH_TEX;

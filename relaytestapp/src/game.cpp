@@ -199,16 +199,16 @@ void game_update()
             lastMouseDown = mouseDown;
 
             // Splotches — persistent marks left by shockwaves, drawn under the transient rings
+            if (SPLOTCH_TEX)
             {
-                // Spring-overshoot pop: 0→~1.2 peak→1.0 settle over 0.3s (mirrors GDScript Splotch.gd)
+                // Spring-overshoot pop: 0→~1.4 peak→1.0 settle over 0.3s (matches Unity AnimateSplatter)
                 auto splatSize = [](float t) -> float {
                     if (t <= 0.0f) return 0.0f;
                     if (t >= 1.0f) return 1.0f;
                     const float a = 0.6f, b = 0.4f;
                     float grow   = (1.0f + b) * t / a;
                     float shrink = -(((1.0f + b) * t) - ((2.0f + b) * a)) / a;
-                    float s = std::min(grow, shrink);
-                    return std::max(0.0f, std::min(1.0f + b, s));
+                    return std::max(0.0f, std::min(1.0f + b, std::min(grow, shrink)));
                 };
 
                 auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
@@ -232,32 +232,29 @@ void game_update()
                             alpha *= (float)remaining / 3.0f;
                     }
 
-                    // Jittered color matching GDScript Splotch.gd setup()
                     auto base = getColor(splotch.colorIndex % colorCount());
-                    ImVec4 color(
-                        std::max(0.0f, std::min(1.0f, base.x + splotch.jR)),
-                        std::max(0.0f, std::min(1.0f, base.y + splotch.jG)),
-                        std::max(0.0f, std::min(1.0f, base.z + splotch.jB)),
-                        alpha);
+                    ImVec4 tint(base.x, base.y, base.z, alpha);
 
                     float elapsedSec = (float)(nowMs - splotch.startTimeMs) / 1000.0f;
-                    float t = std::min(elapsedSec / 0.3f, 1.0f);
-                    float sizeScale = splatSize(t);
+                    float t         = std::min(elapsedSec / 0.3f, 1.0f);
+                    float halfSize  = SPLOTCH_DISPLAY_SIZE * 0.5f * scale * splatSize(t);
+
                     ImVec2 center(framePos.x + (float)splotch.pos.x * scale,
                                   framePos.y + (float)splotch.pos.y * scale);
 
-                    pDrawList->AddCircleFilled(center, 16.0f * scale * sizeScale, ImColor(color), 32);
+                    // Build rotated quad corners from center + half-size + rotation angle
+                    float c = cosf(splotch.rotation), s2 = sinf(splotch.rotation);
+                    auto rot = [&](float px, float py) -> ImVec2 {
+                        return ImVec2(center.x + px * c - py * s2,
+                                      center.y + px * s2 + py * c);
+                    };
+                    ImVec2 p1 = rot(-halfSize, -halfSize);
+                    ImVec2 p2 = rot( halfSize, -halfSize);
+                    ImVec2 p3 = rot( halfSize,  halfSize);
+                    ImVec2 p4 = rot(-halfSize,  halfSize);
 
-                    // Satellite droplets — appear 0.05s after main blob
-                    float satT = std::min(std::max((elapsedSec - 0.05f) / 0.3f, 0.0f), 1.0f);
-                    ImVec4 satColor(color.x, color.y, color.z, color.w * 0.75f);
-                    for (int si = 0; si < SPLOTCH_SAT_COUNT; ++si)
-                    {
-                        ImVec2 satPos(center.x + splotch.satellites[si].dx * scale,
-                                      center.y + splotch.satellites[si].dy * scale);
-                        pDrawList->AddCircleFilled(satPos, splotch.satellites[si].radius * satT * scale,
-                                                   ImColor(satColor), 12);
-                    }
+                    pDrawList->AddImageQuad(SPLOTCH_TEX, p1, p2, p3, p4,
+                        {0,0}, {1,0}, {1,1}, {0,1}, ImColor(tint));
 
                     ++it;
                 }

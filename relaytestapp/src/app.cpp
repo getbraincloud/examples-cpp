@@ -68,6 +68,14 @@ static void onRelayConnected();
 
 static bool isDisconnecting = false;
 
+// Incremented on every app_play() call. Each ping-flow lambda captures this value and
+// checks it before acting — stale callbacks from a previous session are silently dropped.
+static int s_playGeneration = 0;
+
+// Tracks the region chosen for the current geo test lobby attempt.
+// Set when we pick the best un-tested region; recorded to geoTestedRegions on ROOM_READY.
+static std::string s_geoTestRegion;
+
 // brainCloud RTT Connection callbacks
 class RTTConnectCallback final : public BrainCloud::IRTTConnectCallback
 {
@@ -327,31 +335,135 @@ void onLoggedIn()
             }));
 }
 
-// RTT connected. Go to main menu screen
+// Build the "extra" JSON for lobby calls — includes colorIndex + pings when available.
+static std::string buildExtraJson()
+{
+    Json::Value extra;
+    extra["colorIndex"] = state.user.colorIndex;
+    if (!state.pingData.empty())
+    {
+        Json::Value pings(Json::objectValue);
+        for (const auto &kv : state.pingData)
+            pings[kv.first] = kv.second;
+        extra["pings"] = pings;
+    }
+    Json::FastWriter w;
+    auto s = w.write(extra);
+    if (!s.empty() && s.back() == '\n') s.pop_back();
+    return s;
+}
+
+static void doFindOrCreateLobby(const std::string &lobbyType)
+{
+    loading_status = "Finding lobby...";
+    pBCWrapper->getLobbyService()->findOrCreateLobby(
+        lobbyType, 0, 1,
+        "{\"strategy\":\"ranged-absolute\",\"alignment\":\"center\",\"ranges\":[1000]}",
+        "{}", {}, "{}", false,
+        buildExtraJson(),
+        settings.teamCode,
+        new BCCallback(
+            [](const Json::Value &) {},
+            [](const std::string &msg) { errorAndReturnToMenu("Failed to find lobby:\n" + msg); }));
+}
+
+static void doFindOrCreateLobbyWithPingData(const std::string &lobbyType)
+{
+    state.pingData = pBCWrapper->getLobbyService()->getPingData();
+    loading_status = "Finding lobby...";
+    pBCWrapper->getLobbyService()->findOrCreateLobbyWithPingData(
+        lobbyType, 0, 1,
+        "{\"strategy\":\"ranged-absolute\",\"alignment\":\"center\",\"ranges\":[1000]}",
+        "{}", {}, "{}", false,
+        buildExtraJson(),
+        settings.teamCode,
+        new BCCallback(
+            [](const Json::Value &) {},
+            [](const std::string &msg) { errorAndReturnToMenu("Failed to find lobby:\n" + msg); }));
+}
+
+// RTT connected — optionally ping regions before finding a lobby.
 void onRTTConnected()
 {
     state.user.cxId = pBCWrapper->getRTTService()->getRTTConnectionId();
 
-    // Find lobby
-    pBCWrapper->getLobbyService()->findOrCreateLobby(
-        settings.lobbyType,                                                              // lobby type
-        0,                                                                               // rating
-        1,                                                                               // max steps
-        "{\"strategy\":\"ranged-absolute\",\"alignment\":\"center\",\"ranges\":[1000]}", // algorithm
-        "{}",                                                                            // filters
-        {},                                                                              // other users
-        "{}",                                                                            // settings
-        false,                                                                           // ready
-        "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}",                // extra
-        settings.teamCode,                                                               // team code
-        new BCCallback(                                                                  // callback
-            [](const Json::Value &result)                                                // Success
+    // Guard: RTT can reconnect mid-session. Only start one ping flow per app_play() call.
+    static int s_pingStartedGen = -1;
+    if (s_pingStartedGen == s_playGeneration)
+        return;
+    s_pingStartedGen = s_playGeneration;
+
+    if (!settings.usePingData && !settings.autoGeoTest)
+    {
+        doFindOrCreateLobby(settings.lobbyType);
+        return;
+    }
+
+    const int gen = s_playGeneration;
+    loading_status = "Getting regions...";
+    pBCWrapper->getLobbyService()->getRegionsForLobbies(
+        {settings.lobbyType},
+        new BCCallback(
+            [gen](const Json::Value &result)
             {
-                // Success of lobby found will be in the event onLobbyEvent
+                if (isDisconnecting || gen != s_playGeneration) return;
+
+                state.expectedPingRegions.clear();
+                const auto &regionPingData = result["data"]["regionPingData"];
+                if (!regionPingData.isNull())
+                    for (const auto &r : regionPingData.getMemberNames())
+                        state.expectedPingRegions.push_back(r);
+                std::sort(state.expectedPingRegions.begin(), state.expectedPingRegions.end());
+
+                pBCWrapper->getLobbyService()->pingRegions(
+                    new BCCallback(
+                        [gen](const Json::Value &)
+                        {
+                            if (isDisconnecting || gen != s_playGeneration) return;
+                            state.pingData = pBCWrapper->getLobbyService()->getPingData();
+                            state.expectedPingRegions.clear();
+
+                            std::string lobbyType = settings.lobbyType;
+                            s_geoTestRegion.clear();
+                            if (settings.autoGeoTest && isRegionalCyclingLobby(settings.lobbyType) && !state.pingData.empty())
+                            {
+                                std::string bestRegion;
+                                int bestPing = INT_MAX;
+                                for (const auto &kv : state.pingData)
+                                {
+                                    if (regionToSpecificLobbyType(settings.lobbyType, kv.first).empty()) continue;
+                                    const auto &tested = state.geoTestedRegions;
+                                    bool alreadyTested = std::find(tested.begin(), tested.end(), kv.first) != tested.end();
+                                    if (!alreadyTested && kv.second < bestPing) { bestPing = kv.second; bestRegion = kv.first; }
+                                }
+                                if (bestRegion.empty()) // all tested — wrap to global fastest
+                                {
+                                    for (const auto &kv : state.pingData)
+                                    {
+                                        if (regionToSpecificLobbyType(settings.lobbyType, kv.first).empty()) continue;
+                                        if (kv.second < bestPing) { bestPing = kv.second; bestRegion = kv.first; }
+                                    }
+                                }
+                                s_geoTestRegion = bestRegion;
+                                lobbyType = regionToSpecificLobbyType(settings.lobbyType, bestRegion);
+                            }
+
+                            if (settings.usePingData)
+                                doFindOrCreateLobbyWithPingData(lobbyType);
+                            else
+                                doFindOrCreateLobby(lobbyType);
+                        },
+                        [gen](const std::string &)
+                        {
+                            if (isDisconnecting || gen != s_playGeneration) return;
+                            state.expectedPingRegions.clear();
+                            doFindOrCreateLobby(settings.lobbyType);
+                        }));
             },
-            [](const std::string &status_message) // Error
+            [gen](const std::string &)
             {
-                errorAndReturnToMenu("Failed to find lobby:\n" + status_message);
+                if (isDisconnecting || gen != s_playGeneration) return;
+                doFindOrCreateLobby(settings.lobbyType);
             }));
 }
 
@@ -366,10 +478,21 @@ static void errorAndReturnToMenu(const std::string &message)
     pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
     pBCWrapper->getRTTService()->disableRTT();
 
-    // Reset state but keep the user logged in
+    // Reset state but keep user, app config, and geo test results
     User user = state.user;
+    auto appLobbies = state.appLobbies;
+    int splotchDurationSec = state.splotchDurationSec;
+    auto pingData = state.pingData;
+    auto geoTestedRegions = state.geoTestedRegions;
+    auto geoTestResults = state.geoTestResults;
+    s_geoTestRegion.clear();
     state = State();
     state.user = user;
+    state.appLobbies = appLobbies;
+    state.splotchDurationSec = splotchDurationSec;
+    state.pingData = pingData;
+    state.geoTestedRegions = geoTestedRegions;
+    state.geoTestResults = geoTestResults;
     state.screenState = ScreenState::MainMenu;
 
     errorMessage = message;
@@ -473,7 +596,7 @@ static void sendSplotchSyncToMask(uint64_t mask)
         entry["y"] = s.pos.y / 600.0f;
         entry["c"] = s.colorIndex;
         entry["t"] = (Json::Int64)s.startTimeMs;
-        entry["s"] = (Json::UInt)s.seed;
+        entry["a"] = s.rotation;
 
         // Measure this entry's serialized size (+1 for the separating comma)
         int entrySize = (int)writer.write(entry).size() + 1;
@@ -490,6 +613,15 @@ static void sendSplotchSyncToMask(uint64_t mask)
 static void onRelayConnected()
 {
     ++state.roundNumber;
+
+    // Auto geo test: relay connect confirms the region is reachable.
+    // Record the connect time; app_update() disconnects after a 2.5s soak.
+    if (settings.autoGeoTest)
+    {
+        printf("[GeoTest] Relay connected — soaking for 2.5s before disconnect\n");
+        state.geoTestRelayConnectTime = std::chrono::steady_clock::now();
+        return;
+    }
 
     if (state.lobby.ownerCxId == state.user.cxId)
     {
@@ -568,16 +700,16 @@ static void onRelayMessage(int netId, const Json::Value &json)
                 shockwave.startTime = std::chrono::high_resolution_clock::now();
                 state.shockwaves.push_back(shockwave);
 
-                // Leave a persistent splotch — use seed from message so all clients match
-                uint32_t seed = json["data"].isMember("seed")
-                    ? json["data"]["seed"].asUInt()
-                    : (uint32_t)rand();
+                // Leave a persistent splotch — use angle from message so all clients match
+                float angle = json["data"].isMember("angle")
+                    ? json["data"]["angle"].asFloat()
+                    : ((float)rand() / (float)RAND_MAX) * SPLOTCH_TAU;
                 Splotch splotch;
-                splotch.pos = shockwave.pos;
+                splotch.pos        = shockwave.pos;
                 splotch.colorIndex = member.colorIndex;
                 splotch.startTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::system_clock::now().time_since_epoch()).count();
-                splotchInit(splotch, seed);
+                splotch.rotation   = angle;
                 state.splotches.push_back(splotch);
             }
             else if (op == "splotch_sync")
@@ -592,8 +724,9 @@ static void onRelayMessage(int netId, const Json::Value &json)
                     s.pos         = {(int)(entry["x"].asFloat() * 800.0f), (int)(entry["y"].asFloat() * 600.0f)};
                     s.colorIndex  = entry["c"].asInt();
                     s.startTimeMs = entry["t"].asInt64();
-                    uint32_t jipSeed = entry.isMember("s") ? entry["s"].asUInt() : (uint32_t)rand();
-                    splotchInit(s, jipSeed);
+                    s.rotation    = entry.isMember("a")
+                        ? entry["a"].asFloat()
+                        : ((float)rand() / (float)RAND_MAX) * SPLOTCH_TAU;
                     state.splotches.push_back(s);
                 }
             }
@@ -630,6 +763,71 @@ void app_update()
         if (pBCWrapper)
         {
             pBCWrapper->runCallbacks();
+            pBCWrapper->getLobbyService()->runPingCallbacks();
+
+            // While pinging regions, show per-region progress in the loading status
+            if (!state.expectedPingRegions.empty())
+            {
+                auto snapshot = pBCWrapper->getLobbyService()->getPingData();
+                std::string status;
+                for (const auto &region : state.expectedPingRegions)
+                {
+                    if (!status.empty()) status += "\n";
+                    auto it = snapshot.find(region);
+                    if (it != snapshot.end())
+                        status += "  " + region + ": " + (it->second >= 999 ? "T/O" : std::to_string(it->second) + " ms");
+                    else
+                        status += "  " + region + ": pinging...";
+                }
+                loading_status = status;
+            }
+
+            // Geo test soak timer — wait 2.5s after relay connect to confirm stability
+            if (state.geoTestRelayConnectTime != std::chrono::steady_clock::time_point{})
+            {
+                auto elapsed = std::chrono::steady_clock::now() - state.geoTestRelayConnectTime;
+                if (elapsed >= std::chrono::milliseconds(2500))
+                {
+                    state.geoTestRelayConnectTime = {};
+                    state.pendingGeoTestDisconnect = true;
+                }
+            }
+
+            // Deferred geo test disconnect — tear down relay + RTT and return to main menu
+            if (state.pendingGeoTestDisconnect)
+            {
+                state.pendingGeoTestDisconnect = false;
+                isDisconnecting = true;
+                int relayPingAtSoak = pBCWrapper->getRelayService()->getPing();
+                printf("[GeoTest] Disconnect — %d region(s) tested (relay ping: %dms)\n",
+                       (int)state.geoTestedRegions.size(), relayPingAtSoak);
+                app_endMatch();
+                pBCWrapper->getRelayService()->deregisterRelayCallback();
+                pBCWrapper->getRelayService()->deregisterSystemCallback();
+                pBCWrapper->getRelayService()->disconnect();
+                pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
+                pBCWrapper->getRTTService()->disableRTT();
+                User user = state.user;
+                auto appLobbies = state.appLobbies;
+                int splotchDurationSec = state.splotchDurationSec;
+                auto pingData = state.pingData;
+                auto geoTestedRegions = state.geoTestedRegions;
+                auto geoTestResults = state.geoTestResults;
+                if (!geoTestedRegions.empty())
+                    geoTestResults[geoTestedRegions.back()] = (relayPingAtSoak > 0) ? relayPingAtSoak : -1;
+                s_geoTestRegion.clear();
+                state = State();
+                state.user = user;
+                state.user.isAlive = false;
+                state.user.isReady = false;
+                state.appLobbies = appLobbies;
+                state.splotchDurationSec = splotchDurationSec;
+                state.pingData = pingData;
+                state.geoTestedRegions = geoTestedRegions;
+                state.geoTestResults = geoTestResults;
+                state.screenState = ScreenState::MainMenu;
+                return;
+            }
 
             // Deferred END_MATCH disconnect — safe to call here, after callbacks have returned
             if (state.pendingEndMatch)
@@ -648,7 +846,7 @@ void app_update()
                     state.user.isReady = true;
                     pBCWrapper->getLobbyService()->updateReady(
                         state.lobby.lobbyId, true,
-                        "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}",
+                        buildExtraJson(),
                         nullptr);
                 }
             }
@@ -922,6 +1120,7 @@ void app_play(BrainCloud::eRelayConnectionType in_protocol)
 {
     settings.protocol = in_protocol;
     isDisconnecting = false;
+    ++s_playGeneration;
     state.user.colorIndex = settings.colorIndex;
 
     // Clear stale lobby data so the loading screen shows a fresh lobbyId
@@ -957,6 +1156,11 @@ static Lobby parseLobby(const Json::Value &lobbyJson, const std::string &lobbyId
         user.colorIndex = jsonMember["extra"]["colorIndex"].asInt();
         if (user.cxId == state.user.cxId)
             user.allowSendTo = false;
+        // Ping data shared via the member's extra field
+        const auto &pingsJson = jsonMember["extra"]["pings"];
+        if (pingsJson.isObject())
+            for (const auto &r : pingsJson.getMemberNames())
+                user.pings[r] = pingsJson[r].asInt();
         lobby.members.push_back(user);
     }
 
@@ -1006,6 +1210,7 @@ static void onLobbyEvent(const Json::Value &eventJson)
         if (state.screenState == ScreenState::JoiningLobby)
         {
             state.screenState = ScreenState::Lobby;
+            state.geoTestLobbyArrivalTime = std::chrono::steady_clock::now();
 
             // Non-host users auto-ready when arriving at the lobby so the host can
             // start the round immediately without waiting for others to click Ready.
@@ -1015,7 +1220,7 @@ static void onLobbyEvent(const Json::Value &eventJson)
                 state.user.isReady = true;
                 pBCWrapper->getLobbyService()->updateReady(
                     state.lobby.lobbyId, true,
-                    "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}",
+                    buildExtraJson(),
                     nullptr);
             }
         }
@@ -1076,6 +1281,27 @@ static void onLobbyEvent(const Json::Value &eventJson)
     {
         loading_status = "Connecting...";
         state.server = parseServer(jsonData);
+
+        // Record which region was actually launched for the geo test.
+        // EdgeGap: region was chosen client-side (s_geoTestRegion).
+        // V2/GameLift/others: extract the region prefix from the lobbyId.
+        {
+            std::string region = s_geoTestRegion.empty()
+                                 ? regionFromLobbyId(state.server.lobbyId)
+                                 : s_geoTestRegion;
+            if (!region.empty())
+            {
+                const auto &tested = state.geoTestedRegions;
+                if (std::find(tested.begin(), tested.end(), region) == tested.end())
+                {
+                    state.geoTestedRegions.push_back(region);
+                    printf("[GeoTest] Recorded region: %s (total: %d)\n",
+                           region.c_str(), (int)state.geoTestedRegions.size());
+                }
+            }
+            s_geoTestRegion.clear();
+        }
+
         startGame();
     }
 }
@@ -1148,16 +1374,22 @@ void app_cancelLobby()
     pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
     pBCWrapper->getRTTService()->disableRTT();
 
-    // Reset state but keep the user and app-level config around
+    // Reset state but keep user, app config, and geo test results
     User user = state.user;
     auto appLobbies = state.appLobbies;
     int splotchDurationSec = state.splotchDurationSec;
+    auto pingData = settings.autoGeoTest ? std::map<std::string,int>{} : state.pingData;
+    auto geoTestedRegions = settings.autoGeoTest ? std::vector<std::string>{} : state.geoTestedRegions;
+    auto geoTestResults = settings.autoGeoTest ? std::map<std::string,int>{} : state.geoTestResults;
     state = State();
     state.user = user;
     state.user.isAlive = false;
     state.user.isReady = false;
     state.appLobbies = appLobbies;
     state.splotchDurationSec = splotchDurationSec;
+    state.pingData = pingData;
+    state.geoTestedRegions = geoTestedRegions;
+    state.geoTestResults = geoTestResults;
     state.screenState = ScreenState::MainMenu;
 }
 
@@ -1171,16 +1403,22 @@ void app_closeGame()
     pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
     pBCWrapper->getRTTService()->disableRTT();
 
-    // Reset state but keep the user and app-level config around
+    // Reset state but keep user, app config, and geo test results
     User user = state.user;
     auto appLobbies = state.appLobbies;
     int splotchDurationSec = state.splotchDurationSec;
+    auto pingData = settings.autoGeoTest ? std::map<std::string,int>{} : state.pingData;
+    auto geoTestedRegions = settings.autoGeoTest ? std::vector<std::string>{} : state.geoTestedRegions;
+    auto geoTestResults = settings.autoGeoTest ? std::map<std::string,int>{} : state.geoTestResults;
     state = State();
     state.user = user;
     state.user.isAlive = false;
     state.user.isReady = false;
     state.appLobbies = appLobbies;
     state.splotchDurationSec = splotchDurationSec;
+    state.pingData = pingData;
+    state.geoTestedRegions = geoTestedRegions;
+    state.geoTestResults = geoTestResults;
     state.screenState = ScreenState::MainMenu;
 }
 
@@ -1194,7 +1432,7 @@ void app_startGame()
     pBCWrapper->getLobbyService()->updateReady(
         state.lobby.lobbyId,
         state.user.isReady,
-        "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}");
+        buildExtraJson());
 }
 
 // User changes his player color
@@ -1213,7 +1451,7 @@ void app_changeUserColor(int colorIndex)
     pBCWrapper->getLobbyService()->updateReady(
         state.lobby.lobbyId,
         state.user.isReady,
-        "{\"colorIndex\":" + std::to_string(state.user.colorIndex) + "}");
+        buildExtraJson());
 }
 
 static uint64_t getPlayerMask()
@@ -1278,14 +1516,14 @@ void app_endMatch()
 // User clicked mouse in the play area
 void app_shockwave(const Point &pos)
 {
-    uint32_t seed = (uint32_t)rand();
+    // Random rotation angle — sent with the message so every client renders the same orientation
+    float angle = ((float)rand() / (float)RAND_MAX) * SPLOTCH_TAU;
 
-    // Send to other players
     Json::Value json;
     json["op"] = "shockwave";
-    json["data"]["x"]    = pos.x / 800.0f;
-    json["data"]["y"]    = pos.y / 600.0f;
-    json["data"]["seed"] = (Json::UInt)seed;
+    json["data"]["x"]     = pos.x / 800.0f;
+    json["data"]["y"]     = pos.y / 600.0f;
+    json["data"]["angle"] = angle;
 
     Json::FastWriter writer;
     auto str = writer.write(json);
@@ -1299,18 +1537,18 @@ void app_shockwave(const Point &pos)
 
     // Create a local shockwave so we can see it
     Shockwave shockwave;
-    shockwave.pos = pos;
+    shockwave.pos        = pos;
     shockwave.colorIndex = state.user.colorIndex;
-    shockwave.startTime = std::chrono::high_resolution_clock::now();
+    shockwave.startTime  = std::chrono::high_resolution_clock::now();
     state.shockwaves.push_back(shockwave);
 
     // Leave a persistent splotch at the same location
     Splotch splotch;
-    splotch.pos = pos;
+    splotch.pos        = pos;
     splotch.colorIndex = state.user.colorIndex;
     splotch.startTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
-    splotchInit(splotch, seed);
+    splotch.rotation   = angle;
     state.splotches.push_back(splotch);
 }
 

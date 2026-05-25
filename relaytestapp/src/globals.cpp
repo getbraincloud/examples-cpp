@@ -56,6 +56,9 @@ int height = 720;
 // Arrow textures
 ImTextureID ARROWS[8];
 
+// Splotch texture
+ImTextureID SPLOTCH_TEX = nullptr;
+
 // Load configuration file from disk.
 // For multi-instance: tries configs_N.txt first, falls back to configs.txt.
 // Returns true if a per-instance config (configs_N.txt) was successfully loaded.
@@ -116,33 +119,30 @@ bool loadConfigs()
         fclose(pFile);
     }
 
-    // Load arrow textures here too
-    for (int i = 0; i < 8; ++i)
-    {
-        auto filename = "assets/arrow" + std::to_string(i) + ".png";
+    // Helper: load a PNG from disk and upload as an OpenGL texture
+    auto loadTexture = [](const std::string &path) -> ImTextureID {
         int w, h, bpp;
-        auto pixels = stbi_load(filename.c_str(), &w, &h, &bpp, 4);
-
-        // Upload texture to graphics system
-        GLuint texture;
-        GLint last_texture;
-        glGetIntegerv(GL_TEXTURE_BINDING_2D, &last_texture);
-        glGenTextures(1, &texture);
-        glBindTexture(GL_TEXTURE_2D, texture);
+        auto pixels = stbi_load(path.c_str(), &w, &h, &bpp, 4);
+        if (!pixels) return nullptr;
+        GLuint tex;
+        GLint prev;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &prev);
+        glGenTextures(1, &tex);
+        glBindTexture(GL_TEXTURE_2D, tex);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        // glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-
-        // Cleanup
         stbi_image_free(pixels);
+        glBindTexture(GL_TEXTURE_2D, prev);
+        return (ImTextureID)(intptr_t)tex;
+    };
 
-        // Store our identifier
-        ARROWS[i] = (ImTextureID)(intptr_t)texture;
+    // Load arrow textures
+    for (int i = 0; i < 8; ++i)
+        ARROWS[i] = loadTexture("assets/arrow" + std::to_string(i) + ".png");
 
-        // Restore state
-        glBindTexture(GL_TEXTURE_2D, last_texture);
-    }
+    // Load splotch texture
+    SPLOTCH_TEX = loadTexture("assets/PaintSplatter1.png");
 
     return perInstanceLoaded;
 }
