@@ -199,7 +199,7 @@ static void initBC()
                            BRAINCLOUD_APP_ID,
                            appVersion.c_str(),
                            "bitheads",
-                           "RelayTestApp");
+                           "Cursor Party");
 
     if (settings.multiInstance)
     {
