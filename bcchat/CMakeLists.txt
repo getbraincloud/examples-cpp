@@ -184,14 +184,14 @@ list(APPEND includes PUBLIC ../thirdparties/imgui/backends)
 if(WIN32)
 	add_custom_command(TARGET BCChat POST_BUILD
 		COMMAND cmake -E copy_if_different
-			"${CMAKE_CURRENT_BINARY_DIR}/thirdparties/SDL/${CMAKE_BUILD_TYPE}/SDL3.dll"
-			"${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/SDL3.dll"
+			"${CMAKE_CURRENT_BINARY_DIR}/thirdparties/SDL/$<CONFIG>/SDL3.dll"
+			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/SDL3.dll"
 		COMMENT "Copying SDL3.dll to the output directory"
 	)
 	add_custom_command(TARGET BCChat POST_BUILD
 		COMMAND cmake -E copy_if_different
-			"${CMAKE_CURRENT_BINARY_DIR}/../../thirdparties/braincloud-cpp/lib/zlib/zlib1.dll"
-			"${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/zlib1.dll"
+			"${CMAKE_CURRENT_SOURCE_DIR}/../thirdparties/braincloud-cpp/lib/zlib/zlib1.dll"
+			"${CMAKE_CURRENT_BINARY_DIR}/$<CONFIG>/zlib1.dll"
 		COMMENT "Copying zlib1.dll to the output directory"
 	)
 endif()

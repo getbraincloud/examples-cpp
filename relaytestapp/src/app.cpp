@@ -41,6 +41,7 @@
 // C/C++ includes
 #include <iostream>
 #include <stdlib.h>
+#include <climits>
 
 std::string appVersion = VERSION;
 std::string serverVersion = "";
