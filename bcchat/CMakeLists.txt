@@ -180,7 +180,7 @@ list(APPEND libs brainCloud)
 list(APPEND includes PUBLIC ../thirdparties/imgui/)
 list(APPEND includes PUBLIC ../thirdparties/imgui/backends)
 
-# Add a post-build command to copy the 
+# Add a post-build command to copy required DLLs
 if(WIN32)
 	add_custom_command(TARGET BCChat POST_BUILD
 		COMMAND cmake -E copy_if_different
