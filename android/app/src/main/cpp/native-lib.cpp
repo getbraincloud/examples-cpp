@@ -1,6 +1,7 @@
 #include <jni.h>
 #include <string>
 #include <sstream>
+#include <fstream>
 #include <iostream>
 #include <android/log.h>
 #include <json/json.h>
@@ -12,6 +13,12 @@
 #include "ids.h"
 #include <libwebsockets.h>
 #include "lws_config.h"
+
+#include <android/log.h>
+#include <sys/stat.h>
+
+#define LOG_TAG "brainCloudSSL"
+#define LOGI(...) __android_log_print(ANDROID_LOG_INFO,  LOG_TAG, __VA_ARGS__)
 
 using namespace BrainCloud;
 
@@ -376,6 +383,7 @@ void TestCountryCode()
 
 }
 
+
 extern "C" JNIEXPORT jstring JNICALL
 Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
         JNIEnv* env,
@@ -515,4 +523,24 @@ Java_com_bitheads_braincloud_android_MainActivity_stringFromJNI(
     }
 
     return env->NewStringUTF(status.c_str());
+}
+
+extern "C"
+JNIEXPORT void JNICALL
+Java_com_bitheads_braincloud_android_MainActivity_setDir(JNIEnv *env, jobject thiz,
+                                                         jstring ca_cert_dir) {
+    if(!ca_cert_dir) return;
+
+    const char* caCertDir_c = env->GetStringUTFChars(ca_cert_dir, NULL);
+    if (!caCertDir_c) return ;
+    const jsize len = env->GetStringUTFLength(ca_cert_dir);
+    LOGI( "CaCertDir: %s", caCertDir_c );
+    std::string caCert(caCertDir_c,len);
+    LOGI( "CaCertDirptr in std string: %s", caCert.c_str());
+    env->ReleaseStringUTFChars(ca_cert_dir, caCertDir_c);
+
+    setenv("CURL_CA_BUNDLE", caCert.c_str(), 1);
+
+    //disable SSL test - uncomment this to disable SSL verification for curl requests
+    //setenv("SSL_DISABLED", "true", 1);
 }

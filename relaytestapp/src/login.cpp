@@ -39,7 +39,7 @@ void login_update()
             (float)width / 2.0f - DIALOG_WIDTH / 2.0f,
             (float)height / 2.0f - DIALOG_HEIGHT / 2.0f));
         ImGui::SetNextWindowSize(ImVec2(DIALOG_WIDTH, DIALOG_HEIGHT));
-        ImGui::Begin((std::string("RelayTestApp ")+appVersion).c_str(), nullptr,
+        ImGui::Begin((std::string("Cursor Party ")+appVersion).c_str(), nullptr,
             ImGuiWindowFlags_NoCollapse |
             ImGuiWindowFlags_NoMove |
             ImGuiWindowFlags_NoResize);
@@ -53,14 +53,14 @@ void login_update()
         auto canLogin = strlen(settings.username) && strlen(settings.password);
         if (!canLogin)
         {
-            settings.autoJoin = false;
             ImGui::PushStyleVar(
                 ImGuiStyleVar_Alpha,
                 ImGui::GetStyle().Alpha * 0.5f);
         }
 
-        // Login button
-        if ((ImGui::Button("Login") || settings.autoJoin) && canLogin)
+        // Login button — autoLogin drives automatic sign-in from config;
+        // autoJoin is reserved for auto-clicking Play in the main menu.
+        if ((ImGui::Button("Login") || settings.autoLogin) && canLogin)
         {
             // Save user/pass locally for next time
             saveConfigs();
@@ -73,6 +73,16 @@ void login_update()
         if (!canLogin)
         {
             ImGui::PopStyleVar();
+        }
+
+        // Auto Login toggle — hidden in multi-instance mode (autoJoin drives play)
+        if (!settings.multiInstance)
+        {
+            ImGui::SameLine();
+            if (ImGui::Checkbox("Auto Login", &settings.autoLogin))
+            {
+                saveConfigs();
+            }
         }
 
         ImGui::End();

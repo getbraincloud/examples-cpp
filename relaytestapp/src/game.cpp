@@ -42,23 +42,37 @@ void game_update()
                      ImGuiWindowFlags_NoResize |
                      ImGuiWindowFlags_AlwaysAutoResize);
 
-        ImGui::Text("Player mask");
+        ImGui::Text("Players");
         {
             ImGui::Indent();
-            ImGui::TextDisabled("Only affect shockwaves");
+            if (!state.lobby.regionId.empty())
+            {
+                bool isActual = !regionFromLobbyId(state.lobby.lobbyId).empty();
+                ImGui::TextDisabled("%s: %s",
+                    isActual ? "Region" : "Est. region",
+                    state.lobby.regionId.c_str());
+            }
+            ImGui::TextDisabled("Mask = shockwave targets only");
             for (auto& user : state.lobby.members)
             {
-                auto color = COLORS[user.colorIndex];
+                auto color = getColor(user.colorIndex % colorCount());
                 ImGui::PushStyleColor(ImGuiCol_Text, color);
-                if (user.cxId == state.user.cxId)
-                {
-                    ImGui::Checkbox((user.name + " (Echo)").c_str(), &user.allowSendTo);
-                }
+                std::string label = user.name;
+                if (user.cxId == state.lobby.ownerCxId) label += " [H]";
+                if (user.cxId == state.user.cxId)       label += " (me)";
+                ImGui::Checkbox(label.c_str(), &user.allowSendTo);
+                ImGui::PopStyleColor();
+                ImGui::SameLine();
+                char pingBuf[16];
+                if (user.activePing < 0)
+                    ImGui::TextDisabled("...");
+                else if (user.activePing >= 999)
+                    ImGui::TextDisabled("T/O");
                 else
                 {
-                    ImGui::Checkbox(user.name.c_str(), &user.allowSendTo);
+                    snprintf(pingBuf, sizeof(pingBuf), "%d ms", user.activePing);
+                    ImGui::TextDisabled("%s", pingBuf);
                 }
-                ImGui::PopStyleColor();
             }
             ImGui::Unindent();
         }
@@ -88,6 +102,54 @@ void game_update()
             ImGui::Checkbox("Ordered", &settings.sendOrdered);
             ImGui::Unindent();
         }
+
+        ImGui::Separator();
+
+        // Game session info
+        bool isHost = state.user.cxId == state.lobby.ownerCxId;
+        if (isHost)
+        {
+            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.0f, 1.0f), "HOST");
+            ImGui::SameLine();
+            if (ImGui::SmallButton("Clear Splotches"))
+                app_clearSplotches();
+        }
+
+        if (state.gameStartTime != 0)
+        {
+            auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                std::chrono::system_clock::now().time_since_epoch()).count();
+            long long elapsedMs = nowMs - state.gameStartTime;
+            long long elapsedSec = elapsedMs / 1000;
+            int minutes = (int)(elapsedSec / 60);
+            int seconds = (int)(elapsedSec % 60);
+            ImGui::Text("Game Time: %d:%02d", minutes, seconds);
+
+            // CursorParty: 1:30 round with 10-second countdown then auto end-match
+            if (isCursorPartyLobby(settings.lobbyType))
+            {
+                static const long long MATCH_DURATION_MS = 90000LL;
+                static const long long COUNTDOWN_FROM_MS = 80000LL;
+                static int matchEndRound = -1; // tracks which round end was already sent
+
+                if (elapsedMs >= MATCH_DURATION_MS)
+                {
+                    if (isHost && matchEndRound != state.roundNumber)
+                    {
+                        matchEndRound = state.roundNumber;
+                        app_endMatch();
+                    }
+                }
+                else if (elapsedMs >= COUNTDOWN_FROM_MS)
+                {
+                    long long remaining = (MATCH_DURATION_MS - elapsedMs + 999LL) / 1000LL;
+                    ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f),
+                                       "Ending in %lld...", remaining);
+                }
+            }
+        }
+        ImGui::Text("Round: %d", state.roundNumber);
+        ImGui::Text("Lobby: %s", state.lobby.lobbyId.c_str());
 
         ImGui::End();
     }
@@ -154,6 +216,68 @@ void game_update()
             }
             lastMouseDown = mouseDown;
 
+            // Splotches — persistent marks left by shockwaves, drawn under the transient rings
+            if (SPLOTCH_TEX)
+            {
+                // Spring-overshoot pop: 0→~1.4 peak→1.0 settle over 0.3s (matches Unity AnimateSplatter)
+                auto splatSize = [](float t) -> float {
+                    if (t <= 0.0f) return 0.0f;
+                    if (t >= 1.0f) return 1.0f;
+                    const float a = 0.6f, b = 0.4f;
+                    float grow   = (1.0f + b) * t / a;
+                    float shrink = -(((1.0f + b) * t) - ((2.0f + b) * a)) / a;
+                    return std::max(0.0f, std::min(1.0f + b, std::min(grow, shrink)));
+                };
+
+                auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+                    std::chrono::system_clock::now().time_since_epoch()).count();
+                for (auto it = state.splotches.begin(); it != state.splotches.end();)
+                {
+                    auto &splotch = *it;
+                    long long ageSec = (nowMs - splotch.startTimeMs) / 1000LL;
+
+                    if (state.splotchDurationSec >= 0 && ageSec >= state.splotchDurationSec)
+                    {
+                        it = state.splotches.erase(it);
+                        continue;
+                    }
+
+                    float alpha = 0.55f;
+                    if (state.splotchDurationSec > 0)
+                    {
+                        long long remaining = (long long)state.splotchDurationSec - ageSec;
+                        if (remaining <= 3)
+                            alpha *= (float)remaining / 3.0f;
+                    }
+
+                    auto base = getColor(splotch.colorIndex % colorCount());
+                    ImVec4 tint(base.x, base.y, base.z, alpha);
+
+                    float elapsedSec = (float)(nowMs - splotch.startTimeMs) / 1000.0f;
+                    float t         = std::min(elapsedSec / 0.3f, 1.0f);
+                    float halfSize  = SPLOTCH_DISPLAY_SIZE * 0.5f * scale * splatSize(t);
+
+                    ImVec2 center(framePos.x + (float)splotch.pos.x * scale,
+                                  framePos.y + (float)splotch.pos.y * scale);
+
+                    // Build rotated quad corners from center + half-size + rotation angle
+                    float c = cosf(splotch.rotation), s2 = sinf(splotch.rotation);
+                    auto rot = [&](float px, float py) -> ImVec2 {
+                        return ImVec2(center.x + px * c - py * s2,
+                                      center.y + px * s2 + py * c);
+                    };
+                    ImVec2 p1 = rot(-halfSize, -halfSize);
+                    ImVec2 p2 = rot( halfSize, -halfSize);
+                    ImVec2 p3 = rot( halfSize,  halfSize);
+                    ImVec2 p4 = rot(-halfSize,  halfSize);
+
+                    pDrawList->AddImageQuad(SPLOTCH_TEX, p1, p2, p3, p4,
+                        {0,0}, {1,0}, {1,1}, {0,1}, ImColor(tint));
+
+                    ++it;
+                }
+            }
+
             // Shockwaves
             auto now = std::chrono::high_resolution_clock::now();
             for (auto it = state.shockwaves.begin(); it != state.shockwaves.end();)
@@ -179,7 +303,7 @@ void game_update()
 
                 // Display
                 auto size = 64.0f * percent;
-                auto color = COLORS[shockwave.colorIndex];
+                auto color = getColor(shockwave.colorIndex % colorCount());
                 color.w = 1.0f - percent;
                 pDrawList->AddCircleFilled(
                     ImVec2(framePos.x + (float)shockwave.pos.x * scale, framePos.y + (float)shockwave.pos.y * scale),
@@ -188,18 +312,39 @@ void game_update()
                 ++it;
             }
 
-            // Arrows
+            // Arrows — drawn as colored vector cursors so the color always
+            // matches the player's selection exactly (arrow PNGs are black-alpha
+            // masks and cannot be tinted to arbitrary palette colors).
             for (const auto& member : state.lobby.members)
             {
-                if (member.isAlive)
-                {
-                    pDrawList->AddImage(
-                        ARROWS[member.colorIndex],
-                        ImVec2(framePos.x + (float)member.pos.x * scale, 
-                               framePos.y + (float)member.pos.y * scale),
-                        ImVec2(framePos.x + (float)member.pos.x * scale + 64 * scale, 
-                               framePos.y + (float)member.pos.y * scale + 64 * scale));
-                }
+                if (!member.isAlive) continue;
+
+                float s  = 14.0f * scale;
+                ImVec2 p(framePos.x + (float)member.pos.x * scale,
+                         framePos.y + (float)member.pos.y * scale);
+                ImU32  col     = ImColor(getColor(member.colorIndex % colorCount()));
+                ImU32  shadow  = IM_COL32(0, 0, 0, 160);
+
+                // NW-pointing cursor arrow built from three triangles:
+                //   - main body (tip → shaft)
+                //   - corner fill (shaft → shoulder)
+                //   - diagonal tail
+                ImVec2 tip(p.x,             p.y);
+                ImVec2 bl (p.x,             p.y + s);
+                ImVec2 sh (p.x + s * 0.35f, p.y + s * 0.65f);
+                ImVec2 t0 (p.x + s * 0.42f, p.y + s * 0.90f);
+                ImVec2 t1 (p.x + s * 0.62f, p.y + s * 0.75f);
+
+                // Drop shadow (offset 1.5px)
+                const float d = 1.5f;
+                pDrawList->AddTriangleFilled({tip.x+d,tip.y+d},{bl.x+d,bl.y+d},{sh.x+d,sh.y+d}, shadow);
+                pDrawList->AddTriangleFilled({sh.x+d,sh.y+d},{bl.x+d,bl.y+d},{t0.x+d,t0.y+d},  shadow);
+                pDrawList->AddTriangleFilled({sh.x+d,sh.y+d},{t0.x+d,t0.y+d},{t1.x+d,t1.y+d},  shadow);
+
+                // Colored fill
+                pDrawList->AddTriangleFilled(tip, bl,  sh,  col);
+                pDrawList->AddTriangleFilled(sh,  bl,  t0,  col);
+                pDrawList->AddTriangleFilled(sh,  t0,  t1,  col);
             }
         }
         ImGui::EndChildFrame();

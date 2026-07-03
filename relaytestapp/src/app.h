@@ -20,9 +20,11 @@
 
 // brainCloud
 #include <braincloud/BrainCloudRelay.h>
+#include <braincloud/BrainCloudWrapper.h>
 
 extern std::string appVersion;
 extern std::string serverVersion;
+extern BrainCloud::BrainCloudWrapper *pBCWrapper;
 
 struct Point;
 
@@ -44,8 +46,14 @@ void app_reconnect();
 // Find lobby
 void app_play(BrainCloud::eRelayConnectionType protocol);
 
-// Cleanly close the game. Go back to main menu but don't log 
+// Cancel lobby search or leave lobby. Go back to main menu without logging out.
+void app_cancelLobby();
+
+// Cleanly close the game. Go back to main menu but don't log
 void app_closeGame();
+
+// End the current match and return all players to the lobby (owner only)
+void app_endMatch();
 
 // Ready up and signals RTT service we can start the game
 void app_startGame();
@@ -58,3 +66,6 @@ void app_mouseMoved(const Point& pos);
 
 // User clicked mouse in the play area
 void app_shockwave(const Point& pos);
+
+// Host clears all splotches on every client
+void app_clearSplotches();

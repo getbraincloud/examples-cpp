@@ -23,10 +23,10 @@
 
 // OpenGL
 #if defined(_WIN32) && !defined(APIENTRY)
-#define APIENTRY __stdcall                  // It is customary to use APIENTRY for OpenGL function pointer declarations on all platforms.  Additionally, the Windows OpenGL header needs APIENTRY.
+#define APIENTRY __stdcall // It is customary to use APIENTRY for OpenGL function pointer declarations on all platforms.  Additionally, the Windows OpenGL header needs APIENTRY.
 #endif
 #if defined(_WIN32) && !defined(WINGDIAPI)
-#define WINGDIAPI __declspec(dllimport)     // Some Windows OpenGL headers need this
+#define WINGDIAPI __declspec(dllimport) // Some Windows OpenGL headers need this
 #endif
 #if defined(__APPLE__)
 #include <OpenGL/gl.h>
@@ -39,6 +39,9 @@
 // Stb image
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
+
+// Runtime color palette (populated from braincloud "Colours" property after login)
+std::vector<ImVec4> g_colors;
 
 // Main application state instance
 State state;
@@ -53,13 +56,29 @@ int height = 720;
 // Arrow textures
 ImTextureID ARROWS[8];
 
-// Load configuration file from disk (./config.txt)
-void loadConfigs()
+// Splotch texture
+ImTextureID SPLOTCH_TEX = nullptr;
+
+// Load configuration file from disk.
+// For multi-instance: tries configs_N.txt first, falls back to configs.txt.
+// Returns true if a per-instance config (configs_N.txt) was successfully loaded.
+bool loadConfigs()
 {
     char key[256];
     char value[256];
+    bool perInstanceLoaded = false;
 
-    auto pFile = fopen("configs.txt", "r");
+    FILE *pFile = nullptr;
+    if (settings.multiInstance || settings.instanceIndex > 0)
+    {
+        std::string instanceConfig = "configs_" + std::to_string(settings.instanceIndex) + ".txt";
+        pFile = fopen(instanceConfig.c_str(), "r");
+        if (pFile)
+            perInstanceLoaded = true;
+    }
+    if (!pFile)
+        pFile = fopen("configs.txt", "r");
+
     if (pFile)
     {
         while (fscanf(pFile, "%s = %s\n", key, value) == 2)
@@ -67,6 +86,10 @@ void loadConfigs()
             if (strcmp(key, "username") == 0)
             {
                 strcpy(settings.username, value);
+            }
+            else if (strcmp(key, "password") == 0)
+            {
+                strcpy(settings.password, value);
             }
             else if (strcmp(key, "colorIndex") == 0)
             {
@@ -80,51 +103,73 @@ void loadConfigs()
             {
                 settings.protocol = (BrainCloud::eRelayConnectionType)std::stoi(value);
             }
+            else if (strcmp(key, "lobbyType") == 0)
+            {
+                settings.lobbyType = value;
+            }
+            else if (strcmp(key, "autoLogin") == 0)
+            {
+                settings.autoLogin = std::stoi(value) != 0;
+            }
+            else if (strcmp(key, "teamCode") == 0)
+            {
+                settings.teamCode = value;
+            }
         }
         fclose(pFile);
     }
 
-    // Load arrow textures here too
-    for (int i = 0; i < 8; ++i)
-    {
-        auto filename = "assets/arrow" + std::to_string(i) + ".png";
+    // Helper: load a PNG from disk and upload as an OpenGL texture
+    auto loadTexture = [](const std::string &path) -> ImTextureID {
         int w, h, bpp;
-        auto pixels = stbi_load(filename.c_str(), &w, &h, &bpp, 4);
-
-        // Upload texture to graphics system
-        GLuint texture;
-        GLint last_texture;
-        glGetIntegerv(GL_TEXTURE_BINDING_2D, &last_texture);
-        glGenTextures(1, &texture);
-        glBindTexture(GL_TEXTURE_2D, texture);
+        auto pixels = stbi_load(path.c_str(), &w, &h, &bpp, 4);
+        if (!pixels) return nullptr;
+        GLuint tex;
+        GLint prev;
+        glGetIntegerv(GL_TEXTURE_BINDING_2D, &prev);
+        glGenTextures(1, &tex);
+        glBindTexture(GL_TEXTURE_2D, tex);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MIN_FILTER, GL_LINEAR);
         glTexParameteri(GL_TEXTURE_2D, GL_TEXTURE_MAG_FILTER, GL_LINEAR);
-        //glPixelStorei(GL_UNPACK_ROW_LENGTH, 0);
         glTexImage2D(GL_TEXTURE_2D, 0, GL_RGBA, w, h, 0, GL_RGBA, GL_UNSIGNED_BYTE, pixels);
-
-        // Cleanup
         stbi_image_free(pixels);
+        glBindTexture(GL_TEXTURE_2D, prev);
+        return (ImTextureID)(intptr_t)tex;
+    };
 
-        // Store our identifier
-        ARROWS[i] = (ImTextureID)(intptr_t)texture;
+    // Load arrow textures
+    for (int i = 0; i < 8; ++i)
+        ARROWS[i] = loadTexture("assets/arrow" + std::to_string(i) + ".png");
 
-        // Restore state
-        glBindTexture(GL_TEXTURE_2D, last_texture);
-    }
+    // Load splotch texture
+    SPLOTCH_TEX = loadTexture("assets/PaintSplatter1.png");
+
+    return perInstanceLoaded;
 }
 
-// Save configuration file to disk (./config.txt)
+// Save configuration file to disk.
+// Instance 0 saves to configs.txt; instance N saves to configs_N.txt.
 void saveConfigs()
 {
-    if (settings.instanceIndex != 0) return; // Only first instance will save
+    std::string configFile = (settings.multiInstance || settings.instanceIndex > 0)
+                                 ? ("configs_" + std::to_string(settings.instanceIndex) + ".txt")
+                                 : "configs.txt";
 
-    auto pFile = fopen("configs.txt", "w");
+    auto pFile = fopen(configFile.c_str(), "w");
     if (pFile)
     {
         fprintf(pFile, "username = %s\n", settings.username);
+        // only use this on multi-mode otherwise never save this. EVER.
+        if (settings.multiInstance && strlen(settings.password) > 0)
+        {
+            fprintf(pFile, "password = %s\n", settings.password);
+        }
         fprintf(pFile, "colorIndex = %i\n", settings.colorIndex);
         fprintf(pFile, "gameUIIScale = %i\n", settings.gameUIIScale);
         fprintf(pFile, "protocol = %i\n", (int)settings.protocol);
+        fprintf(pFile, "lobbyType = %s\n", settings.lobbyType.c_str());
+        fprintf(pFile, "teamCode = %s\n", settings.teamCode.c_str());
+        fprintf(pFile, "autoLogin = %i\n", settings.autoLogin ? 1 : 0);
         fclose(pFile);
     }
 }

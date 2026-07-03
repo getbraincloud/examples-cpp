@@ -24,7 +24,7 @@ else()
 endif()
 
 # Project
-project(RelayTestApp)
+project(CursorParty)
 
 # Enable C++11 features
 set(CMAKE_CXX_STANDARD 11)
@@ -140,15 +140,31 @@ if (UWP)
     source_group("Resource Files" FILES ${res_src_files})
 endif()
 
-# RelayTestApp
+# CursorParty
 if (UWP)
-    add_executable(RelayTestApp WIN32 ${src_files} ${thirdparty_src_files} ${res_src_files})
-    set_property(TARGET RelayTestApp APPEND_STRING PROPERTY LINK_FLAGS_DEBUG 
+    add_executable(CursorParty WIN32 ${src_files} ${thirdparty_src_files} ${res_src_files})
+    set_property(TARGET CursorParty APPEND_STRING PROPERTY LINK_FLAGS_DEBUG
         " /nodefaultlib:vccorlibd /nodefaultlib:msvcrtd vccorlibd.lib msvcrtd.lib")
-    set_property(TARGET RelayTestApp APPEND_STRING PROPERTY LINK_FLAGS_RELEASE 
+    set_property(TARGET CursorParty APPEND_STRING PROPERTY LINK_FLAGS_RELEASE
         " /nodefaultlib:vccorlib /nodefaultlib:msvcrt vccorlib.lib msvcrt.lib")
 else()
-    add_executable(RelayTestApp ${src_files} ${thirdparty_src_files})
+    if (WIN32)
+        list(APPEND src_files src/relaytestapp.rc)
+    endif()
+    if (APPLE)
+        set(ICON_FILE "${CMAKE_CURRENT_SOURCE_DIR}/src/AppIcon.icns")
+        set_source_files_properties(${ICON_FILE} PROPERTIES MACOSX_PACKAGE_LOCATION "Resources")
+        list(APPEND src_files ${ICON_FILE})
+    endif()
+    add_executable(CursorParty ${src_files} ${thirdparty_src_files})
+    if (APPLE)
+        set_target_properties(CursorParty PROPERTIES
+            MACOSX_BUNDLE TRUE
+            MACOSX_BUNDLE_BUNDLE_NAME "Cursor Party"
+            MACOSX_BUNDLE_ICON_FILE AppIcon.icns
+            MACOSX_BUNDLE_INFO_PLIST "${CMAKE_CURRENT_SOURCE_DIR}/src/Info.plist.in"
+        )
+    endif()
 endif()
 set_property(TARGET ${PROJECT_NAME} PROPERTY VS_DEBUGGER_WORKING_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/") # So we can find assets
 list(APPEND includes PUBLIC ./src/)
@@ -179,21 +195,23 @@ list(APPEND libs brainCloud)
 list(APPEND includes PUBLIC ../thirdparties/imgui/)
 list(APPEND includes PUBLIC ../thirdparties/imgui/backends)
 
-# Add a post-build command to copy the DLL
-add_custom_command(TARGET RelayTestApp POST_BUILD
-    COMMAND cmake -E copy_if_different
-        "${CMAKE_CURRENT_BINARY_DIR}/thirdparties/SDL/${CMAKE_BUILD_TYPE}/SDL3.dll"
-        "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/SDL3.dll"
-    COMMENT "Copying SDL3.dll to the output directory from ${SDL3_DLL_PATH} "
-)
+# Add a post-build command to copy the DLL (Windows only)
+if (WIN32)
+    add_custom_command(TARGET CursorParty POST_BUILD
+        COMMAND cmake -E copy_if_different
+            "${CMAKE_CURRENT_BINARY_DIR}/thirdparties/SDL/${CMAKE_BUILD_TYPE}/SDL3.dll"
+            "${CMAKE_CURRENT_BINARY_DIR}/${CMAKE_BUILD_TYPE}/SDL3.dll"
+        COMMENT "Copying SDL3.dll to the output directory from ${SDL3_DLL_PATH} "
+    )
+endif()
 
-add_custom_command(TARGET RelayTestApp POST_BUILD
+add_custom_command(TARGET CursorParty POST_BUILD
     COMMAND ${CMAKE_COMMAND} -E copy_directory
-    ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:RelayTestApp>/assets
+    ${CMAKE_SOURCE_DIR}/assets $<TARGET_FILE_DIR:CursorParty>/assets
 )
 
 # Setup includes and linked libraries
-target_include_directories(RelayTestApp ${includes})
-target_link_libraries(RelayTestApp ${libs})
+target_include_directories(CursorParty ${includes})
+target_link_libraries(CursorParty ${libs})
 
-set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT RelayTestApp)
+set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT CursorParty)

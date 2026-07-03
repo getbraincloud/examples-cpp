@@ -110,5 +110,6 @@ list(APPEND libs mbedx509)
 list(APPEND libs mbedcrypto)
 
 # Setup includes and linked libraries
+list(APPEND includes PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_include_directories(hellobc ${includes})
 target_link_libraries(hellobc ${libs})
