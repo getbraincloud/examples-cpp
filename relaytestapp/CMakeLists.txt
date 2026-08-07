@@ -71,6 +71,10 @@ list(APPEND src_files
     src/coverage.h
     src/game.cpp
     src/game.h
+    src/globalChat.cpp
+    src/globalChat.h
+    src/leaderboardPanel.cpp
+    src/leaderboardPanel.h
     src/lobby.cpp
     src/lobby.h
     src/login.cpp

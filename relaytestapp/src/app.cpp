@@ -89,6 +89,16 @@ static int s_playGeneration = 0;
 // onRTTConnected() so reaching the main menu doesn't silently auto-join a lobby.
 static bool s_wantsLobbySearch = false;
 
+// True from the moment enableRTT() is called until rttConnectSuccess/Failure fires.
+// getRTTEnabled() alone isn't enough to guard re-entry: it only flips true once the
+// connection actually completes, so anything that calls enableRTT() every frame while
+// disconnected (e.g. ensureChatChannel()'s "just in case" retry) would otherwise fire
+// enableRTT() again on every frame of that connecting window — the SDK's RTTComms::
+// connect() then runs concurrently on more than one background thread against the same
+// unsynchronized internal Json::Value state, which is what was crashing with a SIGSEGV
+// deep in JsonCpp's tree code. Checked/set at both enableRTT() call sites below.
+static bool s_rttConnecting = false;
+
 // Tracks the region chosen for the current geo test lobby attempt.
 // Set when we pick the best un-tested region; recorded to geoTestedRegions on ROOM_READY.
 static std::string s_geoTestRegion;
@@ -99,11 +109,13 @@ class RTTConnectCallback final : public BrainCloud::IRTTConnectCallback
 public:
     void rttConnectSuccess() override
     {
+        s_rttConnecting = false;
         onRTTConnected();
     }
 
     void rttConnectFailure(const std::string &errorMessage) override
     {
+        s_rttConnecting = false;
         // Ignore failure if we intentionally disconnected (avoids re-entrant loop)
         if (isDisconnecting)
             return;
@@ -373,6 +385,7 @@ static std::string buildExtraJson()
 {
     Json::Value extra;
     extra["colorIndex"] = state.user.colorIndex;
+    extra["rank"] = state.user.worldwideRank;
     if (!state.pingData.empty())
     {
         Json::Value pings(Json::objectValue);
@@ -516,11 +529,49 @@ void onRTTConnected()
 // already turned it on). Called whenever the app reaches the MainMenu screen.
 void app_enableChatRTT()
 {
-    if (pBCWrapper->getRTTService()->getRTTEnabled())
+    // Called at every MainMenu arrival — piggyback the rank re-fetch here too
+    // rather than touching every one of those call sites separately. Cheap and
+    // idempotent (no-ops while a request is already in flight).
+    app_fetchWorldwideRank();
+
+    if (pBCWrapper->getRTTService()->getRTTEnabled() || s_rttConnecting)
         return;
     s_wantsLobbySearch = false;
+    s_rttConnecting = true;
     pBCWrapper->getRTTService()->registerRTTLobbyCallback(&bcRTTCallback);
     pBCWrapper->getRTTService()->enableRTT(&bcRTTConnectCallback, true);
+}
+
+// Fetches this player's own rank on the coverage leaderboard, for the lobby member
+// list's "Worldwide Rank" display. There's no client API to look up an ARBITRARY
+// other player's rank (GetPlayersSocialLeaderboard/GetPlayerScore return score, not
+// rank; GetGlobalLeaderboardView's rank is self-centric only) — so each player
+// fetches their own and shares it via the lobby's "extra" field, the same mechanism
+// already used for colorIndex/pings. -1 = unknown or no score posted yet.
+// Idempotent-ish: safe to call repeatedly (e.g. every MainMenu arrival); a request
+// already in flight is not re-issued.
+static bool s_rankFetchInFlight = false;
+void app_fetchWorldwideRank()
+{
+    if (s_rankFetchInFlight || !pBCWrapper || state.coverageLeaderboardId.empty()) return;
+    s_rankFetchInFlight = true;
+    pBCWrapper->getSocialLeaderboardService()->getGlobalLeaderboardView(
+        state.coverageLeaderboardId.c_str(), BrainCloud::HIGH_TO_LOW, 0, 0,
+        new BCCallback(
+            [](const Json::Value &result)
+            {
+                s_rankFetchInFlight = false;
+                const auto &arr = result["data"]["leaderboard"];
+                int rank = (!arr.empty()) ? arr[0]["rank"].asInt() : -1;
+                if (rank == state.user.worldwideRank) return;
+                state.user.worldwideRank = rank;
+                // If already in a lobby, push the freshly-known rank to lobby-mates
+                // right away instead of waiting for some other reason to re-send extra.
+                if (!state.lobby.lobbyId.empty())
+                    pBCWrapper->getLobbyService()->updateReady(
+                        state.lobby.lobbyId, state.user.isReady, buildExtraJson());
+            },
+            [](const std::string &) { s_rankFetchInFlight = false; }));
 }
 
 // Show error and go back to MainMenu without logging out.
@@ -533,6 +584,7 @@ static void errorAndReturnToMenu(const std::string &message)
     pBCWrapper->getRelayService()->disconnect();
     pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
     pBCWrapper->getRTTService()->disableRTT();
+    s_rttConnecting = false; // callbacks just deregistered — nothing will clear this otherwise
 
     // Reset state but keep user, app config, and geo test results
     User user = state.user;
@@ -566,6 +618,7 @@ static void dieWithMessage(const std::string &message)
     pBCWrapper->getRelayService()->disconnect();
     pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
     pBCWrapper->getRTTService()->disableRTT();
+    s_rttConnecting = false; // callbacks just deregistered — nothing will clear this otherwise
 
     pBCWrapper->logout(false, nullptr);
 
@@ -1173,6 +1226,7 @@ void app_update()
                 pBCWrapper->getRelayService()->disconnect();
                 pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
                 pBCWrapper->getRTTService()->disableRTT();
+                s_rttConnecting = false; // callbacks just deregistered — nothing will clear this otherwise
                 User user = state.user;
                 auto appLobbies = state.appLobbies;
                 int splotchDurationSec = state.splotchDurationSec;
@@ -1512,8 +1566,13 @@ void app_play(BrainCloud::eRelayConnectionType in_protocol)
         // reconnecting, so this is the only way to pick the search flow back up.
         startLobbySearchFlow();
     }
-    else
+    else if (!s_rttConnecting)
     {
+        // If chat already kicked off a connect (s_rttConnecting true), don't issue a
+        // second concurrent enableRTT() — s_wantsLobbySearch is already set above, so
+        // whichever caller's connect succeeds will pick up the lobby search from
+        // onRTTConnected() regardless of who initiated it.
+        s_rttConnecting = true;
         pBCWrapper->getRTTService()->registerRTTLobbyCallback(&bcRTTCallback);
         pBCWrapper->getRTTService()->enableRTT(&bcRTTConnectCallback, true);
     }
@@ -1533,6 +1592,11 @@ static Lobby parseLobby(const Json::Value &lobbyJson, const std::string &lobbyId
         user.cxId = jsonMember["cxId"].asString();
         user.name = jsonMember["name"].asString();
         user.colorIndex = jsonMember["extra"]["colorIndex"].asInt();
+        // Worldwide rank — each player fetches their OWN rank (self-centric API,
+        // getGlobalLeaderboardView has no "rank for an arbitrary other player" call)
+        // and shares it here, the same way colorIndex/pings already propagate.
+        const auto &rankJson = jsonMember["extra"]["rank"];
+        user.worldwideRank = rankJson.isNull() ? -1 : rankJson.asInt();
         // Ping data shared via the member's extra field
         const auto &pingsJson = jsonMember["extra"]["pings"];
         if (pingsJson.isObject())
@@ -1577,10 +1641,17 @@ static void onLobbyEvent(const Json::Value &eventJson)
     const auto &jsonData = eventJson["data"];
 
     // If there is a lobby object present in the message, update our lobby
-    // state with it.
+    // state with it. This fires on every lobby-update event (member join/leave,
+    // ready-state changes, etc.), not just the first one — parseLobby() returns a
+    // fresh Lobby each time, so chatMessages/arrivalTime must be explicitly carried
+    // forward or every routine update would silently wipe the chat history.
     if (jsonData["lobby"].isObject())
     {
+        auto savedChatMessages = state.lobby.chatMessages;
+        auto savedArrivalTime = state.lobby.arrivalTime;
         state.lobby = parseLobby(jsonData["lobby"], jsonData["lobbyId"].asString());
+        state.lobby.chatMessages = savedChatMessages;
+        state.lobby.arrivalTime = savedArrivalTime;
 
         // If we were joining lobby, show the lobby screen. We have the information to
         // display now.
@@ -1588,6 +1659,7 @@ static void onLobbyEvent(const Json::Value &eventJson)
         {
             state.screenState = ScreenState::Lobby;
             state.geoTestLobbyArrivalTime = std::chrono::steady_clock::now();
+            state.lobby.arrivalTime = std::chrono::steady_clock::now(); // true first-arrival timestamp, for the INFO tab
 
             // Non-host users auto-ready when arriving at the lobby so the host can
             // start the round immediately without waiting for others to click Ready.
@@ -1681,6 +1753,55 @@ static void onLobbyEvent(const Json::Value &eventJson)
 
         startGame();
     }
+    else if (operation == "SIGNAL")
+    {
+        // This-lobby chat, per the user's direction: implemented via SendSignal
+        // (Lobby service), not the Chat service — rides the RTT connection the
+        // lobby already has, no separate channel/registration needed.
+        //
+        // Real wire shape, confirmed from a live capture (the docs describe this
+        // as "LOBBY_SIGNAL_DATA" in prose, but the actual RTT operation is
+        // "SIGNAL"): data: { lobbyId, from: {id,name,pic,cxId}, signalData: <our
+        // own payload> }. "from" is the server's authoritative sender info — more
+        // reliable than trusting whatever our own signalData payload claims.
+        const auto &fromCxId = jsonData["from"]["cxId"].asString();
+        std::string fromName = jsonData["from"]["name"].asString();
+        std::string text = jsonData["signalData"]["text"].asString();
+
+        // Skip echoes of our own signal — app_sendLobbySignal already appended it
+        // locally on send. Compared by cxId (not name) since two players could
+        // share a display name.
+        if (!text.empty() && fromCxId != state.user.cxId)
+        {
+            ChatMessage msg;
+            msg.fromName = fromName.empty() ? "Player" : fromName;
+            msg.text = text;
+            state.lobby.chatMessages.push_back(msg);
+        }
+    }
+}
+
+// Sends a chat message to everyone currently in this lobby, via the Lobby
+// service's SendSignal (not the Chat service — see the LOBBY_SIGNAL_DATA handler
+// in onLobbyEvent for why). Appends locally right away — the receive handler
+// skips the echo of our own signal, which the server does send back to us too.
+void app_sendLobbySignal(const std::string &text)
+{
+    if (text.empty() || state.lobby.lobbyId.empty()) return;
+
+    // No need to embed our own name — the server wraps every signal with
+    // authoritative sender info (data.from.name/cxId) that the receive handler
+    // uses instead.
+    Json::Value signal;
+    signal["text"] = text;
+    Json::FastWriter writer;
+
+    pBCWrapper->getLobbyService()->sendSignal(state.lobby.lobbyId, writer.write(signal), nullptr);
+
+    ChatMessage msg;
+    msg.fromName = state.user.name;
+    msg.text = text;
+    state.lobby.chatMessages.push_back(msg);
 }
 
 // Connect to the Relay server and start the game
@@ -1750,6 +1871,7 @@ void app_cancelLobby()
 
     pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
     pBCWrapper->getRTTService()->disableRTT();
+    s_rttConnecting = false; // callbacks just deregistered — nothing will clear this otherwise
 
     // Reset state but keep user, app config, and geo test results
     User user = state.user;
@@ -1780,6 +1902,7 @@ void app_closeGame()
     pBCWrapper->getRelayService()->disconnect();
     pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
     pBCWrapper->getRTTService()->disableRTT();
+    s_rttConnecting = false; // callbacks just deregistered — nothing will clear this otherwise
 
     // Reset state but keep user, app config, and geo test results
     User user = state.user;

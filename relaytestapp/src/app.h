@@ -51,6 +51,13 @@ void app_play(BrainCloud::eRelayConnectionType protocol);
 // MainMenu screen is reached; no-ops if RTT is already connected).
 void app_enableChatRTT();
 
+// Sends a chat message to everyone in the current lobby, via Lobby service signals.
+void app_sendLobbySignal(const std::string &text);
+
+// Fetches this player's own worldwide rank (coverage leaderboard) and shares it via
+// the lobby's extra field. Safe to call repeatedly.
+void app_fetchWorldwideRank();
+
 // Cancel lobby search or leave lobby. Go back to main menu without logging out.
 void app_cancelLobby();
 

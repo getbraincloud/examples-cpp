@@ -155,6 +155,15 @@ struct User
     Point pos = {0, 0};
     std::map<std::string, int> pings; /* per-region ping data shared via lobby extra */
     int activePing = -1;              /* live relay RTT broadcast during gameplay (ms); -1 = not yet received */
+    int worldwideRank = -1;           /* this player's own rank on the coverage leaderboard, shared via lobby extra; -1 = unknown/no score yet */
+};
+
+// A chat message — used for both the global (brainCloud Chat service) channel and
+// this-lobby (Lobby service SendSignal) chat.
+struct ChatMessage
+{
+    std::string fromName;
+    std::string text;
 };
 
 // Lobby
@@ -164,6 +173,8 @@ struct Lobby
     std::string ownerCxId;
     std::string regionId; /* region extracted from lobbyId prefix (e.g. "na-east") */
     std::vector<User> members;
+    std::vector<ChatMessage> chatMessages;                        /* this-lobby chat, via SendSignal — resets whenever Lobby is reset (state.lobby = Lobby()) */
+    std::chrono::steady_clock::time_point arrivalTime;            /* when we entered this lobby, for the INFO tab's "time in lobby" */
 };
 
 // Server info

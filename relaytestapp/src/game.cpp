@@ -60,9 +60,16 @@ static void drawScoreboardSidebar(long long nowMs)
         ImGuiWindowFlags_NoCollapse |
         ImGuiWindowFlags_NoSavedSettings);
 
+    // Bounded + ImGuiTableFlags_ScrollY so a full 40-player lobby scrolls the BODY
+    // only, with the RANK/PLAYER/COVERAGE header frozen at the top (TableSetup-
+    // ScrollFreeze below) — a plain unbounded table would instead scroll the whole
+    // sidebar window, taking the header out of view with it.
+    ImVec2 tableSize(0.0f, ImGui::GetContentRegionAvail().y);
     if (ImGui::BeginTable("scoreboard_table", 2,
-            ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_RowBg))
+            ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_RowBg | ImGuiTableFlags_ScrollY,
+            tableSize))
     {
+        ImGui::TableSetupScrollFreeze(0, 1); // keep the header row visible while the body scrolls
         ImGui::TableSetupColumn("RANK / PLAYER", ImGuiTableColumnFlags_WidthStretch, 0.68f);
         ImGui::TableSetupColumn("COVERAGE", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_IndentDisable, 0.32f);
         ImGui::TableHeadersRow();
@@ -129,7 +136,11 @@ static void drawScoreboardSidebar(long long nowMs)
 // which the reference mockup keeps clean.
 static void drawDebugPanel()
 {
-    ImGui::SetNextWindowPos(ImVec2((float)width - 8.0f, (float)height - 8.0f), ImGuiCond_FirstUseEver, ImVec2(1.0f, 1.0f));
+    // ImGuiCond_Always (not FirstUseEver) — otherwise this only snaps to the
+    // bottom-right corner the very first time it's shown, and just stays wherever
+    // it was on every subsequent frame, drifting out of place (or off-screen) if
+    // the window gets resized afterward.
+    ImGui::SetNextWindowPos(ImVec2((float)width - 8.0f, (float)height - 8.0f), ImGuiCond_Always, ImVec2(1.0f, 1.0f));
     ImGui::Begin("Debug", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
 
     if (!state.lobby.regionId.empty())
@@ -178,23 +189,33 @@ void game_update()
     drawScoreboardSidebar(nowMs);
     drawDebugPanel();
 
-    // Main game window, centered in the area to the right of the sidebar
+    // Main game window, filling the area to the right of the sidebar — the canvas
+    // auto-fits to whatever space is actually available (preserving the CANVAS_W:
+    // CANVAS_H aspect ratio) instead of rendering at a fixed pixel size that floats
+    // in the middle of a larger window with dead space around it. The Scale menu
+    // (0.25x/0.5x/1x) is now a ceiling on top of that auto-fit, not the primary
+    // size driver — still useful for deliberately forcing a smaller view, but it
+    // can no longer make the canvas bigger than the window actually has room for.
     {
-        float gameWidth = CANVAS_W;
-        float gameHeight = CANVAS_H;
-        float scale = 1.0f;
-        if (settings.gameUIIScale == 0)
-        {
-            scale = 0.25f;
-        }
-        if (settings.gameUIIScale == 1)
-        {
-            scale = 0.5f;
-        }
-        gameWidth *= scale;
-        gameHeight *= scale;
         float rightAreaX = SIDEBAR_WIDTH;
         float rightAreaW = (float)width - SIDEBAR_WIDTH;
+        float rightAreaH = (float)height - ImGui::GetFrameHeight();
+
+        const float PAD = 24.0f;      // window chrome + margin around the canvas
+        const float HEADER_H = 56.0f; // timer/ping row drawn above the canvas
+        float availW = std::max(100.0f, rightAreaW - PAD * 2.0f);
+        float availH = std::max(100.0f, rightAreaH - PAD * 2.0f - HEADER_H);
+
+        float autoScale = std::min(availW / CANVAS_W, availH / CANVAS_H);
+        float scaleCap = 1.0f;
+        if (settings.gameUIIScale == 0)
+            scaleCap = 0.25f;
+        else if (settings.gameUIIScale == 1)
+            scaleCap = 0.5f;
+        float scale = std::min(autoScale, scaleCap);
+
+        float gameWidth = CANVAS_W * scale;
+        float gameHeight = CANVAS_H * scale;
         ImGui::SetNextWindowPos(ImVec2(
             rightAreaX + rightAreaW / 2.0f - gameWidth / 2.0f,
             (float)height / 2.0f - gameHeight / 2.0f));
@@ -323,12 +344,15 @@ void game_update()
                 {
                     long long ageSec = (nowMs - splotch.startTimeMs) / 1000LL;
 
-                    float alpha = 0.55f;
+                    // Opaque — matches the cross-client standard documented for this shared
+                    // splotch art (CLAUDE.md: "opaque, multiplied by the player colour");
+                    // CPP was the one client still rendering these semi-transparent.
+                    float alpha = 1.0f;
                     if (state.splotchDurationSec > 0)
                     {
                         long long remaining = (long long)state.splotchDurationSec - ageSec;
                         if (remaining <= 3)
-                            alpha *= (float)remaining / 3.0f;
+                            alpha *= (float)remaining / 3.0f; // still fade out right before expiry
                     }
 
                     auto base = getColor(splotch.colorIndex % colorCount());
