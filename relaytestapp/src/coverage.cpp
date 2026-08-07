@@ -42,66 +42,25 @@ std::vector<CoverageEntry> computeCoverage(const std::vector<Splotch> &splotches
     const int N = (int)splotches.size();
     if (N > 0)
     {
-        // Uniform grid over the canvas, cell size = obscure-check neighborhood unit.
-        // Only a 3x3 cell neighborhood can contain a splotch within SPLOTCH_RADIUS,
-        // since SPLOTCH_RADIUS == cell size / 2.
-        const float CELL = SPLOTCH_DISPLAY_SIZE;
-        const int gridW = (int)(CANVAS_W / CELL) + 2;
-        const int gridH = (int)(CANVAS_H / CELL) + 2;
-        std::vector<std::vector<int>> grid(gridW * gridH);
+        // Ownership grid: each cell records which player (by result[] index) most
+        // recently painted over it. Splotches are stamped in paint order (a filled circle
+        // of radius SPLOTCH_RADIUS), so a later splotch always overwrites an earlier one
+        // wherever they overlap — exactly matching what's rendered on screen (paint order
+        // = draw order = "last one wins"). -1 = unpainted, or painted by something that
+        // couldn't be attributed to any current member (still overwrites the grid, so it
+        // correctly obscures whoever was there before, it just credits no one).
+        const float CELL = COVERAGE_GRID_CELL_SIZE;
+        const int gridW = (int)(CANVAS_W / CELL);
+        const int gridH = (int)(CANVAS_H / CELL);
 
-        auto cellX = [&](int x) {
-            int cx = (int)(x / CELL);
-            return std::max(0, std::min(gridW - 1, cx));
-        };
-        auto cellY = [&](int y) {
-            int cy = (int)(y / CELL);
-            return std::max(0, std::min(gridH - 1, cy));
-        };
+        static std::vector<int> owner; // reused across calls (this runs every ~250ms mid-match)
+        owner.assign((size_t)gridW * gridH, -1);
 
-        const int R2 = (int)(SPLOTCH_RADIUS * SPLOTCH_RADIUS); // strict '<' obscure radius, squared
-        std::vector<bool> visible(N, true);
-
-        // Sweep last-painted -> first. The grid at step i contains only splotches
-        // painted AFTER i (i.e. "on top" of it), which is exactly what "visible on
-        // the top layer" needs to check against.
-        for (int i = N - 1; i >= 0; --i)
-        {
-            const Splotch &s = splotches[i];
-            int cx = cellX(s.pos.x);
-            int cy = cellY(s.pos.y);
-            bool obscured = false;
-
-            for (int dy = -1; dy <= 1 && !obscured; ++dy)
-            {
-                int ny = cy + dy;
-                if (ny < 0 || ny >= gridH) continue;
-                for (int dx = -1; dx <= 1; ++dx)
-                {
-                    int nx = cx + dx;
-                    if (nx < 0 || nx >= gridW) continue;
-                    const auto &cell = grid[nx + ny * gridW];
-                    for (int j : cell)
-                    {
-                        int ddx = splotches[j].pos.x - s.pos.x;
-                        int ddy = splotches[j].pos.y - s.pos.y;
-                        if (ddx * ddx + ddy * ddy < R2)
-                        {
-                            obscured = true;
-                            break;
-                        }
-                    }
-                    if (obscured) break;
-                }
-            }
-
-            visible[i] = !obscured;
-            grid[cx + cy * gridW].push_back(i);
-        }
+        const float R2 = SPLOTCH_RADIUS * SPLOTCH_RADIUS;
+        const int cellRadius = (int)std::ceil(SPLOTCH_RADIUS / CELL);
 
         for (int i = 0; i < N; ++i)
         {
-            if (!visible[i]) continue;
             const Splotch &s = splotches[i];
 
             int idx = -1;
@@ -124,15 +83,39 @@ std::vector<CoverageEntry> computeCoverage(const std::vector<Splotch> &splotches
                     }
                 }
             }
+
+            int cx = (int)(s.pos.x / CELL);
+            int cy = (int)(s.pos.y / CELL);
+            for (int dy = -cellRadius; dy <= cellRadius; ++dy)
+            {
+                int gy = cy + dy;
+                if (gy < 0 || gy >= gridH) continue;
+                float py = (gy + 0.5f) * CELL;
+                float ddy = py - (float)s.pos.y;
+                for (int dx = -cellRadius; dx <= cellRadius; ++dx)
+                {
+                    int gx = cx + dx;
+                    if (gx < 0 || gx >= gridW) continue;
+                    float px = (gx + 0.5f) * CELL;
+                    float ddx = px - (float)s.pos.x;
+                    if (ddx * ddx + ddy * ddy <= R2)
+                        owner[gx + gy * gridW] = idx; // may be -1 — still overwrites, credits no one
+                }
+            }
+        }
+
+        for (int c = 0, count = gridW * gridH; c < count; ++c)
+        {
+            int idx = owner[c];
             if (idx >= 0)
                 result[idx].visibleCount++;
         }
     }
 
-    const float splotchArea = 3.14159265f * SPLOTCH_RADIUS * SPLOTCH_RADIUS;
+    const float cellArea = COVERAGE_GRID_CELL_SIZE * COVERAGE_GRID_CELL_SIZE;
     const float canvasArea = CANVAS_W * CANVAS_H;
     for (auto &e : result)
-        e.coveragePct = std::min(100.0f, e.visibleCount * splotchArea / canvasArea * 100.0f);
+        e.coveragePct = std::min(100.0f, e.visibleCount * cellArea / canvasArea * 100.0f);
 
     std::sort(result.begin(), result.end(), [](const CoverageEntry &a, const CoverageEntry &b) {
         if (a.coveragePct != b.coveragePct) return a.coveragePct > b.coveragePct;

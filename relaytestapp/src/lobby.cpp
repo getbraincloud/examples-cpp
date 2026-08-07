@@ -176,6 +176,14 @@ static void drawLobbyMembersPanel(float x, float y)
             if (elapsed >= std::chrono::milliseconds(1500))
                 app_startGame();
         }
+        else if (state.awaitingRematch)
+        {
+            // Rematch flow is fully automatic (app_tickRematchGate, ticked above) — no
+            // manual override here, so a host who returns early can't skip the "wait for
+            // stragglers or 15s" window the user asked for.
+            ImGui::SameLine();
+            ImGui::TextDisabled("Waiting for other players to return...");
+        }
         else
         {
             ImGui::SameLine();
@@ -384,9 +392,31 @@ static void drawLobbyInfoTab(float x, float y, float w, float h)
     ImGui::End();
 }
 
+// Small non-blocking status line shown while a round is being provisioned (STARTING ->
+// ROOM_READY) — the Lobby screen (chat, member list, etc.) stays fully usable underneath
+// it instead of being replaced by a blocking loading/cancel screen (BCLOUD-14489 follow-up).
+static void drawProvisioningBanner()
+{
+    if (!state.isProvisioning) return;
+
+    ImGui::SetNextWindowPos(ImVec2((float)width / 2.0f, ImGui::GetFrameHeight() + 8.0f), ImGuiCond_Always, ImVec2(0.5f, 0.0f));
+    ImGui::SetNextWindowBgAlpha(0.75f);
+    ImGui::Begin("##provisioning_banner", nullptr,
+        ImGuiWindowFlags_NoDecoration |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoSavedSettings |
+        ImGuiWindowFlags_AlwaysAutoResize);
+    ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.4f, 1.0f), "Starting round... %s", state.provisioningStatus.c_str());
+    ImGui::End();
+}
+
 // Draws the lobby screen and updates its logic.
 void lobby_update()
 {
+    // Keeps the host's auto-rematch decision progressing even after the host itself has
+    // already returned here from the Match Summary screen while other players haven't yet.
+    app_tickRematchGate();
+
     float totalWidth = LOBBY_LEFT_WIDTH + LOBBY_GAP + LOBBY_RIGHT_WIDTH;
     float startX = (float)width / 2.0f - totalWidth / 2.0f;
     float y = (float)height / 2.0f - LOBBY_PANEL_HEIGHT / 2.0f;
@@ -394,6 +424,7 @@ void lobby_update()
 
     drawLobbyMembersPanel(startX, y);
     drawLobbyRightTabs(rightX, y);
+    drawProvisioningBanner();
 
     switch (s_lobbyRightTab)
     {

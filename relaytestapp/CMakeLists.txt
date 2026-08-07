@@ -77,6 +77,8 @@ list(APPEND src_files
     src/leaderboardPanel.h
     src/lobby.cpp
     src/lobby.h
+    src/matchSummary.cpp
+    src/matchSummary.h
     src/login.cpp
     src/login.h
     src/loading.cpp

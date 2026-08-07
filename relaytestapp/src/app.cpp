@@ -25,6 +25,7 @@
 #include "globals.h"
 #include "loading.h"
 #include "lobby.h"
+#include "matchSummary.h"
 #include "login.h"
 #include "mainMenu.h"
 #include "BCCallback.h"
@@ -69,15 +70,22 @@ static void sendGameStartToMask(uint64_t playerMask);
 static void sendSplotchSyncToMask(uint64_t mask);
 static void sendMatchResultToMask(uint64_t mask, int round, const std::vector<CoverageEntry> &coverage);
 static std::vector<MatchResultEntry> toMatchResultEntries(const std::vector<CoverageEntry> &coverage);
-static void postMatchScores(const MatchResultEntry &mine);
+static void postMatchScoresAndComputeDeltas(const MatchResultEntry &mine);
 static void applyMatchResult(int round, const std::vector<MatchResultEntry> &entries);
 static void onRelayConnected();
+static void sendLeaderboardDeltaToMask(uint64_t mask, const LeaderboardDelta &delta);
 
 static bool isDisconnecting = false;
 
 // Chunk accumulator for the in-progress "match_result" reassembly (see onRelayMessage).
 // Reset on "first":true and whenever a new round starts (onRelayConnected).
 static std::vector<MatchResultEntry> s_pendingMatchResult;
+
+// A player's "lb_result" can arrive before match_result has populated state.matchResult.
+// entries for this round (they're broadcast by different senders on different channels,
+// so relative ordering isn't guaranteed) — buffered here by cxId and drained into the
+// matching entry as soon as applyMatchResult() sets entries. Reset every round.
+static std::map<std::string, LeaderboardDelta> s_pendingLbResults;
 
 // Incremented on every app_play() call. Each ping-flow lambda captures this value and
 // checks it before acting — stale callbacks from a previous session are silently dropped.
@@ -148,7 +156,7 @@ public:
     void relayConnectSuccess(const std::string &jsonResponse) override
     {
         printf("[%d][DEBUG] Relay connect SUCCESS\n", settings.instanceIndex);
-        loading_status = "";
+        state.isProvisioning = false;
         state.screenState = ScreenState::Game;
         onRelayConnected();
     }
@@ -767,13 +775,19 @@ static void sendMatchResultToMask(uint64_t mask, int round, const std::vector<Co
         currentSize = ENVELOPE_OVERHEAD;
     };
 
+    // Identifies each entry by cxId directly, NOT a relay netId. This used to resolve
+    // c.cxId -> netId here and skip the entry entirely if that failed ("no longer
+    // connected") — but that resolution is unreliable enough in practice (root cause not
+    // fully nailed down) that it was silently dropping players who were still genuinely in
+    // the match, which is how a real 4-player match_result ended up being received as a
+    // single entry by everyone. match_result is a single small once-per-round broadcast,
+    // so the extra bytes of a full cxId per entry cost nothing — there's no reason to
+    // depend on netId resolution for this at all when we already know every member's cxId
+    // from state.lobby.members.
     for (const auto &c : coverage)
     {
-        int netId = pBCWrapper->getRelayService()->getNetIdForCxId(c.cxId);
-        if (netId < 0 || netId >= MAX_LOBBY_MEMBERS) continue; // no longer connected — skip
-
         Json::Value entry;
-        entry["n"] = netId;
+        entry["cx"] = c.cxId;
         entry["r"] = c.rank;
         entry["c"] = (int)(c.coveragePct * 100.0f + 0.5f); // basis points, 0-10000
         entry["b"] = c.beaten;
@@ -804,14 +818,145 @@ static std::vector<MatchResultEntry> toMatchResultEntries(const std::vector<Cove
     return out;
 }
 
-// Posts this client's own final standing to the four leaderboards. Coverage score is
-// basis points (0-10000) so the portal isn't stuck with float scores; points score is
-// "players beaten" + a flat completion bonus (so a solo match — 0 beaten — still posts 1,
-// per the ticket: "+1 bonus point for completing a game").
-static void postMatchScores(const MatchResultEntry &mine)
+// Broadcasts this client's own computed leaderboard movement to the rest of the match.
+// Small and never chunked (four small before/after rank pairs, nowhere near the ~900
+// byte budget splotch_sync/match_result have to worry about).
+static void sendLeaderboardDeltaToMask(uint64_t mask, const LeaderboardDelta &delta)
 {
-    int basisPoints = (int)(mine.coveragePct * 100.0f + 0.5f);
-    int points = mine.beaten + 1;
+    if (mask == 0) return;
+    int netId = pBCWrapper->getRelayService()->getNetIdForCxId(state.user.cxId);
+    if (netId < 0 || netId >= MAX_LOBBY_MEMBERS) return;
+
+    Json::Value json;
+    json["op"] = "lb_result";
+    json["data"]["n"] = netId;
+
+    auto putPeriod = [&](const char *key, const LeaderboardPeriodDelta &pd)
+    {
+        if (!pd.improved) return; // absent key == "no change" on receipt
+        json["data"][key]["b"] = pd.rankBefore;
+        json["data"][key]["a"] = pd.rankAfter;
+    };
+    putPeriod("pl", delta.pointsLifetime);
+    putPeriod("pq", delta.pointsQuarterly);
+    putPeriod("cl", delta.coverageLifetime);
+    putPeriod("cq", delta.coverageQuarterly);
+
+    Json::FastWriter writer;
+    auto str = writer.write(json);
+    pBCWrapper->getRelayService()->sendToPlayers(
+        (const uint8_t *)str.data(), (int)str.length(),
+        mask,
+        true, // reliable
+        true, // ordered
+        (BrainCloud::eRelayChannel)0);
+}
+
+// Writes this client's own finished delta into its match_result entry (no relay round
+// trip needed for yourself) and shares it with everyone else in the match.
+static void applyLeaderboardDeltaSelf(const LeaderboardDelta &delta)
+{
+    for (auto &e : state.matchResult.entries)
+    {
+        if (e.cxId == state.user.cxId)
+        {
+            e.lbDelta = delta;
+            break;
+        }
+    }
+    sendLeaderboardDeltaToMask(getPlayerMask(), delta);
+}
+
+// One board's full before -> post -> after chain. Fetches the player's current rank/score
+// on leaderboardId (GetGlobalLeaderboardView with before/afterCount 0 is the documented way
+// to get just the caller's own entry), posts the new score, then re-fetches to see what
+// actually stuck. isPersonalBestStyle selects what "improved" means:
+//   - coverage boards (kept-best score): improved = this score beat the previous best.
+//     Posting a LOWER coverage than your best is a no-op server-side, so comparing scores
+//     is the only reliable signal — rank alone could move for reasons unrelated to this
+//     round (other players posting later).
+//   - points boards (cumulative score): every post raises the score, so "did the score
+//     increase" is always true and useless; the real signal is whether RANK improved.
+// Either way rankBefore/rankAfter are captured for display regardless of which one gates
+// the badge — the summary screen's "Personal best" badge still shows a rank movement.
+static void chainLeaderboardBoard(
+    const std::string &leaderboardId, int64_t score, const std::string &otherDataStr,
+    bool isPersonalBestStyle,
+    std::shared_ptr<LeaderboardPeriodDelta> outDelta,
+    std::shared_ptr<int> remaining,
+    std::function<void()> finalize)
+{
+    if (leaderboardId.empty())
+    {
+        if (--(*remaining) == 0) finalize();
+        return;
+    }
+
+    auto onDone = [=]() { if (--(*remaining) == 0) finalize(); };
+
+    pBCWrapper->getSocialLeaderboardService()->getGlobalLeaderboardView(
+        leaderboardId.c_str(), BrainCloud::HIGH_TO_LOW, 0, 0,
+        new BCCallback(
+            [=](const Json::Value &beforeResult)
+            {
+                const auto &beforeArr = beforeResult["data"]["leaderboard"];
+                int rankBefore = -1;
+                int64_t scoreBefore = -1;
+                if (!beforeArr.empty())
+                {
+                    rankBefore = beforeArr[0]["rank"].asInt();
+                    scoreBefore = beforeArr[0]["score"].asInt64();
+                }
+
+                pBCWrapper->getSocialLeaderboardService()->postScoreToLeaderboard(
+                    leaderboardId.c_str(), score, otherDataStr,
+                    new BCCallback(
+                        [=](const Json::Value &)
+                        {
+                            pBCWrapper->getSocialLeaderboardService()->getGlobalLeaderboardView(
+                                leaderboardId.c_str(), BrainCloud::HIGH_TO_LOW, 0, 0,
+                                new BCCallback(
+                                    [=](const Json::Value &afterResult)
+                                    {
+                                        const auto &afterArr = afterResult["data"]["leaderboard"];
+                                        int rankAfter = -1;
+                                        int64_t scoreAfter = -1;
+                                        if (!afterArr.empty())
+                                        {
+                                            rankAfter = afterArr[0]["rank"].asInt();
+                                            scoreAfter = afterArr[0]["score"].asInt64();
+                                        }
+                                        outDelta->rankBefore = rankBefore;
+                                        outDelta->rankAfter = rankAfter;
+                                        outDelta->improved = isPersonalBestStyle
+                                            ? (scoreBefore < 0 || scoreAfter > scoreBefore)
+                                            : (rankAfter > 0 && (rankBefore < 0 || rankAfter < rankBefore));
+                                        onDone();
+                                    },
+                                    [=](const std::string &) { outDelta->rankBefore = rankBefore; onDone(); }));
+                        },
+                        [=](const std::string &) { onDone(); }));
+            },
+            [=](const std::string &)
+            {
+                // Before-fetch failed — still try to post so the score isn't lost, just
+                // without a delta to show (rankBefore/After stay -1, improved stays false).
+                pBCWrapper->getSocialLeaderboardService()->postScoreToLeaderboard(
+                    leaderboardId.c_str(), score, otherDataStr,
+                    new BCCallback([=](const Json::Value &) { onDone(); },
+                                    [=](const std::string &) { onDone(); }));
+            }));
+}
+
+// Posts this client's own final standing to the four leaderboards, and computes/shares
+// how that changed its own rank on each of them (BCLOUD-14489's Match Summary screen).
+// Coverage score is basis points (0-10000) so the portal isn't stuck with float scores;
+// points score is "players beaten" + a flat completion bonus (so a solo match — 0 beaten
+// — still posts 1, per the ticket: "+1 bonus point for completing a game").
+static void postMatchScoresAndComputeDeltas(const MatchResultEntry &mine)
+{
+    int64_t basisPoints = (int64_t)(mine.coveragePct * 100.0f + 0.5f);
+    int64_t points = mine.beaten + 1;
 
     Json::Value otherData;
     otherData["round"] = state.roundNumber;
@@ -823,18 +968,27 @@ static void postMatchScores(const MatchResultEntry &mine)
     Json::FastWriter writer;
     auto otherDataStr = writer.write(otherData);
 
-    auto postTo = [&](const std::string &leaderboardId, int64_t score)
+    auto pointsLifetime = std::make_shared<LeaderboardPeriodDelta>();
+    auto pointsQuarterly = std::make_shared<LeaderboardPeriodDelta>();
+    auto coverageLifetime = std::make_shared<LeaderboardPeriodDelta>();
+    auto coverageQuarterly = std::make_shared<LeaderboardPeriodDelta>();
+    auto remaining = std::make_shared<int>(4);
+
+    auto finalize = [pointsLifetime, pointsQuarterly, coverageLifetime, coverageQuarterly]()
     {
-        if (leaderboardId.empty()) return;
-        pBCWrapper->getSocialLeaderboardService()->postScoreToLeaderboard(
-            leaderboardId.c_str(), score, otherDataStr,
-            new BCCallback([](const Json::Value &) {}, [](const std::string &) {}));
+        LeaderboardDelta delta;
+        delta.ready = true;
+        delta.pointsLifetime = *pointsLifetime;
+        delta.pointsQuarterly = *pointsQuarterly;
+        delta.coverageLifetime = *coverageLifetime;
+        delta.coverageQuarterly = *coverageQuarterly;
+        applyLeaderboardDeltaSelf(delta);
     };
 
-    postTo(state.coverageLeaderboardId, basisPoints);
-    postTo(state.coverageLeaderboardIdQuarterly, basisPoints);
-    postTo(state.pointsLeaderboardId, points);
-    postTo(state.pointsLeaderboardIdQuarterly, points);
+    chainLeaderboardBoard(state.pointsLeaderboardId, points, otherDataStr, false, pointsLifetime, remaining, finalize);
+    chainLeaderboardBoard(state.pointsLeaderboardIdQuarterly, points, otherDataStr, false, pointsQuarterly, remaining, finalize);
+    chainLeaderboardBoard(state.coverageLeaderboardId, basisPoints, otherDataStr, true, coverageLifetime, remaining, finalize);
+    chainLeaderboardBoard(state.coverageLeaderboardIdQuarterly, basisPoints, otherDataStr, true, coverageQuarterly, remaining, finalize);
 }
 
 // Applies an authoritative coverage snapshot for a round — either a locally-computed one
@@ -853,6 +1007,18 @@ static void applyMatchResult(int round, const std::vector<MatchResultEntry> &ent
     state.matchResult.round = round;
     state.matchResult.entries = entries;
 
+    // Drain any "lb_result" broadcasts that arrived before this round's match_result did
+    // (different senders, no relative ordering guarantee between them — see s_pendingLbResults).
+    for (auto &e : state.matchResult.entries)
+    {
+        auto it = s_pendingLbResults.find(e.cxId);
+        if (it != s_pendingLbResults.end())
+        {
+            e.lbDelta = it->second;
+            s_pendingLbResults.erase(it);
+        }
+    }
+
     if (state.leaderboardPostedRound == round)
         return;
     state.leaderboardPostedRound = round;
@@ -861,7 +1027,7 @@ static void applyMatchResult(int round, const std::vector<MatchResultEntry> &ent
     {
         if (e.cxId == state.user.cxId)
         {
-            postMatchScores(e);
+            postMatchScoresAndComputeDeltas(e);
             break;
         }
     }
@@ -965,6 +1131,9 @@ static void onRelayConnected()
     state.coverageComputedGen = (unsigned long long)-1;
     state.resultsSentAtMs = 0;
     s_pendingMatchResult.clear();
+    s_pendingLbResults.clear();
+    state.awaitingRematch = false;
+    state.isProvisioning = false;
 
     // Auto geo test: relay connect confirms the region is reachable.
     // Record the connect time; app_update() disconnects after a 2.5s soak.
@@ -1046,7 +1215,26 @@ static void onRelaySystemMessage(const Json::Value &json)
         state.splotches.clear();
         ++state.splotchGeneration;
         state.gameStartTime = 0;
-        state.screenState = ScreenState::Lobby;
+
+        // CursorParty rounds get the full Match Summary + rematch-queue screen
+        // (BCLOUD-14489); every other lobby type (geo test, RoomServer, etc.) keeps the
+        // old behavior of dropping straight back to the plain Lobby screen — they never
+        // populate state.matchResult with anything meaningful for this screen to show.
+        if (isCursorPartyLobby(settings.lobbyType) && !settings.autoGeoTest)
+        {
+            state.screenState = ScreenState::MatchSummary;
+            state.matchSummaryArrivalTime = std::chrono::steady_clock::now();
+            state.awaitingRematch = true;
+            // Actually clear readiness server-side too, not just the local mirror above —
+            // otherwise the "Queue for Rematch N/M" count starts from whatever everyone's
+            // pre-match ready state still was, since nothing else resets it here.
+            pBCWrapper->getLobbyService()->updateReady(
+                state.lobby.lobbyId, false, buildExtraJson());
+        }
+        else
+        {
+            state.screenState = ScreenState::Lobby;
+        }
 
         // Defer relay disconnect — cannot safely call deregister/disconnect from inside a relay callback
         state.pendingEndMatch = true;
@@ -1133,9 +1321,8 @@ static void onRelayMessage(int netId, const Json::Value &json)
 
                     for (const auto &entry : json["data"]["e"])
                     {
-                        const auto &entryCxId = pBCWrapper->getRelayService()->getCxIdForNetId(entry["n"].asInt());
                         MatchResultEntry mre;
-                        mre.cxId        = entryCxId;
+                        mre.cxId        = entry["cx"].asString();
                         mre.rank        = entry["r"].asInt();
                         mre.coveragePct = entry["c"].asInt() / 100.0f; // basis points -> %
                         mre.beaten      = entry["b"].asInt();
@@ -1148,6 +1335,39 @@ static void onRelayMessage(int netId, const Json::Value &json)
                         s_pendingMatchResult.clear();
                     }
                 }
+            }
+            else if (op == "lb_result")
+            {
+                // Each player's own leaderboard rank movement, broadcast once they've
+                // finished computing it (see postMatchScoresAndComputeDeltas). Can arrive
+                // before this round's match_result has populated state.matchResult.entries
+                // — buffer by cxId in that case (drained in applyMatchResult).
+                LeaderboardDelta delta;
+                delta.ready = true;
+                auto readPeriod = [&](const char *key, LeaderboardPeriodDelta &pd)
+                {
+                    if (!json["data"].isMember(key)) return; // absent == "no change" for that period
+                    pd.improved = true;
+                    pd.rankBefore = json["data"][key]["b"].asInt();
+                    pd.rankAfter = json["data"][key]["a"].asInt();
+                };
+                readPeriod("pl", delta.pointsLifetime);
+                readPeriod("pq", delta.pointsQuarterly);
+                readPeriod("cl", delta.coverageLifetime);
+                readPeriod("cq", delta.coverageQuarterly);
+
+                bool applied = false;
+                for (auto &e : state.matchResult.entries)
+                {
+                    if (e.cxId == member.cxId)
+                    {
+                        e.lbDelta = delta;
+                        applied = true;
+                        break;
+                    }
+                }
+                if (!applied)
+                    s_pendingLbResults[member.cxId] = delta;
             }
             else if (op == "game_start")
             {
@@ -1398,6 +1618,9 @@ void app_update()
         break;
     case ScreenState::Game:
         game_update();
+        break;
+    case ScreenState::MatchSummary:
+        matchSummary_update();
         break;
     }
 
@@ -1707,11 +1930,13 @@ static void onLobbyEvent(const Json::Value &eventJson)
         settings.colorIndex = state.user.colorIndex;
         saveConfigs();
 
-        // Go to loading screen; reset timer so it counts from provisioning start
-        state.screenState = ScreenState::Starting;
-        loading_text = "Starting...";
-        loading_reset_timer();
-        loading_status = "Provisioning server...";
+        // Stay on whatever screen we're already on (Lobby, normally) — chat and the rest
+        // of the lobby UI keep working through the whole provisioning sequence instead of
+        // being replaced by a blocking loading/cancel screen. isProvisioning just drives a
+        // small inline status line (see lobby.cpp); the actual screen change to Game only
+        // happens once relay truly connects (RelayConnectCallback::relayConnectSuccess).
+        state.isProvisioning = true;
+        state.provisioningStatus = "Provisioning server...";
     }
     else if (operation == "ROOM_PROGRESS")
     {
@@ -1720,15 +1945,15 @@ static void onLobbyEvent(const Json::Value &eventJson)
         const auto &msg = jsonData["msg"].asString();
         char buf[128];
         snprintf(buf, sizeof(buf), "%d/%d: %s", curStep, ofStep, msg.c_str());
-        loading_status = buf;
+        state.provisioningStatus = buf;
     }
     else if (operation == "ROOM_ASSIGNED")
     {
-        loading_status = "Server assigned...";
+        state.provisioningStatus = "Server assigned...";
     }
     else if (operation == "ROOM_READY")
     {
-        loading_status = "Connecting...";
+        state.provisioningStatus = "Connecting...";
         state.server = parseServer(jsonData);
 
         // Record which region was actually launched for the geo test.
@@ -1807,8 +2032,8 @@ void app_sendLobbySignal(const std::string &text)
 // Connect to the Relay server and start the game
 static void startGame()
 {
-    state.screenState = ScreenState::Starting;
-
+    // No screenState change here — we're already sitting on Lobby (or wherever the STARTING
+    // event's isProvisioning banner started rendering) the whole way through to Game.
     pBCWrapper->getRelayService()->registerRelayCallback(&bcRelayCallback);
     pBCWrapper->getRelayService()->registerSystemCallback(&bcRelaySystemCallback);
 
@@ -1924,17 +2149,62 @@ void app_closeGame()
     app_enableChatRTT(); // RTT was just disabled above — re-enable it for main-menu chat
 }
 
-// Ready up and signals RTT service we can start the game
+// Ready up and signals RTT service we can start the game. Stays on whatever screen the
+// caller is already on (Lobby) — the STARTING lobby event that follows drives the
+// non-blocking provisioning banner, not a screen change (see onLobbyEvent).
 void app_startGame()
 {
     state.user.isReady = true;
-    state.screenState = ScreenState::Starting;
-    loading_text = "Starting...";
-    loading_reset_timer();
+    state.awaitingRematch = false; // in case this was called by the rematch gate below
     pBCWrapper->getLobbyService()->updateReady(
         state.lobby.lobbyId,
         state.user.isReady,
         buildExtraJson());
+}
+
+// Marks this player as queued for a rematch AND takes them back to the Lobby screen —
+// called both from the Match Summary screen's "Queue for Rematch" button and from its own
+// per-player 15s auto-timeout (matchSummary_update()), so either path looks identical from
+// here on: the player sits in the Lobby (chatting, etc.) waiting for app_tickRematchGate()
+// below to actually start the next round.
+void app_setRematchReady(bool ready)
+{
+    state.user.isReady = ready;
+    if (ready)
+        state.screenState = ScreenState::Lobby;
+    pBCWrapper->getLobbyService()->updateReady(
+        state.lobby.lobbyId, ready, buildExtraJson());
+}
+
+// Host-only gate on starting the next round: waits until every current lobby member has
+// queued for a rematch (each auto-queues themselves within MATCH_SUMMARY_REMATCH_MS at the
+// latest — see matchSummary.cpp — so this is mostly a safety net against clock skew between
+// clients) OR that same deadline elapses regardless, whichever comes first. Once satisfied,
+// calls the exact app_startGame() that already starts every round — no separate "begin
+// round 2" mechanism needed. Non-host clients just display the shared countdown/count and
+// wait for the resulting STARTING lobby event like they already do for the very first
+// round. isHost is re-evaluated every call, so a host migration while some players are
+// still on the Match Summary screen is picked up for free. Called once per frame from both
+// lobby_update() and matchSummary_update() — whichever screen the host itself happens to be
+// on, this still needs to keep evaluating for the other players who haven't returned yet.
+void app_tickRematchGate()
+{
+    if (!state.awaitingRematch) return;
+
+    bool isHost = !state.lobby.ownerCxId.empty() && state.user.cxId == state.lobby.ownerCxId;
+    if (!isHost) return;
+
+    bool allReady = !state.lobby.members.empty();
+    for (const auto &m : state.lobby.members)
+    {
+        if (!m.isReady) { allReady = false; break; }
+    }
+
+    auto elapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - state.matchSummaryArrivalTime).count();
+
+    if (allReady || elapsedMs >= MATCH_SUMMARY_REMATCH_MS)
+        app_startGame();
 }
 
 // User changes his player color

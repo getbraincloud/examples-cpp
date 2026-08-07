@@ -70,6 +70,15 @@ void app_endMatch();
 // Ready up and signals RTT service we can start the game
 void app_startGame();
 
+// Marks this player queued for a rematch and takes them back to the Lobby screen —
+// used by both the Match Summary screen's button and its own auto-timeout.
+void app_setRematchReady(bool ready);
+
+// Host-only: starts the next round once everyone has queued for a rematch, or the
+// 15s auto-rematch timer elapses. Called once per frame from both lobby_update() and
+// matchSummary_update() (whichever screen the host is currently on).
+void app_tickRematchGate();
+
 // User changes his player color
 void app_changeUserColor(int colorIndex);
 

@@ -118,13 +118,23 @@ static constexpr float SPLOTCH_DISPLAY_SIZE = 64.0f;
 // they define the wire-normalized 0..1 coordinate space AND the coverage % denominator.
 static constexpr float CANVAS_W = 800.0f;
 static constexpr float CANVAS_H = 600.0f;
-static constexpr float SPLOTCH_RADIUS = SPLOTCH_DISPLAY_SIZE * 0.5f; // 32 — obscure radius for coverage visibility
+static constexpr float SPLOTCH_RADIUS = SPLOTCH_DISPLAY_SIZE * 0.5f; // 32 — splotch stamp radius for coverage scoring
+
+// computeCoverage()'s ownership-grid cell size in canvas pixels — the resolution at which
+// "who currently owns this bit of the board" is tracked. Small enough (relative to
+// SPLOTCH_RADIUS) that the per-player % is a close read of the actual painted area, not a
+// coarse approximation. All ports should use the same value so scores/behavior match.
+static constexpr float COVERAGE_GRID_CELL_SIZE = 2.0f;
 
 // Match timing (moved here from game.cpp so app_tickMatch() and the HUD can both see them
 // regardless of where the timer widget is drawn).
-static constexpr long long MATCH_DURATION_MS = 90000LL;
+static constexpr long long MATCH_DURATION_MS = 35000LL;
 static constexpr long long RESULT_GRACE_MS = 1000LL;      // delay between match_result broadcast and endMatch()
 static constexpr long long COVERAGE_RECOMPUTE_MS = 250LL; // live-board recompute throttle
+
+// How long the post-match summary screen waits for everyone to queue for a rematch
+// before the host starts the next round anyway (BCLOUD-14489).
+static constexpr long long MATCH_SUMMARY_REMATCH_MS = 45000LL;
 
 // Screen state enum.
 enum class ScreenState : int
@@ -135,7 +145,8 @@ enum class ScreenState : int
     JoiningLobby,
     Lobby, /* Lobby screen */
     Starting,
-    Game /* Game screen */
+    Game, /* Game screen */
+    MatchSummary /* Post-match results + rematch-queue screen (BCLOUD-14489) */
 };
 
 // A point in 2D space
@@ -217,12 +228,36 @@ struct CoverageEntry
 {
     std::string cxId;
     int         colorIndex      = -1;
-    int         visibleCount    = 0;    /* splotches whose center isn't obscured by a later one */
+    int         visibleCount    = 0;    /* ownership-grid cells currently painted by this player (see coverage.h) */
     float       coveragePct     = 0.0f; /* clamped [0,100] */
     int         rank            = 1;    /* 1-based; ties share a rank */
     int         prevRank        = 1;    /* previous recompute's rank, for the rank-swap flash */
     long long   rankChangedAtMs = 0;    /* set when rank last differed from prevRank */
     int         beaten          = 0;    /* players strictly below this one (ties don't count) */
+};
+
+// One leaderboard period's (Lifetime or Quarterly) rank-before/after for a single board.
+// "improved" is the trigger for whether the summary screen shows a badge at all — for
+// the points boards that means the rank got numerically better; for the coverage boards
+// it means this round's score replaced a lower personal best (see postMatchScoresAndComputeDeltas).
+struct LeaderboardPeriodDelta
+{
+    bool improved   = false;
+    int  rankBefore = -1; /* -1 = unranked/no score yet before this round */
+    int  rankAfter  = -1;
+};
+
+// Personal leaderboard-rank movement from posting this round's score, across all four
+// boards. Computed by each client for ITSELF only (there's no API to fetch an arbitrary
+// other player's before/after rank) and broadcast to the rest of the match via the
+// "lb_result" relay op — see postMatchScoresAndComputeDeltas / sendLeaderboardDeltaToMask.
+struct LeaderboardDelta
+{
+    bool ready = false; /* true once this player's own delta has been computed (self) or received (others) */
+    LeaderboardPeriodDelta pointsLifetime;
+    LeaderboardPeriodDelta pointsQuarterly;
+    LeaderboardPeriodDelta coverageLifetime;  /* "improved" = new coverage personal best */
+    LeaderboardPeriodDelta coverageQuarterly;
 };
 
 // One player's entry in a host-broadcast, authoritative match_result.
@@ -232,6 +267,7 @@ struct MatchResultEntry
     int         rank        = 0;
     float       coveragePct = 0.0f;
     int         beaten      = 0;
+    LeaderboardDelta lbDelta; /* filled in asynchronously — see State::matchResult */
 };
 
 // Authoritative snapshot of a finished match's standings, broadcast by the (possibly
@@ -287,6 +323,15 @@ struct State
     long long resultsSentAtMs = 0;               /* when match_result was broadcast, for the grace period */
     MatchResult matchResult;                     /* authoritative result once applied (host or non-host) */
     int leaderboardPostedRound = -1;              /* guards against double-posting the CUMULATIVE points board */
+    std::chrono::steady_clock::time_point matchSummaryArrivalTime; /* when the MatchSummary screen appeared, for the 15s auto-rematch countdown */
+    bool awaitingRematch = false;   /* true from END_MATCH until the next round actually starts — gates app_tickRematchGate() */
+
+    // Non-blocking "starting the next round" feedback (BCLOUD-14489 follow-up): the Lobby
+    // screen stays up (chat/etc. still usable) through the whole STARTING->ROOM_READY
+    // provisioning sequence instead of jumping to a blocking loading/cancel screen; this
+    // is what the Lobby screen renders as a small inline status line while it's true.
+    bool isProvisioning = false;
+    std::string provisioningStatus;
 
     // Leaderboard ids — read from brainCloud global properties in applyLobbyTypes(), same
     // mechanism as AllLobbyTypes/Colours/SplotchDuration. Defaults let the app run before
