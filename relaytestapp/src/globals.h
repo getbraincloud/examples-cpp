@@ -128,7 +128,7 @@ static constexpr float COVERAGE_GRID_CELL_SIZE = 2.0f;
 
 // Match timing (moved here from game.cpp so app_tickMatch() and the HUD can both see them
 // regardless of where the timer widget is drawn).
-static constexpr long long MATCH_DURATION_MS = 35000LL;
+static constexpr long long MATCH_DURATION_MS = 90000LL;
 static constexpr long long RESULT_GRACE_MS = 1000LL;      // delay between match_result broadcast and endMatch()
 static constexpr long long COVERAGE_RECOMPUTE_MS = 250LL; // live-board recompute throttle
 
