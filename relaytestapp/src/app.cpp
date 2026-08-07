@@ -70,10 +70,11 @@ static void sendGameStartToMask(uint64_t playerMask);
 static void sendSplotchSyncToMask(uint64_t mask);
 static void sendMatchResultToMask(uint64_t mask, int round, const std::vector<CoverageEntry> &coverage);
 static std::vector<MatchResultEntry> toMatchResultEntries(const std::vector<CoverageEntry> &coverage);
-static void postMatchScoresAndComputeDeltas(const MatchResultEntry &mine);
+static void hostPostMatchResultsToCloud(int round, const std::vector<MatchResultEntry> &entries);
 static void applyMatchResult(int round, const std::vector<MatchResultEntry> &entries);
 static void onRelayConnected();
-static void sendLeaderboardDeltaToMask(uint64_t mask, const LeaderboardDelta &delta);
+static void sendLeaderboardResultsToMask(uint64_t mask, int round, const std::vector<MatchResultEntry> &entries);
+static void applyLeaderboardResultsFromCloud(int round, const Json::Value &resultsArr);
 
 static bool isDisconnecting = false;
 
@@ -81,11 +82,16 @@ static bool isDisconnecting = false;
 // Reset on "first":true and whenever a new round starts (onRelayConnected).
 static std::vector<MatchResultEntry> s_pendingMatchResult;
 
-// A player's "lb_result" can arrive before match_result has populated state.matchResult.
-// entries for this round (they're broadcast by different senders on different channels,
-// so relative ordering isn't guaranteed) — buffered here by cxId and drained into the
-// matching entry as soon as applyMatchResult() sets entries. Reset every round.
+// The host's "lb_result" broadcast can arrive before match_result has populated
+// state.matchResult.entries for this round (different senders — host for match_result,
+// possibly a migrated host for lb_result — no relative ordering guarantee between them) —
+// buffered here by cxId and drained into the matching entry as soon as applyMatchResult()
+// sets entries. Reset every round.
 static std::map<std::string, LeaderboardDelta> s_pendingLbResults;
+
+// Chunk accumulator for the in-progress "lb_result" reassembly, same pattern as
+// s_pendingMatchResult. Reset on "first":true and whenever a new round starts.
+static std::vector<std::pair<std::string, LeaderboardDelta>> s_pendingLbChunk;
 
 // Incremented on every app_play() call. Each ping-flow lambda captures this value and
 // checks it before acting — stale callbacks from a previous session are silently dropped.
@@ -818,177 +824,165 @@ static std::vector<MatchResultEntry> toMatchResultEntries(const std::vector<Cove
     return out;
 }
 
-// Broadcasts this client's own computed leaderboard movement to the rest of the match.
-// Small and never chunked (four small before/after rank pairs, nowhere near the ~900
-// byte budget splotch_sync/match_result have to worry about).
-static void sendLeaderboardDeltaToMask(uint64_t mask, const LeaderboardDelta &delta)
+// Broadcasts the host's cloud-computed leaderboard results for the whole round to the
+// rest of the match — one broadcast for everyone, chunked exactly like match_result
+// (small per-entry payloads, but a 40-player lobby could still exceed one packet). Only
+// entries with lbDelta.ready are included; a period sub-object is present only when it
+// actually improved (absent == "no change" on receipt, read by the "lb_result" branch in
+// onRelayMessage).
+static void sendLeaderboardResultsToMask(uint64_t mask, int round, const std::vector<MatchResultEntry> &entries)
 {
     if (mask == 0) return;
-    int netId = pBCWrapper->getRelayService()->getNetIdForCxId(state.user.cxId);
-    if (netId < 0 || netId >= MAX_LOBBY_MEMBERS) return;
 
-    Json::Value json;
-    json["op"] = "lb_result";
-    json["data"]["n"] = netId;
+    static const int MAX_RELAY_BYTES = 900;
+    static const int ENVELOPE_OVERHEAD = 80;
 
-    auto putPeriod = [&](const char *key, const LeaderboardPeriodDelta &pd)
+    Json::FastWriter writer;
+    bool isFirst = true;
+    std::vector<Json::Value> chunk;
+    int currentSize = ENVELOPE_OVERHEAD;
+
+    auto flushChunk = [&](bool isLast)
     {
-        if (!pd.improved) return; // absent key == "no change" on receipt
-        json["data"][key]["b"] = pd.rankBefore;
-        json["data"][key]["a"] = pd.rankAfter;
+        if (chunk.empty() && !isLast) return;
+        Json::Value json;
+        json["op"] = "lb_result";
+        json["data"]["round"] = round;
+        json["data"]["first"] = isFirst;
+        json["data"]["last"] = isLast;
+        Json::Value arr(Json::arrayValue);
+        for (const auto &entry : chunk)
+            arr.append(entry);
+        json["data"]["e"] = arr;
+        auto str = writer.write(json);
+        pBCWrapper->getRelayService()->sendToPlayers(
+            (const uint8_t *)str.data(), (int)str.length(),
+            mask, true, true, (BrainCloud::eRelayChannel)0);
+        isFirst = false;
+        chunk.clear();
+        currentSize = ENVELOPE_OVERHEAD;
     };
-    putPeriod("pl", delta.pointsLifetime);
-    putPeriod("pq", delta.pointsQuarterly);
-    putPeriod("cl", delta.coverageLifetime);
-    putPeriod("cq", delta.coverageQuarterly);
 
-    Json::FastWriter writer;
-    auto str = writer.write(json);
-    pBCWrapper->getRelayService()->sendToPlayers(
-        (const uint8_t *)str.data(), (int)str.length(),
-        mask,
-        true, // reliable
-        true, // ordered
-        (BrainCloud::eRelayChannel)0);
-}
-
-// Writes this client's own finished delta into its match_result entry (no relay round
-// trip needed for yourself) and shares it with everyone else in the match.
-static void applyLeaderboardDeltaSelf(const LeaderboardDelta &delta)
-{
-    for (auto &e : state.matchResult.entries)
+    auto putPeriod = [](Json::Value &parent, const char *key, const LeaderboardPeriodDelta &pd)
     {
-        if (e.cxId == state.user.cxId)
-        {
-            e.lbDelta = delta;
-            break;
-        }
+        if (!pd.improved) return;
+        parent[key]["b"] = pd.rankBefore;
+        parent[key]["a"] = pd.rankAfter;
+    };
+
+    for (const auto &e : entries)
+    {
+        if (!e.lbDelta.ready) continue;
+
+        Json::Value je;
+        je["cx"] = e.cxId;
+        putPeriod(je, "pl", e.lbDelta.pointsLifetime);
+        putPeriod(je, "pq", e.lbDelta.pointsQuarterly);
+        putPeriod(je, "cl", e.lbDelta.coverageLifetime);
+        putPeriod(je, "cq", e.lbDelta.coverageQuarterly);
+
+        int entrySize = (int)writer.write(je).size() + 1;
+        if (currentSize + entrySize > MAX_RELAY_BYTES && !chunk.empty())
+            flushChunk(false);
+
+        chunk.push_back(std::move(je));
+        currentSize += entrySize;
     }
-    sendLeaderboardDeltaToMask(getPlayerMask(), delta);
+    flushChunk(true);
 }
 
-// One board's full before -> post -> after chain. Fetches the player's current rank/score
-// on leaderboardId (GetGlobalLeaderboardView with before/afterCount 0 is the documented way
-// to get just the caller's own entry), posts the new score, then re-fetches to see what
-// actually stuck. isPersonalBestStyle selects what "improved" means:
-//   - coverage boards (kept-best score): improved = this score beat the previous best.
-//     Posting a LOWER coverage than your best is a no-op server-side, so comparing scores
-//     is the only reliable signal — rank alone could move for reasons unrelated to this
-//     round (other players posting later).
-//   - points boards (cumulative score): every post raises the score, so "did the score
-//     increase" is always true and useless; the real signal is whether RANK improved.
-// Either way rankBefore/rankAfter are captured for display regardless of which one gates
-// the badge — the summary screen's "Personal best" badge still shows a rank movement.
-static void chainLeaderboardBoard(
-    const std::string &leaderboardId, int64_t score, const std::string &otherDataStr,
-    bool isPersonalBestStyle,
-    std::shared_ptr<LeaderboardPeriodDelta> outDelta,
-    std::shared_ptr<int> remaining,
-    std::function<void()> finalize)
+// Applies the PostMatchResults.js response (keyed by profileId) onto state.matchResult.
+// entries (keyed by cxId — resolved via state.lobby.members, the only place both ids are
+// known together) and broadcasts the result to the rest of the match. Host-only.
+static void applyLeaderboardResultsFromCloud(int round, const Json::Value &resultsArr)
 {
-    if (leaderboardId.empty())
+    if (!(state.matchResult.valid && state.matchResult.round == round))
+        return; // a newer round has already started — this response is stale
+
+    std::map<std::string, std::string> profileIdToCxId;
+    for (const auto &m : state.lobby.members)
+        if (!m.profileId.empty())
+            profileIdToCxId[m.profileId] = m.cxId;
+
+    auto readPeriod = [](const Json::Value &j)
     {
-        if (--(*remaining) == 0) finalize();
-        return;
-    }
+        LeaderboardPeriodDelta pd;
+        pd.rankBefore = j["before"].asInt();
+        pd.rankAfter = j["after"].asInt();
+        pd.improved = j["improved"].asBool();
+        return pd;
+    };
 
-    auto onDone = [=]() { if (--(*remaining) == 0) finalize(); };
-
-    pBCWrapper->getSocialLeaderboardService()->getGlobalLeaderboardView(
-        leaderboardId.c_str(), BrainCloud::HIGH_TO_LOW, 0, 0,
-        new BCCallback(
-            [=](const Json::Value &beforeResult)
-            {
-                const auto &beforeArr = beforeResult["data"]["leaderboard"];
-                int rankBefore = -1;
-                int64_t scoreBefore = -1;
-                if (!beforeArr.empty())
-                {
-                    rankBefore = beforeArr[0]["rank"].asInt();
-                    scoreBefore = beforeArr[0]["score"].asInt64();
-                }
-
-                pBCWrapper->getSocialLeaderboardService()->postScoreToLeaderboard(
-                    leaderboardId.c_str(), score, otherDataStr,
-                    new BCCallback(
-                        [=](const Json::Value &)
-                        {
-                            pBCWrapper->getSocialLeaderboardService()->getGlobalLeaderboardView(
-                                leaderboardId.c_str(), BrainCloud::HIGH_TO_LOW, 0, 0,
-                                new BCCallback(
-                                    [=](const Json::Value &afterResult)
-                                    {
-                                        const auto &afterArr = afterResult["data"]["leaderboard"];
-                                        int rankAfter = -1;
-                                        int64_t scoreAfter = -1;
-                                        if (!afterArr.empty())
-                                        {
-                                            rankAfter = afterArr[0]["rank"].asInt();
-                                            scoreAfter = afterArr[0]["score"].asInt64();
-                                        }
-                                        outDelta->rankBefore = rankBefore;
-                                        outDelta->rankAfter = rankAfter;
-                                        outDelta->improved = isPersonalBestStyle
-                                            ? (scoreBefore < 0 || scoreAfter > scoreBefore)
-                                            : (rankAfter > 0 && (rankBefore < 0 || rankAfter < rankBefore));
-                                        onDone();
-                                    },
-                                    [=](const std::string &) { outDelta->rankBefore = rankBefore; onDone(); }));
-                        },
-                        [=](const std::string &) { onDone(); }));
-            },
-            [=](const std::string &)
-            {
-                // Before-fetch failed — still try to post so the score isn't lost, just
-                // without a delta to show (rankBefore/After stay -1, improved stays false).
-                pBCWrapper->getSocialLeaderboardService()->postScoreToLeaderboard(
-                    leaderboardId.c_str(), score, otherDataStr,
-                    new BCCallback([=](const Json::Value &) { onDone(); },
-                                    [=](const std::string &) { onDone(); }));
-            }));
-}
-
-// Posts this client's own final standing to the four leaderboards, and computes/shares
-// how that changed its own rank on each of them (BCLOUD-14489's Match Summary screen).
-// Coverage score is basis points (0-10000) so the portal isn't stuck with float scores;
-// points score is "players beaten" + a flat completion bonus (so a solo match — 0 beaten
-// — still posts 1, per the ticket: "+1 bonus point for completing a game").
-static void postMatchScoresAndComputeDeltas(const MatchResultEntry &mine)
-{
-    int64_t basisPoints = (int64_t)(mine.coveragePct * 100.0f + 0.5f);
-    int64_t points = mine.beaten + 1;
-
-    Json::Value otherData;
-    otherData["round"] = state.roundNumber;
-    otherData["rank"] = mine.rank;
-    // GetGlobalLeaderboardPage/View don't return a usable "name" field for arbitrary
-    // (non-friend) entries — embedding it in the score's user-defined data is the
-    // standard way to show a display name in a leaderboard viewer (see mainMenu.cpp).
-    otherData["name"] = state.user.name;
-    Json::FastWriter writer;
-    auto otherDataStr = writer.write(otherData);
-
-    auto pointsLifetime = std::make_shared<LeaderboardPeriodDelta>();
-    auto pointsQuarterly = std::make_shared<LeaderboardPeriodDelta>();
-    auto coverageLifetime = std::make_shared<LeaderboardPeriodDelta>();
-    auto coverageQuarterly = std::make_shared<LeaderboardPeriodDelta>();
-    auto remaining = std::make_shared<int>(4);
-
-    auto finalize = [pointsLifetime, pointsQuarterly, coverageLifetime, coverageQuarterly]()
+    for (const auto &r : resultsArr)
     {
+        auto it = profileIdToCxId.find(r["profileId"].asString());
+        if (it == profileIdToCxId.end()) continue;
+
         LeaderboardDelta delta;
         delta.ready = true;
-        delta.pointsLifetime = *pointsLifetime;
-        delta.pointsQuarterly = *pointsQuarterly;
-        delta.coverageLifetime = *coverageLifetime;
-        delta.coverageQuarterly = *coverageQuarterly;
-        applyLeaderboardDeltaSelf(delta);
-    };
+        delta.pointsLifetime = readPeriod(r["pointsLifetime"]);
+        delta.pointsQuarterly = readPeriod(r["pointsQuarterly"]);
+        delta.coverageLifetime = readPeriod(r["coverageLifetime"]);
+        delta.coverageQuarterly = readPeriod(r["coverageQuarterly"]);
 
-    chainLeaderboardBoard(state.pointsLeaderboardId, points, otherDataStr, false, pointsLifetime, remaining, finalize);
-    chainLeaderboardBoard(state.pointsLeaderboardIdQuarterly, points, otherDataStr, false, pointsQuarterly, remaining, finalize);
-    chainLeaderboardBoard(state.coverageLeaderboardId, basisPoints, otherDataStr, true, coverageLifetime, remaining, finalize);
-    chainLeaderboardBoard(state.coverageLeaderboardIdQuarterly, basisPoints, otherDataStr, true, coverageQuarterly, remaining, finalize);
+        for (auto &e : state.matchResult.entries)
+        {
+            if (e.cxId == it->second) { e.lbDelta = delta; break; }
+        }
+    }
+
+    sendLeaderboardResultsToMask(getPlayerMask(), round, state.matchResult.entries);
+}
+
+// Host-only: posts the WHOLE round's results to the four leaderboards in one trusted
+// server-side call (BCLOUD-14489 cloud-code migration — see PostMatchResults.js). This
+// replaces what used to be up to 12 direct client API calls PER PLAYER (before-fetch +
+// post + after-fetch x 4 boards, run independently by every client) with a single
+// runScript call from the host; the script itself uses postScoreToLeaderboardOnBehalfOf,
+// which is Cloud-Code-only, so individual clients can no longer post to these boards at
+// all — closing the "any client can post any score for itself" hole client-side posting
+// had. Coverage score is basis points (0-10000) so the portal isn't stuck with float
+// scores; points score is "players beaten" + a flat completion bonus (so a solo match —
+// 0 beaten — still posts 1, per the ticket: "+1 bonus point for completing a game").
+static void hostPostMatchResultsToCloud(int round, const std::vector<MatchResultEntry> &entries)
+{
+    Json::Value payload;
+    payload["round"] = round;
+    payload["pointsLeaderboardId"] = state.pointsLeaderboardId;
+    payload["pointsLeaderboardIdQuarterly"] = state.pointsLeaderboardIdQuarterly;
+    payload["coverageLeaderboardId"] = state.coverageLeaderboardId;
+    payload["coverageLeaderboardIdQuarterly"] = state.coverageLeaderboardIdQuarterly;
+
+    Json::Value entriesArr(Json::arrayValue);
+    for (const auto &e : entries)
+    {
+        const User *pMember = nullptr;
+        for (const auto &m : state.lobby.members)
+            if (m.cxId == e.cxId) { pMember = &m; break; }
+        if (!pMember || pMember->profileId.empty()) continue; // can't post server-side without a profileId
+
+        Json::Value je;
+        je["profileId"] = pMember->profileId;
+        je["name"] = pMember->name;
+        je["points"] = e.beaten + 1;
+        je["coverageBasisPoints"] = (int)(e.coveragePct * 100.0f + 0.5f);
+        entriesArr.append(je);
+    }
+    payload["entries"] = entriesArr;
+
+    Json::FastWriter writer;
+    auto payloadStr = writer.write(payload);
+
+    pBCWrapper->getScriptService()->runScript("PostMatchResults", payloadStr,
+        new BCCallback(
+            [round](const Json::Value &result)
+            {
+                applyLeaderboardResultsFromCloud(round, result["data"]["results"]);
+            },
+            [round](const std::string &msg)
+            {
+                printf("[DEBUG] PostMatchResults script call failed for round %d: %s\n", round, msg.c_str());
+            }));
 }
 
 // Applies an authoritative coverage snapshot for a round — either a locally-computed one
@@ -1023,14 +1017,14 @@ static void applyMatchResult(int round, const std::vector<MatchResultEntry> &ent
         return;
     state.leaderboardPostedRound = round;
 
-    for (const auto &e : entries)
-    {
-        if (e.cxId == state.user.cxId)
-        {
-            postMatchScoresAndComputeDeltas(e);
-            break;
-        }
-    }
+    // Only the host posts — hostPostMatchResultsToCloud (via PostMatchResults.js) covers
+    // every player in one call, so every OTHER client posting its own would just be a
+    // redundant (and no-longer-even-possible, since postScoreToLeaderboardOnBehalfOf is
+    // Cloud-Code-only) duplicate. Non-host clients just wait for the "lb_result" broadcast
+    // that call produces.
+    bool isHost = !state.lobby.ownerCxId.empty() && state.user.cxId == state.lobby.ownerCxId;
+    if (isHost)
+        hostPostMatchResultsToCloud(round, entries);
 }
 
 // Drives the shared coverage/ranking calculation and the host-authoritative match-end
@@ -1132,6 +1126,7 @@ static void onRelayConnected()
     state.resultsSentAtMs = 0;
     s_pendingMatchResult.clear();
     s_pendingLbResults.clear();
+    s_pendingLbChunk.clear();
     state.awaitingRematch = false;
     state.isProvisioning = false;
 
@@ -1338,36 +1333,55 @@ static void onRelayMessage(int netId, const Json::Value &json)
             }
             else if (op == "lb_result")
             {
-                // Each player's own leaderboard rank movement, broadcast once they've
-                // finished computing it (see postMatchScoresAndComputeDeltas). Can arrive
+                // Host-computed leaderboard results for the WHOLE round (see
+                // hostPostMatchResultsToCloud/PostMatchResults.js), chunked like
+                // match_result since a 40-player lobby could exceed one packet. Can arrive
                 // before this round's match_result has populated state.matchResult.entries
                 // — buffer by cxId in that case (drained in applyMatchResult).
-                LeaderboardDelta delta;
-                delta.ready = true;
-                auto readPeriod = [&](const char *key, LeaderboardPeriodDelta &pd)
+                int round = json["data"]["round"].asInt();
+                if (!(state.matchResult.valid && state.matchResult.round == round))
                 {
-                    if (!json["data"].isMember(key)) return; // absent == "no change" for that period
-                    pd.improved = true;
-                    pd.rankBefore = json["data"][key]["b"].asInt();
-                    pd.rankAfter = json["data"][key]["a"].asInt();
-                };
-                readPeriod("pl", delta.pointsLifetime);
-                readPeriod("pq", delta.pointsQuarterly);
-                readPeriod("cl", delta.coverageLifetime);
-                readPeriod("cq", delta.coverageQuarterly);
+                    if (json["data"]["first"].asBool())
+                        s_pendingLbChunk.clear();
 
-                bool applied = false;
-                for (auto &e : state.matchResult.entries)
-                {
-                    if (e.cxId == member.cxId)
+                    for (const auto &entry : json["data"]["e"])
                     {
-                        e.lbDelta = delta;
-                        applied = true;
-                        break;
+                        LeaderboardDelta delta;
+                        delta.ready = true;
+                        auto readPeriod = [&](const char *key, LeaderboardPeriodDelta &pd)
+                        {
+                            if (!entry.isMember(key)) return; // absent == "no change" for that period
+                            pd.improved = true;
+                            pd.rankBefore = entry[key]["b"].asInt();
+                            pd.rankAfter = entry[key]["a"].asInt();
+                        };
+                        readPeriod("pl", delta.pointsLifetime);
+                        readPeriod("pq", delta.pointsQuarterly);
+                        readPeriod("cl", delta.coverageLifetime);
+                        readPeriod("cq", delta.coverageQuarterly);
+                        s_pendingLbChunk.push_back(std::make_pair(entry["cx"].asString(), delta));
+                    }
+
+                    if (json["data"]["last"].asBool())
+                    {
+                        for (const auto &kv : s_pendingLbChunk)
+                        {
+                            bool applied = false;
+                            for (auto &e : state.matchResult.entries)
+                            {
+                                if (e.cxId == kv.first)
+                                {
+                                    e.lbDelta = kv.second;
+                                    applied = true;
+                                    break;
+                                }
+                            }
+                            if (!applied)
+                                s_pendingLbResults[kv.first] = kv.second;
+                        }
+                        s_pendingLbChunk.clear();
                     }
                 }
-                if (!applied)
-                    s_pendingLbResults[member.cxId] = delta;
             }
             else if (op == "game_start")
             {
@@ -1813,6 +1827,7 @@ static Lobby parseLobby(const Json::Value &lobbyJson, const std::string &lobbyId
     {
         User user;
         user.cxId = jsonMember["cxId"].asString();
+        user.profileId = jsonMember["profileId"].asString();
         user.name = jsonMember["name"].asString();
         user.colorIndex = jsonMember["extra"]["colorIndex"].asInt();
         // Worldwide rank — each player fetches their OWN rank (self-centric API,

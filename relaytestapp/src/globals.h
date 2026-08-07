@@ -159,6 +159,7 @@ struct Point
 struct User
 {
     std::string cxId; /* RTT Connection Id */
+    std::string profileId; /* brainCloud profileId — needed server-side (postScoreToLeaderboardOnBehalfOf takes a profileId, not a cxId) */
     std::string name; /* User name */
     int colorIndex = 7;
     bool isReady = false;
