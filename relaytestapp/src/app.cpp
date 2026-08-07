@@ -20,6 +20,7 @@
 
 // App includes
 #include "app.h"
+#include "coverage.h"
 #include "game.h"
 #include "globals.h"
 #include "loading.h"
@@ -62,16 +63,31 @@ static Server parseServer(const Json::Value &serverJson);
 static void startGame();
 static void onRelaySystemMessage(const Json::Value &json);
 static void onRelayMessage(int netId, const Json::Value &json);
+static void startLobbySearchFlow();
 static uint64_t getPlayerMask();
 static void sendGameStartToMask(uint64_t playerMask);
 static void sendSplotchSyncToMask(uint64_t mask);
+static void sendMatchResultToMask(uint64_t mask, int round, const std::vector<CoverageEntry> &coverage);
+static std::vector<MatchResultEntry> toMatchResultEntries(const std::vector<CoverageEntry> &coverage);
+static void postMatchScores(const MatchResultEntry &mine);
+static void applyMatchResult(int round, const std::vector<MatchResultEntry> &entries);
 static void onRelayConnected();
 
 static bool isDisconnecting = false;
 
+// Chunk accumulator for the in-progress "match_result" reassembly (see onRelayMessage).
+// Reset on "first":true and whenever a new round starts (onRelayConnected).
+static std::vector<MatchResultEntry> s_pendingMatchResult;
+
 // Incremented on every app_play() call. Each ping-flow lambda captures this value and
 // checks it before acting — stale callbacks from a previous session are silently dropped.
 static int s_playGeneration = 0;
+
+// True only when RTT was enabled to start an actual lobby search (via app_play()) —
+// as opposed to being enabled just so main-menu chat has a live RTT connection
+// (chat's REST-style calls all fail with RTT_NOT_ENABLED otherwise). Checked in
+// onRTTConnected() so reaching the main menu doesn't silently auto-join a lobby.
+static bool s_wantsLobbySearch = false;
 
 // Tracks the region chosen for the current geo test lobby attempt.
 // Set when we pick the best un-tested region; recorded to geoTestedRegions on ROOM_READY.
@@ -317,7 +333,22 @@ static void applyLobbyTypes(const Json::Value &result)
     else
         state.splotchDurationSec = -1;
 
+    // Leaderboard ids — optional global properties, so the boards can be created/renamed
+    // in the portal with no client rebuild. Falls back to the compiled-in defaults in
+    // globals.h when a property is absent.
+    auto readLeaderboardId = [&](const char *propName, std::string &out)
+    {
+        const auto &prop = result["data"][propName]["value"];
+        if (!prop.isNull() && !prop.asString().empty())
+            out = prop.asString();
+    };
+    readLeaderboardId("CoverageLeaderboardId", state.coverageLeaderboardId);
+    readLeaderboardId("CoverageLeaderboardIdQuarterly", state.coverageLeaderboardIdQuarterly);
+    readLeaderboardId("PointsLeaderboardId", state.pointsLeaderboardId);
+    readLeaderboardId("PointsLeaderboardIdQuarterly", state.pointsLeaderboardIdQuarterly);
+
     state.screenState = ScreenState::MainMenu;
+    app_enableChatRTT();
 }
 
 // User fully logged in — fetch AllLobbyTypes then show main menu.
@@ -333,6 +364,7 @@ void onLoggedIn()
                 if (state.appLobbies.empty())
                     state.appLobbies.push_back(DEFAULT_LOBBY_TYPE);
                 state.screenState = ScreenState::MainMenu;
+                app_enableChatRTT();
             }));
 }
 
@@ -383,11 +415,11 @@ static void doFindOrCreateLobbyWithPingData(const std::string &lobbyType)
             [](const std::string &msg) { errorAndReturnToMenu("Failed to find lobby:\n" + msg); }));
 }
 
-// RTT connected — optionally ping regions before finding a lobby.
-void onRTTConnected()
+// RTT connected — optionally ping regions before finding a lobby. Only runs when
+// RTT was enabled to actually search for a lobby (see s_wantsLobbySearch) — RTT
+// enabled just for main-menu chat should not auto-join anything.
+static void startLobbySearchFlow()
 {
-    state.user.cxId = pBCWrapper->getRTTService()->getRTTConnectionId();
-
     // Guard: RTT can reconnect mid-session. Only start one ping flow per app_play() call.
     static int s_pingStartedGen = -1;
     if (s_pingStartedGen == s_playGeneration)
@@ -468,6 +500,29 @@ void onRTTConnected()
             }));
 }
 
+// RTT connected. Always records our RTT connection id; only kicks off a lobby
+// search when RTT was enabled for that purpose (app_play() sets s_wantsLobbySearch) —
+// RTT enabled for main-menu chat (app_enableChatRTT()) should not auto-join anything.
+void onRTTConnected()
+{
+    state.user.cxId = pBCWrapper->getRTTService()->getRTTConnectionId();
+    if (s_wantsLobbySearch)
+        startLobbySearchFlow();
+}
+
+// Enables RTT so main-menu chat works — brainCloud's chat calls (getChannelId,
+// getRecentChatMessages, postChatMessageSimple) all fail with RTT_NOT_ENABLED
+// otherwise. Idempotent: no-ops if RTT is already connected (e.g. a lobby search
+// already turned it on). Called whenever the app reaches the MainMenu screen.
+void app_enableChatRTT()
+{
+    if (pBCWrapper->getRTTService()->getRTTEnabled())
+        return;
+    s_wantsLobbySearch = false;
+    pBCWrapper->getRTTService()->registerRTTLobbyCallback(&bcRTTCallback);
+    pBCWrapper->getRTTService()->enableRTT(&bcRTTConnectCallback, true);
+}
+
 // Show error and go back to MainMenu without logging out.
 // Use this for relay/lobby errors where the user is still authenticated.
 static void errorAndReturnToMenu(const std::string &message)
@@ -495,6 +550,7 @@ static void errorAndReturnToMenu(const std::string &message)
     state.geoTestedRegions = geoTestedRegions;
     state.geoTestResults = geoTestResults;
     state.screenState = ScreenState::MainMenu;
+    app_enableChatRTT(); // RTT was just disabled above — re-enable it for main-menu chat
 
     errorMessage = message;
     ImGui::OpenPopup("Error");
@@ -593,11 +649,20 @@ static void sendSplotchSyncToMask(uint64_t mask)
     for (const auto &s : state.splotches)
     {
         Json::Value entry;
-        entry["x"] = s.pos.x / 800.0f;
-        entry["y"] = s.pos.y / 600.0f;
+        entry["x"] = s.pos.x / CANVAS_W;
+        entry["y"] = s.pos.y / CANVAS_H;
         entry["c"] = s.colorIndex;
         entry["t"] = (Json::Int64)s.startTimeMs;
         entry["a"] = s.rotation;
+        if (!s.ownerCxId.empty())
+        {
+            // Compact netId, not the ~80-char cxId, to stay inside the chunk byte budget.
+            // Resolved back to a cxId at receive time (see onRelayMessage's splotch_sync
+            // branch) — never deferred, since RelayComms clears its netId maps at END_MATCH.
+            int ownerNetId = pBCWrapper->getRelayService()->getNetIdForCxId(s.ownerCxId);
+            if (ownerNetId >= 0 && ownerNetId < MAX_LOBBY_MEMBERS)
+                entry["o"] = ownerNetId;
+        }
 
         // Measure this entry's serialized size (+1 for the separating comma)
         int entrySize = (int)writer.write(entry).size() + 1;
@@ -610,10 +675,243 @@ static void sendSplotchSyncToMask(uint64_t mask)
     flushChunk();
 }
 
+// Broadcasts the host's authoritative final coverage/ranking to a player mask, chunked
+// like sendSplotchSyncToMask but sent reliable + ORDERED (splotch_sync stays unordered —
+// cosmetic chunk-reassembly races there are invisible; here they'd corrupt a posted score).
+static void sendMatchResultToMask(uint64_t mask, int round, const std::vector<CoverageEntry> &coverage)
+{
+    if (coverage.empty() || mask == 0) return;
+
+    static const int MAX_RELAY_BYTES = 900;
+    static const int ENVELOPE_OVERHEAD = 80;
+
+    Json::FastWriter writer;
+    bool isFirst = true;
+    std::vector<Json::Value> chunk;
+    int currentSize = ENVELOPE_OVERHEAD;
+
+    auto flushChunk = [&](bool isLast)
+    {
+        if (chunk.empty() && !isLast) return;
+        Json::Value resultJson;
+        resultJson["op"] = "match_result";
+        resultJson["data"]["round"] = round;
+        resultJson["data"]["first"] = isFirst;
+        resultJson["data"]["last"] = isLast;
+        Json::Value arr(Json::arrayValue);
+        for (const auto &entry : chunk)
+            arr.append(entry);
+        resultJson["data"]["e"] = arr;
+        auto str = writer.write(resultJson);
+        pBCWrapper->getRelayService()->sendToPlayers(
+            (const uint8_t *)str.data(), (int)str.length(),
+            mask,
+            true, // reliable
+            true, // ordered — see comment above
+            (BrainCloud::eRelayChannel)0);
+        isFirst = false;
+        chunk.clear();
+        currentSize = ENVELOPE_OVERHEAD;
+    };
+
+    for (const auto &c : coverage)
+    {
+        int netId = pBCWrapper->getRelayService()->getNetIdForCxId(c.cxId);
+        if (netId < 0 || netId >= MAX_LOBBY_MEMBERS) continue; // no longer connected — skip
+
+        Json::Value entry;
+        entry["n"] = netId;
+        entry["r"] = c.rank;
+        entry["c"] = (int)(c.coveragePct * 100.0f + 0.5f); // basis points, 0-10000
+        entry["b"] = c.beaten;
+
+        int entrySize = (int)writer.write(entry).size() + 1;
+        if (currentSize + entrySize > MAX_RELAY_BYTES && !chunk.empty())
+            flushChunk(false);
+
+        chunk.push_back(std::move(entry));
+        currentSize += entrySize;
+    }
+    flushChunk(true);
+}
+
+static std::vector<MatchResultEntry> toMatchResultEntries(const std::vector<CoverageEntry> &coverage)
+{
+    std::vector<MatchResultEntry> out;
+    out.reserve(coverage.size());
+    for (const auto &c : coverage)
+    {
+        MatchResultEntry e;
+        e.cxId = c.cxId;
+        e.rank = c.rank;
+        e.coveragePct = c.coveragePct;
+        e.beaten = c.beaten;
+        out.push_back(e);
+    }
+    return out;
+}
+
+// Posts this client's own final standing to the four leaderboards. Coverage score is
+// basis points (0-10000) so the portal isn't stuck with float scores; points score is
+// "players beaten" + a flat completion bonus (so a solo match — 0 beaten — still posts 1,
+// per the ticket: "+1 bonus point for completing a game").
+static void postMatchScores(const MatchResultEntry &mine)
+{
+    int basisPoints = (int)(mine.coveragePct * 100.0f + 0.5f);
+    int points = mine.beaten + 1;
+
+    Json::Value otherData;
+    otherData["round"] = state.roundNumber;
+    otherData["rank"] = mine.rank;
+    // GetGlobalLeaderboardPage/View don't return a usable "name" field for arbitrary
+    // (non-friend) entries — embedding it in the score's user-defined data is the
+    // standard way to show a display name in a leaderboard viewer (see mainMenu.cpp).
+    otherData["name"] = state.user.name;
+    Json::FastWriter writer;
+    auto otherDataStr = writer.write(otherData);
+
+    auto postTo = [&](const std::string &leaderboardId, int64_t score)
+    {
+        if (leaderboardId.empty()) return;
+        pBCWrapper->getSocialLeaderboardService()->postScoreToLeaderboard(
+            leaderboardId.c_str(), score, otherDataStr,
+            new BCCallback([](const Json::Value &) {}, [](const std::string &) {}));
+    };
+
+    postTo(state.coverageLeaderboardId, basisPoints);
+    postTo(state.coverageLeaderboardIdQuarterly, basisPoints);
+    postTo(state.pointsLeaderboardId, points);
+    postTo(state.pointsLeaderboardIdQuarterly, points);
+}
+
+// Applies an authoritative coverage snapshot for a round — either a locally-computed one
+// (host, or a no-result fallback) or one just reassembled from a "match_result" broadcast.
+// Idempotent per round: a migrated host's broadcast racing the original host's (or the
+// END_MATCH fallback racing a late match_result) is safe to apply/post more than once —
+// only the FIRST application for a given round has any effect. This guard is mandatory
+// because the points leaderboard is CUMULATIVE; a duplicate post would silently and
+// permanently inflate a lifetime total with no way to detect it afterward.
+static void applyMatchResult(int round, const std::vector<MatchResultEntry> &entries)
+{
+    if (state.matchResult.valid && state.matchResult.round == round)
+        return;
+
+    state.matchResult.valid = true;
+    state.matchResult.round = round;
+    state.matchResult.entries = entries;
+
+    if (state.leaderboardPostedRound == round)
+        return;
+    state.leaderboardPostedRound = round;
+
+    for (const auto &e : entries)
+    {
+        if (e.cxId == state.user.cxId)
+        {
+            postMatchScores(e);
+            break;
+        }
+    }
+}
+
+// Drives the shared coverage/ranking calculation and the host-authoritative match-end
+// flow. Called once per frame from game_update() while state.screenState == Game.
+//
+// isHost is re-evaluated every call from state.lobby.ownerCxId, so a mid-match host
+// migration (see the MIGRATE_OWNER handling in onRelaySystemMessage) is handled with no
+// special-casing here — the newly-promoted host just starts satisfying "isHost" on its
+// next tick and picks up wherever the match clock currently is; it already has
+// state.splotches and state.gameStartTime like every other member.
+void app_tickMatch()
+{
+    if (state.gameStartTime == 0) return;
+
+    long long nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+    long long elapsedMs = nowMs - state.gameStartTime;
+
+    // Live coverage recompute + rank-swap detection — shared by the in-match rank board
+    // (game.cpp reads state.coverage) and the match-end snapshot below.
+    if (state.coverageComputedGen != state.splotchGeneration &&
+        nowMs - state.coverageComputedAtMs >= COVERAGE_RECOMPUTE_MS)
+    {
+        auto fresh = computeCoverage(state.splotches, state.lobby.members);
+        for (auto &e : fresh)
+        {
+            int prevRank = e.rank;
+            long long prevChangedAt = 0;
+            for (const auto &old : state.coverage)
+            {
+                if (old.cxId == e.cxId)
+                {
+                    prevRank = old.rank;
+                    prevChangedAt = old.rankChangedAtMs;
+                    break;
+                }
+            }
+            e.prevRank = prevRank;
+            e.rankChangedAtMs = (prevRank != e.rank) ? nowMs : prevChangedAt;
+        }
+        state.coverage = std::move(fresh);
+        state.coverageComputedGen = state.splotchGeneration;
+        state.coverageComputedAtMs = nowMs;
+    }
+
+    if (!isCursorPartyLobby(settings.lobbyType))
+        return; // auto-end / leaderboard flow is CursorParty-specific
+
+    bool isHost = !state.lobby.ownerCxId.empty() && state.user.cxId == state.lobby.ownerCxId;
+
+    if (state.matchPhase == MatchPhase::Running && elapsedMs >= MATCH_DURATION_MS && isHost)
+    {
+        if (!(state.matchResult.valid && state.matchResult.round == state.roundNumber))
+        {
+            auto finalCoverage = computeCoverage(state.splotches, state.lobby.members);
+            applyMatchResult(state.roundNumber, toMatchResultEntries(finalCoverage));
+            sendMatchResultToMask(getPlayerMask(), state.roundNumber, finalCoverage);
+        }
+        state.matchPhase = MatchPhase::ResultsBroadcast;
+        state.resultsSentAtMs = nowMs;
+    }
+    else if (state.matchPhase == MatchPhase::ResultsBroadcast && isHost &&
+             nowMs - state.resultsSentAtMs >= RESULT_GRACE_MS)
+    {
+        app_endMatch();
+        state.matchPhase = MatchPhase::Ended;
+    }
+
+    // Watchdog: well past the deadline with no authoritative result at all (a dropped
+    // broadcast, or a gap during host migration where no one was host for a while) —
+    // compute and post locally so the round can't hang forever. Cheap and idempotent.
+    if (!state.matchResult.valid && elapsedMs >= MATCH_DURATION_MS + RESULT_GRACE_MS + 3000)
+    {
+        auto finalCoverage = computeCoverage(state.splotches, state.lobby.members);
+        applyMatchResult(state.roundNumber, toMatchResultEntries(finalCoverage));
+        if (isHost && state.matchPhase != MatchPhase::Ended)
+        {
+            sendMatchResultToMask(getPlayerMask(), state.roundNumber, finalCoverage);
+            state.matchPhase = MatchPhase::ResultsBroadcast;
+            state.resultsSentAtMs = nowMs;
+        }
+    }
+}
+
 // Called when relay connection succeeds. Owner sets and broadcasts the authoritative game start time.
 static void onRelayConnected()
 {
     ++state.roundNumber;
+
+    // Fresh round — reset all per-round match/coverage state so nothing carries over
+    // from the previous round (this replaces the old file-static "matchEndRound" guard,
+    // which had a live bug: it wasn't reset across lobbies, so auto-end could silently
+    // stop firing on a second lobby in the same session).
+    state.matchPhase = MatchPhase::Running;
+    state.matchResult = MatchResult();
+    state.leaderboardPostedRound = -1;
+    state.coverage.clear();
+    state.coverageComputedGen = (unsigned long long)-1;
+    state.resultsSentAtMs = 0;
+    s_pendingMatchResult.clear();
 
     // Auto geo test: relay connect confirms the region is reachable.
     // Record the connect time; app_update() disconnects after a 2.5s soak.
@@ -663,13 +961,37 @@ static void onRelaySystemMessage(const Json::Value &json)
             sendSplotchSyncToMask(mask);
         }
     }
+    else if (json["op"].asString() == "MIGRATE_OWNER") // Relay reassigned the host role
+    {
+        // Reconcile relay-level ownership into the SAME field used everywhere for isHost
+        // checks (state.lobby.ownerCxId — set from the Lobby/RTT service elsewhere). The
+        // Lobby service's own owner field will also catch up via the next lobby-update
+        // event; this is just the faster of the two signals. app_tickMatch() re-evaluates
+        // isHost every tick, so a newly-promoted host resumes match duties (auto-end,
+        // match_result broadcast) with no extra state transfer — it already has
+        // state.splotches and state.gameStartTime like every other member.
+        const auto &newOwnerCxId = json["cxId"].asString();
+        if (!newOwnerCxId.empty())
+            state.lobby.ownerCxId = newOwnerCxId;
+    }
     else if (json["op"].asString() == "END_MATCH") // Match ended, return all players to lobby
     {
+        // Fallback: if no authoritative match_result ever arrived for this round (legacy
+        // host, dropped broadcast, or a migration gap), compute locally and post using
+        // local numbers before the canvas clears below. applyMatchResult() is idempotent
+        // per round, so this is a no-op if a result already landed.
+        if (!(state.matchResult.valid && state.matchResult.round == state.roundNumber))
+        {
+            auto finalCoverage = computeCoverage(state.splotches, state.lobby.members);
+            applyMatchResult(state.roundNumber, toMatchResultEntries(finalCoverage));
+        }
+
         // Reset per-round state immediately
         state.user.isAlive = false;
         state.user.isReady = false;
         state.shockwaves.clear();
         state.splotches.clear();
+        ++state.splotchGeneration;
         state.gameStartTime = 0;
         state.screenState = ScreenState::Lobby;
 
@@ -689,14 +1011,14 @@ static void onRelayMessage(int netId, const Json::Value &json)
             if (op == "move")
             {
                 member.isAlive = true;
-                member.pos.x = (int)(json["data"]["x"].asFloat() * 800.0f);
-                member.pos.y = (int)(json["data"]["y"].asFloat() * 600.0f);
+                member.pos.x = (int)(json["data"]["x"].asFloat() * CANVAS_W);
+                member.pos.y = (int)(json["data"]["y"].asFloat() * CANVAS_H);
             }
             else if (op == "shockwave")
             {
                 Shockwave shockwave;
-                shockwave.pos.x = (int)(json["data"]["x"].asFloat() * 800.0f);
-                shockwave.pos.y = (int)(json["data"]["y"].asFloat() * 600.0f);
+                shockwave.pos.x = (int)(json["data"]["x"].asFloat() * CANVAS_W);
+                shockwave.pos.y = (int)(json["data"]["y"].asFloat() * CANVAS_H);
                 shockwave.colorIndex = member.colorIndex;
                 shockwave.startTime = std::chrono::high_resolution_clock::now();
                 state.shockwaves.push_back(shockwave);
@@ -711,7 +1033,9 @@ static void onRelayMessage(int netId, const Json::Value &json)
                 splotch.startTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
                     std::chrono::system_clock::now().time_since_epoch()).count();
                 splotch.rotation   = angle;
+                splotch.ownerCxId  = member.cxId; // sender is already resolved above — no wire field needed
                 state.splotches.push_back(splotch);
+                ++state.splotchGeneration;
             }
             else if (op == "splotch_sync")
             {
@@ -722,18 +1046,55 @@ static void onRelayMessage(int netId, const Json::Value &json)
                 for (const auto &entry : json["data"]["splotches"])
                 {
                     Splotch s;
-                    s.pos         = {(int)(entry["x"].asFloat() * 800.0f), (int)(entry["y"].asFloat() * 600.0f)};
+                    s.pos         = {(int)(entry["x"].asFloat() * CANVAS_W), (int)(entry["y"].asFloat() * CANVAS_H)};
                     s.colorIndex  = entry["c"].asInt();
                     s.startTimeMs = entry["t"].asInt64();
                     s.rotation    = entry.isMember("a")
                         ? entry["a"].asFloat()
                         : ((float)rand() / (float)RAND_MAX) * SPLOTCH_TAU;
+                    // "o" is a compact netId, resolved to a cxId now — the map that
+                    // resolves it is torn down at END_MATCH, so this must happen at
+                    // receive time, never deferred. Missing/unresolvable -> unattributed
+                    // (coverage falls back to a colorIndex match).
+                    if (entry.isMember("o"))
+                    {
+                        const auto &ownerCxId = pBCWrapper->getRelayService()->getCxIdForNetId(entry["o"].asInt());
+                        s.ownerCxId = ownerCxId;
+                    }
                     state.splotches.push_back(s);
                 }
+                ++state.splotchGeneration;
             }
             else if (op == "clear_splotches")
             {
                 state.splotches.clear();
+                ++state.splotchGeneration;
+            }
+            else if (op == "match_result")
+            {
+                int round = json["data"]["round"].asInt();
+                if (!(state.matchResult.valid && state.matchResult.round == round))
+                {
+                    if (json["data"]["first"].asBool())
+                        s_pendingMatchResult.clear();
+
+                    for (const auto &entry : json["data"]["e"])
+                    {
+                        const auto &entryCxId = pBCWrapper->getRelayService()->getCxIdForNetId(entry["n"].asInt());
+                        MatchResultEntry mre;
+                        mre.cxId        = entryCxId;
+                        mre.rank        = entry["r"].asInt();
+                        mre.coveragePct = entry["c"].asInt() / 100.0f; // basis points -> %
+                        mre.beaten      = entry["b"].asInt();
+                        s_pendingMatchResult.push_back(mre);
+                    }
+
+                    if (json["data"]["last"].asBool())
+                    {
+                        applyMatchResult(round, s_pendingMatchResult);
+                        s_pendingMatchResult.clear();
+                    }
+                }
             }
             else if (op == "game_start")
             {
@@ -831,6 +1192,7 @@ void app_update()
                 state.geoTestedRegions = geoTestedRegions;
                 state.geoTestResults = geoTestResults;
                 state.screenState = ScreenState::MainMenu;
+                app_enableChatRTT(); // RTT was just disabled above — re-enable it for main-menu chat
                 return;
             }
 
@@ -1140,9 +1502,21 @@ void app_play(BrainCloud::eRelayConnectionType in_protocol)
     // Reset loading timer so elapsed time starts from when Play was clicked
     loading_reset_timer();
 
-    // Enable RTT
-    pBCWrapper->getRTTService()->registerRTTLobbyCallback(&bcRTTCallback);
-    pBCWrapper->getRTTService()->enableRTT(&bcRTTConnectCallback, true);
+    s_wantsLobbySearch = true;
+
+    if (pBCWrapper->getRTTService()->getRTTEnabled())
+    {
+        // RTT is already connected (main-menu chat turned it on) — go straight to
+        // the lobby search. Calling enableRTT() again here would be redundant at
+        // best; onRTTConnected() won't fire a second time since we're not
+        // reconnecting, so this is the only way to pick the search flow back up.
+        startLobbySearchFlow();
+    }
+    else
+    {
+        pBCWrapper->getRTTService()->registerRTTLobbyCallback(&bcRTTCallback);
+        pBCWrapper->getRTTService()->enableRTT(&bcRTTConnectCallback, true);
+    }
 }
 
 // Take in lobby json and id and build a lobby object
@@ -1159,8 +1533,6 @@ static Lobby parseLobby(const Json::Value &lobbyJson, const std::string &lobbyId
         user.cxId = jsonMember["cxId"].asString();
         user.name = jsonMember["name"].asString();
         user.colorIndex = jsonMember["extra"]["colorIndex"].asInt();
-        if (user.cxId == state.user.cxId)
-            user.allowSendTo = false;
         // Ping data shared via the member's extra field
         const auto &pingsJson = jsonMember["extra"]["pings"];
         if (pingsJson.isObject())
@@ -1396,6 +1768,7 @@ void app_cancelLobby()
     state.geoTestedRegions = geoTestedRegions;
     state.geoTestResults = geoTestResults;
     state.screenState = ScreenState::MainMenu;
+    app_enableChatRTT(); // RTT was just disabled above — re-enable it for main-menu chat
 }
 
 // Cleanly close the game. Go back to main menu but don't log
@@ -1425,6 +1798,7 @@ void app_closeGame()
     state.geoTestedRegions = geoTestedRegions;
     state.geoTestResults = geoTestResults;
     state.screenState = ScreenState::MainMenu;
+    app_enableChatRTT(); // RTT was just disabled above — re-enable it for main-menu chat
 }
 
 // Ready up and signals RTT service we can start the game
@@ -1459,15 +1833,22 @@ void app_changeUserColor(int colorIndex)
         buildExtraJson());
 }
 
+// Mask of "everyone except me" — used to broadcast paint/results without echoing back
+// to the sender. This used to be driven by a user-editable "allowSendTo" HUD checkbox
+// (BCLOUD-14490 removes that checkbox, which was also a scoring-integrity hole: any
+// client could uncheck a peer and desync that peer's canvas, and therefore their score).
+// The self-exclusion itself is unconditional now, not gated by an editable flag.
 static uint64_t getPlayerMask()
 {
     uint64_t playerMask = 0;
 
     for (const auto &user : state.lobby.members)
     {
-        if (!user.allowSendTo)
+        if (user.cxId == state.user.cxId)
             continue;
         auto netId = pBCWrapper->getRelayService()->getNetIdForCxId(user.cxId);
+        if (netId < 0 || netId >= MAX_LOBBY_MEMBERS)
+            continue;
         playerMask |= (uint64_t)1 << (uint64_t)netId;
     }
 
@@ -1492,8 +1873,8 @@ void app_mouseMoved(const Point &pos)
     // Send to other players
     Json::Value json;
     json["op"] = "move";
-    json["data"]["x"] = pos.x / 800.0f;
-    json["data"]["y"] = pos.y / 600.0f;
+    json["data"]["x"] = pos.x / CANVAS_W;
+    json["data"]["y"] = pos.y / CANVAS_H;
 
     Json::FastWriter writer;
     auto str = writer.write(json);
@@ -1526,8 +1907,8 @@ void app_shockwave(const Point &pos)
 
     Json::Value json;
     json["op"] = "shockwave";
-    json["data"]["x"]     = pos.x / 800.0f;
-    json["data"]["y"]     = pos.y / 600.0f;
+    json["data"]["x"]     = pos.x / CANVAS_W;
+    json["data"]["y"]     = pos.y / CANVAS_H;
     json["data"]["angle"] = angle;
 
     Json::FastWriter writer;
@@ -1554,19 +1935,7 @@ void app_shockwave(const Point &pos)
     splotch.startTimeMs = std::chrono::duration_cast<std::chrono::milliseconds>(
         std::chrono::system_clock::now().time_since_epoch()).count();
     splotch.rotation   = angle;
+    splotch.ownerCxId  = state.user.cxId;
     state.splotches.push_back(splotch);
-}
-
-// Host clears all splotches on every client
-void app_clearSplotches()
-{
-    state.splotches.clear();
-
-    Json::Value json;
-    json["op"] = "clear_splotches";
-    Json::FastWriter writer;
-    auto str = writer.write(json);
-    pBCWrapper->getRelayService()->sendToAll(
-        (const uint8_t *)str.data(), (int)str.length(),
-        true, false, (BrainCloud::eRelayChannel)0);
+    ++state.splotchGeneration;
 }

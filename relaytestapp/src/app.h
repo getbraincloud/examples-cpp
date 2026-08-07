@@ -17,6 +17,7 @@
 // Desc: Interface for main application logic
 // Author: David St-Louis
 //-----------------------------------------------------------------------------
+#pragma once
 
 // brainCloud
 #include <braincloud/BrainCloudRelay.h>
@@ -46,6 +47,10 @@ void app_reconnect();
 // Find lobby
 void app_play(BrainCloud::eRelayConnectionType protocol);
 
+// Enables RTT so main-menu chat works (idempotent — safe to call any time the
+// MainMenu screen is reached; no-ops if RTT is already connected).
+void app_enableChatRTT();
+
 // Cancel lobby search or leave lobby. Go back to main menu without logging out.
 void app_cancelLobby();
 
@@ -67,5 +72,6 @@ void app_mouseMoved(const Point& pos);
 // User clicked mouse in the play area
 void app_shockwave(const Point& pos);
 
-// Host clears all splotches on every client
-void app_clearSplotches();
+// Drives coverage/ranking recompute + the host-authoritative match-end + leaderboard-post
+// flow. Called once per frame from game_update() while on the Game screen.
+void app_tickMatch();

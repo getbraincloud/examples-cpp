@@ -67,6 +67,8 @@ list(APPEND src_files
     src/globals.h
     src/app.cpp
     src/app.h
+    src/coverage.cpp
+    src/coverage.h
     src/game.cpp
     src/game.h
     src/lobby.cpp

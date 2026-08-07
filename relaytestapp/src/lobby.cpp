@@ -147,6 +147,34 @@ void lobby_update()
         }
         ImGui::Columns();
 
+        // Last match results — shown once a round finishes (state.matchResult, set by
+        // app_tickMatch()/applyMatchResult()) until the next round starts (cleared in
+        // onRelayConnected()). Entries are already in rank order from computeCoverage().
+        if (state.matchResult.valid)
+        {
+            ImGui::Separator();
+            centerText("Last Match Results");
+            for (const auto& entry : state.matchResult.entries)
+            {
+                const User* pMember = nullptr;
+                for (const auto& m : state.lobby.members)
+                {
+                    if (m.cxId == entry.cxId) { pMember = &m; break; }
+                }
+                std::string name = pMember ? pMember->name : "?";
+                std::string line = std::to_string(entry.rank) + ". " + name +
+                    "  " + std::to_string((int)(entry.coveragePct + 0.5f)) + "%" +
+                    "  (+" + std::to_string(entry.beaten + 1) + " pts)";
+                bool isMe = entry.cxId == state.user.cxId;
+                float tw = ImGui::CalcTextSize(line.c_str()).x;
+                ImGui::SetCursorPosX((ImGui::GetWindowSize().x - tw) * 0.5f);
+                if (isMe)
+                    ImGui::TextColored(ImVec4(0.35f, 1.0f, 0.45f, 1.0f), "%s", line.c_str());
+                else
+                    ImGui::TextDisabled("%s", line.c_str());
+            }
+        }
+
         // Ping data section — only shown when ping region data is enabled
         if (settings.usePingData)
         {

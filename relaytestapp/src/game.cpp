@@ -25,139 +25,163 @@
 #include "globals.h"
 
 // C/C++ includes
+#include <algorithm>
 #include <imgui.h>
 #include <stdio.h>
 #include <chrono>
 
+// Urgency thresholds for the match timer color (BCLOUD-14490 item 14).
+static constexpr long long TIMER_URGENT_SEC = 10;
+static constexpr long long TIMER_WARN_SEC   = 30;
+
+// How long a rank-swap highlight/arrow stays visible after a player's rank changes
+// (BCLOUD-14490 item 13). Driven by CoverageEntry::rankChangedAtMs, set once per
+// recompute in app_tickMatch() — never per-frame, so it can't strobe.
+static constexpr long long RANK_FLASH_MS = 600;
+
+// Fixed width of the docked scoreboard sidebar (matches the reference mockup's layout:
+// a full-height left sidebar, canvas + timer/ping/exit-match to its right).
+static constexpr float SIDEBAR_WIDTH = 220.0f;
+
+static const ImVec4 COLOR_ME(0.35f, 1.0f, 0.45f, 1.0f);
+
+
+// The RANK / PLAYER / COVERAGE sidebar — driven by state.coverage, which app_tickMatch()
+// keeps live-sorted best-first (BCLOUD-14490 items 6-10, 13). Docked full-height on the
+// left, matching the reference mockup.
+static void drawScoreboardSidebar(long long nowMs)
+{
+    ImGui::SetNextWindowPos(ImVec2(0.0f, ImGui::GetFrameHeight()), ImGuiCond_Always);
+    ImGui::SetNextWindowSize(ImVec2(SIDEBAR_WIDTH, (float)height - ImGui::GetFrameHeight()), ImGuiCond_Always);
+    ImGui::Begin("##scoreboard", nullptr,
+        ImGuiWindowFlags_NoTitleBar |
+        ImGuiWindowFlags_NoResize |
+        ImGuiWindowFlags_NoMove |
+        ImGuiWindowFlags_NoCollapse |
+        ImGuiWindowFlags_NoSavedSettings);
+
+    if (ImGui::BeginTable("scoreboard_table", 2,
+            ImGuiTableFlags_SizingStretchProp | ImGuiTableFlags_RowBg))
+    {
+        ImGui::TableSetupColumn("RANK / PLAYER", ImGuiTableColumnFlags_WidthStretch, 0.68f);
+        ImGui::TableSetupColumn("COVERAGE", ImGuiTableColumnFlags_WidthStretch | ImGuiTableColumnFlags_IndentDisable, 0.32f);
+        ImGui::TableHeadersRow();
+
+        for (const auto& entry : state.coverage)
+        {
+            const User* pMember = nullptr;
+            for (const auto& m : state.lobby.members)
+            {
+                if (m.cxId == entry.cxId) { pMember = &m; break; }
+            }
+            if (!pMember) continue;
+
+            bool isMe = (entry.cxId == state.user.cxId);
+            bool flashing = entry.rankChangedAtMs > 0 && (nowMs - entry.rankChangedAtMs) < RANK_FLASH_MS;
+            bool improved = entry.rank < entry.prevRank;
+
+            ImGui::TableNextRow();
+            if (isMe)
+                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0, ImColor(ImVec4(1.0f, 1.0f, 1.0f, 0.08f)));
+            else if (flashing)
+                ImGui::TableSetBgColor(ImGuiTableBgTarget_RowBg0,
+                    ImColor(improved ? ImVec4(0.3f, 1.0f, 0.3f, 0.20f) : ImVec4(1.0f, 0.3f, 0.3f, 0.20f)));
+
+            // RANK / PLAYER — "#N" (gold/silver/bronze, item 7) + color dot + name
+            // (green for "me", item 8) + a "YOU" bubble + rank-swap arrow (item 13).
+            ImGui::TableNextColumn();
+            {
+                ImVec4 rankColor(1.0f, 1.0f, 1.0f, 1.0f); // plain white for 4th place and below (item 7)
+                if (entry.rank == 1)      rankColor = ImVec4(1.00f, 0.84f, 0.00f, 1.0f); // gold
+                else if (entry.rank == 2) rankColor = ImVec4(0.75f, 0.75f, 0.75f, 1.0f);  // silver
+                else if (entry.rank == 3) rankColor = ImVec4(0.80f, 0.50f, 0.20f, 1.0f);  // bronze
+
+                const char* arrow = !flashing ? "" : (improved ? "^" : "v");
+                ImGui::TextColored(rankColor, "%s#%d", arrow, entry.rank);
+                ImGui::SameLine();
+                ImGui::TextColored(getColor(pMember->colorIndex % colorCount()), "\xE2\x97\x8F"); // "●" color dot
+                ImGui::SameLine();
+                ImGui::TextColored(isMe ? COLOR_ME : ImVec4(1, 1, 1, 1), "%s", pMember->name.c_str());
+                if (isMe)
+                {
+                    ImGui::SameLine();
+                    ImVec2 textSize = ImGui::CalcTextSize("YOU");
+                    ImVec2 p0 = ImGui::GetCursorScreenPos();
+                    ImVec2 p1 = ImVec2(p0.x + textSize.x + 8.0f, p0.y + textSize.y + 2.0f);
+                    ImGui::GetWindowDrawList()->AddRectFilled(p0, p1, ImColor(ImVec4(1.0f, 1.0f, 1.0f, 0.15f)), 4.0f);
+                    ImGui::SetCursorScreenPos(ImVec2(p0.x + 4.0f, p0.y + 1.0f));
+                    ImGui::TextUnformatted("YOU");
+                }
+            }
+
+            // COVERAGE — as a % (item 9), green for "me" to match the rank/player color
+            ImGui::TableNextColumn();
+            ImGui::TextColored(isMe ? COLOR_ME : ImVec4(1, 1, 1, 1), "%.0f%%", entry.coveragePct);
+        }
+        ImGui::EndTable();
+    }
+
+    ImGui::End();
+}
+
+// Debug/connection tooling — kept (per the CLAUDE.md RTA checklist's documented
+// Reliable/Ordered/Channel controls) but out of the way of the scoreboard sidebar,
+// which the reference mockup keeps clean.
+static void drawDebugPanel()
+{
+    ImGui::SetNextWindowPos(ImVec2((float)width - 8.0f, (float)height - 8.0f), ImGuiCond_FirstUseEver, ImVec2(1.0f, 1.0f));
+    ImGui::Begin("Debug", nullptr, ImGuiWindowFlags_NoCollapse | ImGuiWindowFlags_AlwaysAutoResize);
+
+    if (!state.lobby.regionId.empty())
+    {
+        bool isActual = !regionFromLobbyId(state.lobby.lobbyId).empty();
+        ImGui::TextDisabled("%s: %s", isActual ? "Region" : "Est. region", state.lobby.regionId.c_str());
+    }
+
+    ImGui::Text("Reliable options");
+    ImGui::Indent();
+    ImGui::TextDisabled("Only affect position");
+    ImGui::Text("Channel");
+    ImGui::Indent();
+    ImGui::BeginGroup();
+    for (int i = 0; i < 4; ++i)
+    {
+        bool active = settings.sendChannel == i;
+        if (ImGui::RadioButton(std::to_string(i).c_str(), active))
+            settings.sendChannel = i;
+        if (i % 2 == 0) ImGui::SameLine();
+    }
+    ImGui::EndGroup();
+    ImGui::Unindent();
+    ImGui::Checkbox("Reliable", &settings.sendReliable);
+    ImGui::Checkbox("Ordered", &settings.sendOrdered);
+    ImGui::Unindent();
+
+    ImGui::Separator();
+    ImGui::Text("Round: %d", state.roundNumber);
+    ImGui::Text("Lobby: %s", state.lobby.lobbyId.c_str());
+
+    ImGui::End();
+}
 
 // Draws a game dialog and update its logic
 void game_update()
 {
-    const auto& style = ImGui::GetStyle();
+    // Drive the shared coverage/ranking recompute and the host-authoritative
+    // match-end + leaderboard-post flow. Safe to call every frame — internally
+    // throttled (COVERAGE_RECOMPUTE_MS) and phase-guarded.
+    app_tickMatch();
 
-    // Send options
+    auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::system_clock::now().time_since_epoch()).count();
+
+    drawScoreboardSidebar(nowMs);
+    drawDebugPanel();
+
+    // Main game window, centered in the area to the right of the sidebar
     {
-        ImGui::Begin("Settings", 0, 
-                     ImGuiWindowFlags_NoCollapse |
-                     ImGuiWindowFlags_NoResize |
-                     ImGuiWindowFlags_AlwaysAutoResize);
-
-        ImGui::Text("Players");
-        {
-            ImGui::Indent();
-            if (!state.lobby.regionId.empty())
-            {
-                bool isActual = !regionFromLobbyId(state.lobby.lobbyId).empty();
-                ImGui::TextDisabled("%s: %s",
-                    isActual ? "Region" : "Est. region",
-                    state.lobby.regionId.c_str());
-            }
-            ImGui::TextDisabled("Mask = shockwave targets only");
-            for (auto& user : state.lobby.members)
-            {
-                auto color = getColor(user.colorIndex % colorCount());
-                ImGui::PushStyleColor(ImGuiCol_Text, color);
-                std::string label = user.name;
-                if (user.cxId == state.lobby.ownerCxId) label += " [H]";
-                if (user.cxId == state.user.cxId)       label += " (me)";
-                ImGui::Checkbox(label.c_str(), &user.allowSendTo);
-                ImGui::PopStyleColor();
-                ImGui::SameLine();
-                char pingBuf[16];
-                if (user.activePing < 0)
-                    ImGui::TextDisabled("...");
-                else if (user.activePing >= 999)
-                    ImGui::TextDisabled("T/O");
-                else
-                {
-                    snprintf(pingBuf, sizeof(pingBuf), "%d ms", user.activePing);
-                    ImGui::TextDisabled("%s", pingBuf);
-                }
-            }
-            ImGui::Unindent();
-        }
-
-        ImGui::Separator();
-        ImGui::Text("Reliable options");
-        {
-            ImGui::Indent();
-            ImGui::TextDisabled("Only affect position");
-            ImGui::Text("Channel");
-            {
-                ImGui::Indent();
-                ImGui::BeginGroup();
-                for (int i = 0; i < 4; ++i)
-                {
-                    bool active = settings.sendChannel == i;
-                    if (ImGui::RadioButton(std::to_string(i).c_str(), active))
-                    {
-                        settings.sendChannel = i;
-                    }
-                    if (i % 2 == 0) ImGui::SameLine();
-                }
-                ImGui::EndGroup();
-                ImGui::Unindent();
-            }
-            ImGui::Checkbox("Reliable", &settings.sendReliable);
-            ImGui::Checkbox("Ordered", &settings.sendOrdered);
-            ImGui::Unindent();
-        }
-
-        ImGui::Separator();
-
-        // Game session info
-        bool isHost = state.user.cxId == state.lobby.ownerCxId;
-        if (isHost)
-        {
-            ImGui::TextColored(ImVec4(1.0f, 0.85f, 0.0f, 1.0f), "HOST");
-            ImGui::SameLine();
-            if (ImGui::SmallButton("Clear Splotches"))
-                app_clearSplotches();
-        }
-
-        if (state.gameStartTime != 0)
-        {
-            auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-                std::chrono::system_clock::now().time_since_epoch()).count();
-            long long elapsedMs = nowMs - state.gameStartTime;
-            long long elapsedSec = elapsedMs / 1000;
-            int minutes = (int)(elapsedSec / 60);
-            int seconds = (int)(elapsedSec % 60);
-            ImGui::Text("Game Time: %d:%02d", minutes, seconds);
-
-            // CursorParty: 1:30 round with 10-second countdown then auto end-match
-            if (isCursorPartyLobby(settings.lobbyType))
-            {
-                static const long long MATCH_DURATION_MS = 90000LL;
-                static const long long COUNTDOWN_FROM_MS = 80000LL;
-                static int matchEndRound = -1; // tracks which round end was already sent
-
-                if (elapsedMs >= MATCH_DURATION_MS)
-                {
-                    if (isHost && matchEndRound != state.roundNumber)
-                    {
-                        matchEndRound = state.roundNumber;
-                        app_endMatch();
-                    }
-                }
-                else if (elapsedMs >= COUNTDOWN_FROM_MS)
-                {
-                    long long remaining = (MATCH_DURATION_MS - elapsedMs + 999LL) / 1000LL;
-                    ImGui::TextColored(ImVec4(1.0f, 0.3f, 0.3f, 1.0f),
-                                       "Ending in %lld...", remaining);
-                }
-            }
-        }
-        ImGui::Text("Round: %d", state.roundNumber);
-        ImGui::Text("Lobby: %s", state.lobby.lobbyId.c_str());
-
-        ImGui::End();
-    }
-
-    // Main menu window, centered
-    {
-        float gameWidth = 800;
-        float gameHeight = 600;
+        float gameWidth = CANVAS_W;
+        float gameHeight = CANVAS_H;
         float scale = 1.0f;
         if (settings.gameUIIScale == 0)
         {
@@ -169,13 +193,62 @@ void game_update()
         }
         gameWidth *= scale;
         gameHeight *= scale;
+        float rightAreaX = SIDEBAR_WIDTH;
+        float rightAreaW = (float)width - SIDEBAR_WIDTH;
         ImGui::SetNextWindowPos(ImVec2(
-            (float)width / 5.0f * 3.0f - gameWidth / 2.0f,
+            rightAreaX + rightAreaW / 2.0f - gameWidth / 2.0f,
             (float)height / 2.0f - gameHeight / 2.0f));
         ImGui::Begin("Game", nullptr,
             ImGuiWindowFlags_NoCollapse |
             ImGuiWindowFlags_NoResize |
-            ImGuiWindowFlags_AlwaysAutoResize);
+            ImGuiWindowFlags_AlwaysAutoResize |
+            ImGuiWindowFlags_NoTitleBar); // item 1: remove game title from gameplay view
+
+        // Timer (left, colored by urgency) + "Exit Match" (right) — above the canvas
+        // (item 12), replacing the old menu-bar "Leave"/"End Match" items (item 3).
+        {
+            long long remainingSec = 0;
+            ImVec4 timerColor(1.0f, 1.0f, 1.0f, 1.0f);
+            if (state.gameStartTime != 0 && isCursorPartyLobby(settings.lobbyType))
+            {
+                long long elapsedMs = nowMs - state.gameStartTime;
+                long long remainingMs = MATCH_DURATION_MS - elapsedMs;
+                if (remainingMs < 0) remainingMs = 0;
+                remainingSec = (remainingMs + 999) / 1000;
+
+                if (remainingSec <= TIMER_URGENT_SEC)
+                    timerColor = ImVec4(1.0f, 0.3f, 0.3f, 1.0f);
+                else if (remainingSec <= TIMER_WARN_SEC)
+                    timerColor = ImVec4(1.0f, 0.75f, 0.2f, 1.0f);
+
+                ImGui::TextColored(timerColor, "%lld:%02lld", remainingSec / 60, remainingSec % 60);
+            }
+
+            ImGui::SameLine(gameWidth - 110.0f);
+            if (ImGui::Button("\xE2\x86\xA9 Exit Match")) // "↩ Exit Match"
+            {
+                app_closeGame();
+            }
+
+            // Single self-ping readout (item 11 — ping lives outside the scoreboard's
+            // main column entirely now, rather than a per-row column).
+            if (pBCWrapper)
+            {
+                int ping = pBCWrapper->getRelayService()->getPing();
+                ImVec4 pingColor = ping < 0 ? ImVec4(0.6f, 0.6f, 0.6f, 1.0f)
+                                  : ping < 100 ? ImVec4(0.4f, 0.9f, 0.5f, 1.0f)
+                                  : ping < 200 ? ImVec4(0.95f, 0.8f, 0.3f, 1.0f)
+                                  : ImVec4(1.0f, 0.4f, 0.4f, 1.0f);
+                ImGui::TextColored(pingColor, "\xE2\x97\x8F"); // "●"
+                ImGui::SameLine();
+                if (ping < 0)
+                    ImGui::TextDisabled("Ping: ...");
+                else if (ping >= 999)
+                    ImGui::TextDisabled("Ping: T/O");
+                else
+                    ImGui::TextDisabled("Ping: %d ms", ping);
+            }
+        }
 
         // Play area
         ImGui::BeginChildFrame(1, ImVec2(gameWidth, gameHeight));
@@ -208,15 +281,32 @@ void game_update()
             auto mouseDown = ImGui::IsMouseDown(0);
             if (mouseDown && !lastMouseDown)
             {
-                if (mousePos.x >= 0.0f && mousePos.x <= 800.0f &&
-                    mousePos.y >= 0.0f && mousePos.y <= 600.0f)
+                if (mousePos.x >= 0.0f && mousePos.x <= CANVAS_W &&
+                    mousePos.y >= 0.0f && mousePos.y <= CANVAS_H)
                 {
                     app_shockwave({ (int)(mousePos.x / scale), (int)(mousePos.y / scale) });
                 }
             }
             lastMouseDown = mouseDown;
 
-            // Splotches — persistent marks left by shockwaves, drawn under the transient rings
+            // Splotches — persistent marks left by shockwaves, drawn under the transient rings.
+            // Expiry is pruned in one remove_if pass (was an O(N^2) per-frame erase loop)
+            // before the draw pass, bumping splotchGeneration exactly once when it changes
+            // so app_tickMatch()'s coverage recompute notices.
+            if (state.splotchDurationSec >= 0)
+            {
+                size_t before = state.splotches.size();
+                state.splotches.erase(
+                    std::remove_if(state.splotches.begin(), state.splotches.end(),
+                        [&](const Splotch& s) {
+                            long long ageSec = (nowMs - s.startTimeMs) / 1000LL;
+                            return ageSec >= state.splotchDurationSec;
+                        }),
+                    state.splotches.end());
+                if (state.splotches.size() != before)
+                    ++state.splotchGeneration;
+            }
+
             if (SPLOTCH_TEX)
             {
                 // Spring-overshoot pop: 0→~1.4 peak→1.0 settle over 0.3s (matches Unity AnimateSplatter)
@@ -229,18 +319,9 @@ void game_update()
                     return std::max(0.0f, std::min(1.0f + b, std::min(grow, shrink)));
                 };
 
-                auto nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
-                    std::chrono::system_clock::now().time_since_epoch()).count();
-                for (auto it = state.splotches.begin(); it != state.splotches.end();)
+                for (const auto &splotch : state.splotches)
                 {
-                    auto &splotch = *it;
                     long long ageSec = (nowMs - splotch.startTimeMs) / 1000LL;
-
-                    if (state.splotchDurationSec >= 0 && ageSec >= state.splotchDurationSec)
-                    {
-                        it = state.splotches.erase(it);
-                        continue;
-                    }
 
                     float alpha = 0.55f;
                     if (state.splotchDurationSec > 0)
@@ -273,8 +354,6 @@ void game_update()
 
                     pDrawList->AddImageQuad(SPLOTCH_TEX, p1, p2, p3, p4,
                         {0,0}, {1,0}, {1,1}, {0,1}, ImColor(tint));
-
-                    ++it;
                 }
             }
 
@@ -324,6 +403,19 @@ void game_update()
                          framePos.y + (float)member.pos.y * scale);
                 ImU32  col     = ImColor(getColor(member.colorIndex % colorCount()));
                 ImU32  shadow  = IM_COL32(0, 0, 0, 160);
+
+                // Live coverage % next to the cursor, in-canvas (in addition to the
+                // sidebar scoreboard) — drawn before the arrow so the arrow renders on top.
+                for (const auto& covEntry : state.coverage)
+                {
+                    if (covEntry.cxId != member.cxId) continue;
+                    char buf[16];
+                    snprintf(buf, sizeof(buf), "%.0f%%", covEntry.coveragePct);
+                    ImVec2 textPos(p.x + s * 0.9f, p.y - 16.0f * scale);
+                    pDrawList->AddText(ImVec2(textPos.x + 1, textPos.y + 1), shadow, buf);
+                    pDrawList->AddText(textPos, col, buf);
+                    break;
+                }
 
                 // NW-pointing cursor arrow built from three triangles:
                 //   - main body (tip → shaft)

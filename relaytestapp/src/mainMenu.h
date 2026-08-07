@@ -17,6 +17,7 @@
 // Desc: Interface for displaying a main menu screen and updating its logic
 // Author: David St-Louis
 //-----------------------------------------------------------------------------
+#pragma once
 
 // Draws the main menu dialog
 void mainMenu_update();
