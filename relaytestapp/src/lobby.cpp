@@ -191,6 +191,16 @@ static void drawLobbyMembersPanel(float x, float y)
                 app_startGame();
         }
     }
+    else if (!state.awaitingRematch)
+    {
+        // Only the host has a "Start" button (starting the round is host-only), but
+        // every other member still needs a way to signal they're ready — this toggle.
+        // Once awaiting a rematch, the Match Summary screen's "Queue for Rematch"
+        // button already handles readying up instead.
+        ImGui::SameLine();
+        if (ImGui::Button(state.user.isReady ? "Not Ready" : "Ready Up"))
+            app_toggleReady();
+    }
 
     ImGui::End();
 }

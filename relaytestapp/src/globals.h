@@ -174,6 +174,7 @@ struct User
 // this-lobby (Lobby service SendSignal) chat.
 struct ChatMessage
 {
+    std::string msgId;
     std::string fromName;
     std::string text;
 };

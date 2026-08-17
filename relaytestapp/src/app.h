@@ -70,6 +70,11 @@ void app_endMatch();
 // Ready up and signals RTT service we can start the game
 void app_startGame();
 
+// Non-host lobby members have no "Start" button (only the host can start the round),
+// but still need a way to signal they're ready before the host starts — toggles this
+// player's own ready state. Not used during the rematch flow (see app_setRematchReady).
+void app_toggleReady();
+
 // Marks this player queued for a rematch and takes them back to the Lobby screen —
 // used by both the Match Summary screen's button and its own auto-timeout.
 void app_setRematchReady(bool ready);

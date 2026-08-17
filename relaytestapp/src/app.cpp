@@ -22,6 +22,7 @@
 #include "app.h"
 #include "coverage.h"
 #include "game.h"
+#include "globalChat.h"
 #include "globals.h"
 #include "loading.h"
 #include "lobby.h"
@@ -151,6 +152,10 @@ public:
         if (service == BrainCloud::ServiceName::Lobby.getValue())
         {
             onLobbyEvent(eventJson);
+        }
+        else if (service == BrainCloud::ServiceName::Chat.getValue())
+        {
+            chat_onRTTChatEvent(eventJson);
         }
     }
 };
@@ -538,9 +543,9 @@ void onRTTConnected()
 }
 
 // Enables RTT so main-menu chat works — brainCloud's chat calls (getChannelId,
-// getRecentChatMessages, postChatMessageSimple) all fail with RTT_NOT_ENABLED
-// otherwise. Idempotent: no-ops if RTT is already connected (e.g. a lobby search
-// already turned it on). Called whenever the app reaches the MainMenu screen.
+// channelConnect, postChatMessageSimple) all fail with RTT_NOT_ENABLED otherwise.
+// Idempotent: no-ops if RTT is already connected (e.g. a lobby search already turned
+// it on). Called whenever the app reaches the MainMenu screen.
 void app_enableChatRTT()
 {
     // Called at every MainMenu arrival — piggyback the rank re-fetch here too
@@ -553,6 +558,7 @@ void app_enableChatRTT()
     s_wantsLobbySearch = false;
     s_rttConnecting = true;
     pBCWrapper->getRTTService()->registerRTTLobbyCallback(&bcRTTCallback);
+    pBCWrapper->getRTTService()->registerRTTChatCallback(&bcRTTCallback);
     pBCWrapper->getRTTService()->enableRTT(&bcRTTConnectCallback, true);
 }
 
@@ -1574,14 +1580,6 @@ void app_update()
                     ImGui::EndMenu();
                 }
                 ImGui::Separator();
-                if (state.lobby.ownerCxId == state.user.cxId)
-                {
-                    if (ImGui::MenuItem("End Match"))
-                    {
-                        app_endMatch();
-                    }
-                    ImGui::Separator();
-                }
                 if (ImGui::MenuItem("Leave"))
                 {
                     app_closeGame();
@@ -1811,6 +1809,7 @@ void app_play(BrainCloud::eRelayConnectionType in_protocol)
         // onRTTConnected() regardless of who initiated it.
         s_rttConnecting = true;
         pBCWrapper->getRTTService()->registerRTTLobbyCallback(&bcRTTCallback);
+        pBCWrapper->getRTTService()->registerRTTChatCallback(&bcRTTCallback);
         pBCWrapper->getRTTService()->enableRTT(&bcRTTConnectCallback, true);
     }
 }
@@ -2171,6 +2170,15 @@ void app_startGame()
 {
     state.user.isReady = true;
     state.awaitingRematch = false; // in case this was called by the rematch gate below
+    pBCWrapper->getLobbyService()->updateReady(
+        state.lobby.lobbyId,
+        state.user.isReady,
+        buildExtraJson());
+}
+
+void app_toggleReady()
+{
+    state.user.isReady = !state.user.isReady;
     pBCWrapper->getLobbyService()->updateReady(
         state.lobby.lobbyId,
         state.user.isReady,
