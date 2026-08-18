@@ -77,6 +77,10 @@ static void drawPlayerCard(const MatchResultEntry &entry, float width)
     int colorIndex = pMember ? pMember->colorIndex : 0;
     bool isMe = (entry.cxId == state.user.cxId);
 
+    auto arrivalElapsedMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now() - state.matchSummaryArrivalTime).count();
+    bool leaderboardTimedOut = arrivalElapsedMs >= LEADERBOARD_RESULT_TIMEOUT_MS;
+
     // How many badge lines this card needs, so it gets an explicit height instead of
     // BeginChild's height=0 — inside a scrolling parent that means "fill ALL remaining
     // space", not "auto-fit to content", which is what was making every card after the
@@ -150,7 +154,7 @@ static void drawPlayerCard(const MatchResultEntry &entry, float width)
 
     if (!entry.lbDelta.ready)
     {
-        ImGui::TextDisabled("Updating leaderboards...");
+        ImGui::TextDisabled(leaderboardTimedOut ? "Leaderboard unavailable" : "Updating leaderboards...");
     }
     else
     {
@@ -268,11 +272,17 @@ void matchSummary_update()
     }
     ImGui::TextDisabled("Next Round: %lld:%02lld", remainingSec / 60, remainingSec % 60);
 
+    // Your own row uses the immediate local isReady, not the lobby snapshot — the snapshot
+    // for your own entry is briefly stale right after the server echo confirming a
+    // ready-toggle lags a few seconds behind, which used to show a count like "1/1" before
+    // dropping back to the correct "0/1".
+    bool iAmReady = state.user.isReady;
     int readyCount = 0;
     for (const auto &m : state.lobby.members)
-        if (m.isReady) ++readyCount;
-
-    bool iAmReady = state.user.isReady;
+    {
+        bool ready = (m.cxId == state.user.cxId) ? iAmReady : m.isReady;
+        if (ready) ++readyCount;
+    }
     char rematchLabel[64];
     snprintf(rematchLabel, sizeof(rematchLabel), "%s  %d/%d",
         iAmReady ? "Queued for Rematch" : "Queue for Rematch",

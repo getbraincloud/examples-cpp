@@ -176,27 +176,21 @@ static void drawLobbyMembersPanel(float x, float y)
             if (elapsed >= std::chrono::milliseconds(1500))
                 app_startGame();
         }
-        else if (state.awaitingRematch)
-        {
-            // Rematch flow is fully automatic (app_tickRematchGate, ticked above) — no
-            // manual override here, so a host who returns early can't skip the "wait for
-            // stragglers or 15s" window the user asked for.
-            ImGui::SameLine();
-            ImGui::TextDisabled("Waiting for other players to return...");
-        }
         else
         {
+            // Host can always start manually, round 2+ included — app_tickRematchGate()
+            // still auto-starts in the background once everyone's queued up or the wait
+            // times out, so this button is just an early-start option, not the only way in.
             ImGui::SameLine();
             if (ImGui::Button("Start"))
                 app_startGame();
         }
     }
-    else if (!state.awaitingRematch)
+    else
     {
         // Only the host has a "Start" button (starting the round is host-only), but
-        // every other member still needs a way to signal they're ready — this toggle.
-        // Once awaiting a rematch, the Match Summary screen's "Queue for Rematch"
-        // button already handles readying up instead.
+        // every other member still needs a way to signal they're ready — this toggle
+        // stays available in every round, not just the first.
         ImGui::SameLine();
         if (ImGui::Button(state.user.isReady ? "Not Ready" : "Ready Up"))
             app_toggleReady();

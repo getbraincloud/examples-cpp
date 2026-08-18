@@ -983,7 +983,9 @@ static void hostPostMatchResultsToCloud(int round, const std::vector<MatchResult
         new BCCallback(
             [round](const Json::Value &result)
             {
-                applyLeaderboardResultsFromCloud(round, result["data"]["results"]);
+                // The script's own return value is nested under data.response (a sibling of
+                // runTimeData/success), not data itself — data.results is always empty/missing.
+                applyLeaderboardResultsFromCloud(round, result["data"]["response"]["results"]);
             },
             [round](const std::string &msg)
             {
@@ -1172,10 +1174,30 @@ static void onRelaySystemMessage(const Json::Value &json)
     }
     else if (json["op"].asString() == "CONNECT") // A new player joined mid-game (backfill)
     {
+        const auto &cxId = json["cxId"].asString();
+
+        // The relay's CONNECT can beat the Lobby service's own MEMBER_JOIN/UPDATE event to
+        // us, so state.lobby.members may not have this peer yet. Seed a placeholder (blank
+        // name/colour, no profileId) so the coverage board doesn't just omit them — the next
+        // never resolves before it renders, and a player who disconnects immediately after
+        // connecting can be dropped from the round's leaderboard entries entirely.
+        bool known = false;
+        for (const auto &m : state.lobby.members)
+        {
+            if (m.cxId == cxId) { known = true; break; }
+        }
+        if (!known && !cxId.empty())
+        {
+            User placeholder;
+            placeholder.cxId = cxId;
+            placeholder.isAlive = true;
+            state.lobby.members.push_back(placeholder);
+            state.coverageComputedGen = (unsigned long long)-1; // force a recompute next tick
+        }
+
         // Owner re-sends game start time and current splotch canvas so the JIP player syncs up
         if (state.lobby.ownerCxId == state.user.cxId && state.gameStartTime != 0)
         {
-            const auto &cxId = json["cxId"].asString();
             auto netId = pBCWrapper->getRelayService()->getNetIdForCxId(cxId);
             uint64_t mask = (uint64_t)1 << (uint64_t)netId;
             sendGameStartToMask(mask);
@@ -1344,49 +1366,45 @@ static void onRelayMessage(int netId, const Json::Value &json)
                 // match_result since a 40-player lobby could exceed one packet. Can arrive
                 // before this round's match_result has populated state.matchResult.entries
                 // — buffer by cxId in that case (drained in applyMatchResult).
-                int round = json["data"]["round"].asInt();
-                if (!(state.matchResult.valid && state.matchResult.round == round))
+                if (json["data"]["first"].asBool())
+                    s_pendingLbChunk.clear();
+
+                for (const auto &entry : json["data"]["e"])
                 {
-                    if (json["data"]["first"].asBool())
-                        s_pendingLbChunk.clear();
-
-                    for (const auto &entry : json["data"]["e"])
+                    LeaderboardDelta delta;
+                    delta.ready = true;
+                    auto readPeriod = [&](const char *key, LeaderboardPeriodDelta &pd)
                     {
-                        LeaderboardDelta delta;
-                        delta.ready = true;
-                        auto readPeriod = [&](const char *key, LeaderboardPeriodDelta &pd)
-                        {
-                            if (!entry.isMember(key)) return; // absent == "no change" for that period
-                            pd.improved = true;
-                            pd.rankBefore = entry[key]["b"].asInt();
-                            pd.rankAfter = entry[key]["a"].asInt();
-                        };
-                        readPeriod("pl", delta.pointsLifetime);
-                        readPeriod("pq", delta.pointsQuarterly);
-                        readPeriod("cl", delta.coverageLifetime);
-                        readPeriod("cq", delta.coverageQuarterly);
-                        s_pendingLbChunk.push_back(std::make_pair(entry["cx"].asString(), delta));
-                    }
+                        if (!entry.isMember(key)) return; // absent == "no change" for that period
+                        pd.improved = true;
+                        pd.rankBefore = entry[key]["b"].asInt();
+                        pd.rankAfter = entry[key]["a"].asInt();
+                    };
+                    readPeriod("pl", delta.pointsLifetime);
+                    readPeriod("pq", delta.pointsQuarterly);
+                    readPeriod("cl", delta.coverageLifetime);
+                    readPeriod("cq", delta.coverageQuarterly);
+                    s_pendingLbChunk.push_back(std::make_pair(entry["cx"].asString(), delta));
+                }
 
-                    if (json["data"]["last"].asBool())
+                if (json["data"]["last"].asBool())
+                {
+                    for (const auto &kv : s_pendingLbChunk)
                     {
-                        for (const auto &kv : s_pendingLbChunk)
+                        bool applied = false;
+                        for (auto &e : state.matchResult.entries)
                         {
-                            bool applied = false;
-                            for (auto &e : state.matchResult.entries)
+                            if (e.cxId == kv.first)
                             {
-                                if (e.cxId == kv.first)
-                                {
-                                    e.lbDelta = kv.second;
-                                    applied = true;
-                                    break;
-                                }
+                                e.lbDelta = kv.second;
+                                applied = true;
+                                break;
                             }
-                            if (!applied)
-                                s_pendingLbResults[kv.first] = kv.second;
                         }
-                        s_pendingLbChunk.clear();
+                        if (!applied)
+                            s_pendingLbResults[kv.first] = kv.second;
                     }
+                    s_pendingLbChunk.clear();
                 }
             }
             else if (op == "game_start")
@@ -1502,7 +1520,13 @@ void app_update()
 
                 // Non-host users re-ready for the next round now that we're back in the lobby.
                 // The host does NOT auto-ready — the host controls when the next match starts.
-                if (state.user.cxId != state.lobby.ownerCxId)
+                // Only for lobby types with no Match Summary screen (geo test, RoomServer, etc.) —
+                // CursorParty lobbies already cleared isReady in the END_MATCH handler above so the
+                // Match Summary screen's per-player "Queue for Rematch" gate (BCLOUD-14489) controls
+                // it; auto-readying here would silently defeat that gate and every player's 45s
+                // opt-in window.
+                if (state.user.cxId != state.lobby.ownerCxId &&
+                    !(isCursorPartyLobby(settings.lobbyType) && !settings.autoGeoTest))
                 {
                     state.user.isReady = true;
                     pBCWrapper->getLobbyService()->updateReady(
@@ -1829,6 +1853,7 @@ static Lobby parseLobby(const Json::Value &lobbyJson, const std::string &lobbyId
         user.profileId = jsonMember["profileId"].asString();
         user.name = jsonMember["name"].asString();
         user.colorIndex = jsonMember["extra"]["colorIndex"].asInt();
+        user.isReady = jsonMember["isReady"].asBool();
         // Worldwide rank — each player fetches their OWN rank (self-centric API,
         // getGlobalLeaderboardView has no "rank for an arbitrary other player" call)
         // and shares it here, the same way colorIndex/pings already propagate.

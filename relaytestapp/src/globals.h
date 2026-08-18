@@ -129,12 +129,18 @@ static constexpr float COVERAGE_GRID_CELL_SIZE = 2.0f;
 // Match timing (moved here from game.cpp so app_tickMatch() and the HUD can both see them
 // regardless of where the timer widget is drawn).
 static constexpr long long MATCH_DURATION_MS = 90000LL;
-static constexpr long long RESULT_GRACE_MS = 1000LL;      // delay between match_result broadcast and endMatch()
+static constexpr long long RESULT_GRACE_MS = 3000LL;      // delay between match_result broadcast and endMatch()
 static constexpr long long COVERAGE_RECOMPUTE_MS = 250LL; // live-board recompute throttle
 
 // How long the post-match summary screen waits for everyone to queue for a rematch
 // before the host starts the next round anyway (BCLOUD-14489).
 static constexpr long long MATCH_SUMMARY_REMATCH_MS = 45000LL;
+
+// How long a player card waits for its "lb_result" leaderboard delta before giving up and
+// showing "Leaderboard unavailable" instead of "Updating leaderboards..." forever — the
+// cloud script call/broadcast is best-effort (see RESULT_GRACE_MS), so this is the backstop
+// that keeps the summary screen from looking permanently stuck when it's lost that race.
+static constexpr long long LEADERBOARD_RESULT_TIMEOUT_MS = 8000LL;
 
 // Screen state enum.
 enum class ScreenState : int

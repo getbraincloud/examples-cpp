@@ -297,16 +297,35 @@ void game_update()
             }
             lastMousePos = mousePos;
 
-            // Check if clicked
+            // Check if clicked — holding the button auto-repeats a splotch every
+            // AUTO_PAINT_INTERVAL_SEC (initial click still paints immediately). Same interval
+            // as js/Godot so hold-to-paint feels consistent for everyone in a shared match.
+            const float AUTO_PAINT_INTERVAL_SEC = 0.15f;
             static bool lastMouseDown = false;
+            static float autoPaintAccum = 0.0f;
             auto mouseDown = ImGui::IsMouseDown(0);
+            bool inBounds = mousePos.x >= 0.0f && mousePos.x <= CANVAS_W &&
+                             mousePos.y >= 0.0f && mousePos.y <= CANVAS_H;
+
             if (mouseDown && !lastMouseDown)
             {
-                if (mousePos.x >= 0.0f && mousePos.x <= CANVAS_W &&
-                    mousePos.y >= 0.0f && mousePos.y <= CANVAS_H)
-                {
+                autoPaintAccum = 0.0f;
+                if (inBounds)
                     app_shockwave({ (int)(mousePos.x / scale), (int)(mousePos.y / scale) });
+            }
+            else if (mouseDown)
+            {
+                autoPaintAccum += ImGui::GetIO().DeltaTime;
+                if (autoPaintAccum >= AUTO_PAINT_INTERVAL_SEC)
+                {
+                    autoPaintAccum = 0.0f;
+                    if (inBounds)
+                        app_shockwave({ (int)(mousePos.x / scale), (int)(mousePos.y / scale) });
                 }
+            }
+            else
+            {
+                autoPaintAccum = 0.0f;
             }
             lastMouseDown = mouseDown;
 
