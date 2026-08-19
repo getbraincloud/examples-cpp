@@ -96,3 +96,9 @@ void app_shockwave(const Point& pos);
 // Drives coverage/ranking recompute + the host-authoritative match-end + leaderboard-post
 // flow. Called once per frame from game_update() while on the Game screen.
 void app_tickMatch();
+
+// Non-host: polls for the host's PostMatchResults results (a GlobalEntity, not a relay
+// broadcast — see the function definition in app.cpp) once a round's matchResult is valid.
+// Safe/cheap to call every frame; self-throttles. Called once per frame from
+// matchSummary_update() while on the Match Summary screen.
+void app_tickMatchResultsPoll();

@@ -136,10 +136,11 @@ static constexpr long long COVERAGE_RECOMPUTE_MS = 250LL; // live-board recomput
 // before the host starts the next round anyway (BCLOUD-14489).
 static constexpr long long MATCH_SUMMARY_REMATCH_MS = 45000LL;
 
-// How long a player card waits for its "lb_result" leaderboard delta before giving up and
-// showing "Leaderboard unavailable" instead of "Updating leaderboards..." forever — the
-// cloud script call/broadcast is best-effort (see RESULT_GRACE_MS), so this is the backstop
-// that keeps the summary screen from looking permanently stuck when it's lost that race.
+// How long a player card waits for its leaderboard delta (polled from the GlobalEntity
+// PostMatchResults.js writes — see app_tickMatchResultsPoll) before giving up and showing
+// "Leaderboard unavailable" instead of "Updating leaderboards..." forever — the cloud
+// script call is best-effort, so this is the backstop that keeps the summary screen from
+// looking permanently stuck if it never shows up.
 static constexpr long long LEADERBOARD_RESULT_TIMEOUT_MS = 8000LL;
 
 // Screen state enum.
@@ -256,9 +257,9 @@ struct LeaderboardPeriodDelta
 };
 
 // Personal leaderboard-rank movement from posting this round's score, across all four
-// boards. Computed by each client for ITSELF only (there's no API to fetch an arbitrary
-// other player's before/after rank) and broadcast to the rest of the match via the
-// "lb_result" relay op — see postMatchScoresAndComputeDeltas / sendLeaderboardDeltaToMask.
+// boards. Computed server-side for everyone in one PostMatchResults.js call made by the
+// host — see hostPostMatchResultsToCloud (host, applied directly from the script response)
+// and app_tickMatchResultsPoll (everyone else, polled from the GlobalEntity that call writes).
 struct LeaderboardDelta
 {
     bool ready = false; /* true once this player's own delta has been computed (self) or received (others) */

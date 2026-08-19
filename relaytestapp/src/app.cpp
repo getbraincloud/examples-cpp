@@ -74,7 +74,6 @@ static std::vector<MatchResultEntry> toMatchResultEntries(const std::vector<Cove
 static void hostPostMatchResultsToCloud(int round, const std::vector<MatchResultEntry> &entries);
 static void applyMatchResult(int round, const std::vector<MatchResultEntry> &entries);
 static void onRelayConnected();
-static void sendLeaderboardResultsToMask(uint64_t mask, int round, const std::vector<MatchResultEntry> &entries);
 static void applyLeaderboardResultsFromCloud(int round, const Json::Value &resultsArr);
 
 static bool isDisconnecting = false;
@@ -83,16 +82,13 @@ static bool isDisconnecting = false;
 // Reset on "first":true and whenever a new round starts (onRelayConnected).
 static std::vector<MatchResultEntry> s_pendingMatchResult;
 
-// The host's "lb_result" broadcast can arrive before match_result has populated
-// state.matchResult.entries for this round (different senders — host for match_result,
-// possibly a migrated host for lb_result — no relative ordering guarantee between them) —
-// buffered here by cxId and drained into the matching entry as soon as applyMatchResult()
-// sets entries. Reset every round.
-static std::map<std::string, LeaderboardDelta> s_pendingLbResults;
-
-// Chunk accumulator for the in-progress "lb_result" reassembly, same pattern as
-// s_pendingMatchResult. Reset on "first":true and whenever a new round starts.
-static std::vector<std::pair<std::string, LeaderboardDelta>> s_pendingLbChunk;
+// Non-host: throttle state for polling the GlobalEntity that PostMatchResults.js writes
+// (indexed by "<lobbyId>:<round>") instead of waiting on a host relay broadcast — see
+// app_tickMatchResultsPoll(). Reset whenever a new round's matchResult shows up.
+static int s_resultsPollRound = -1;
+static long long s_lastResultsPollMs = 0;
+static bool s_resultsPollInFlight = false;
+static const long long RESULTS_POLL_INTERVAL_MS = 1000;
 
 // Incremented on every app_play() call. Each ping-flow lambda captures this value and
 // checks it before acting — stale callbacks from a previous session are silently dropped.
@@ -830,76 +826,12 @@ static std::vector<MatchResultEntry> toMatchResultEntries(const std::vector<Cove
     return out;
 }
 
-// Broadcasts the host's cloud-computed leaderboard results for the whole round to the
-// rest of the match — one broadcast for everyone, chunked exactly like match_result
-// (small per-entry payloads, but a 40-player lobby could still exceed one packet). Only
-// entries with lbDelta.ready are included; a period sub-object is present only when it
-// actually improved (absent == "no change" on receipt, read by the "lb_result" branch in
-// onRelayMessage).
-static void sendLeaderboardResultsToMask(uint64_t mask, int round, const std::vector<MatchResultEntry> &entries)
-{
-    if (mask == 0) return;
-
-    static const int MAX_RELAY_BYTES = 900;
-    static const int ENVELOPE_OVERHEAD = 80;
-
-    Json::FastWriter writer;
-    bool isFirst = true;
-    std::vector<Json::Value> chunk;
-    int currentSize = ENVELOPE_OVERHEAD;
-
-    auto flushChunk = [&](bool isLast)
-    {
-        if (chunk.empty() && !isLast) return;
-        Json::Value json;
-        json["op"] = "lb_result";
-        json["data"]["round"] = round;
-        json["data"]["first"] = isFirst;
-        json["data"]["last"] = isLast;
-        Json::Value arr(Json::arrayValue);
-        for (const auto &entry : chunk)
-            arr.append(entry);
-        json["data"]["e"] = arr;
-        auto str = writer.write(json);
-        pBCWrapper->getRelayService()->sendToPlayers(
-            (const uint8_t *)str.data(), (int)str.length(),
-            mask, true, true, (BrainCloud::eRelayChannel)0);
-        isFirst = false;
-        chunk.clear();
-        currentSize = ENVELOPE_OVERHEAD;
-    };
-
-    auto putPeriod = [](Json::Value &parent, const char *key, const LeaderboardPeriodDelta &pd)
-    {
-        if (!pd.improved) return;
-        parent[key]["b"] = pd.rankBefore;
-        parent[key]["a"] = pd.rankAfter;
-    };
-
-    for (const auto &e : entries)
-    {
-        if (!e.lbDelta.ready) continue;
-
-        Json::Value je;
-        je["cx"] = e.cxId;
-        putPeriod(je, "pl", e.lbDelta.pointsLifetime);
-        putPeriod(je, "pq", e.lbDelta.pointsQuarterly);
-        putPeriod(je, "cl", e.lbDelta.coverageLifetime);
-        putPeriod(je, "cq", e.lbDelta.coverageQuarterly);
-
-        int entrySize = (int)writer.write(je).size() + 1;
-        if (currentSize + entrySize > MAX_RELAY_BYTES && !chunk.empty())
-            flushChunk(false);
-
-        chunk.push_back(std::move(je));
-        currentSize += entrySize;
-    }
-    flushChunk(true);
-}
-
-// Applies the PostMatchResults.js response (keyed by profileId) onto state.matchResult.
+// Applies a PostMatchResults.js response (keyed by profileId) onto state.matchResult.
 // entries (keyed by cxId — resolved via state.lobby.members, the only place both ids are
-// known together) and broadcasts the result to the rest of the match. Host-only.
+// known together). Called on the host directly from hostPostMatchResultsToCloud's own
+// script response, and on every other client from app_tickMatchResultsPoll() once the
+// GlobalEntity that call wrote shows up — both feed it the exact same "results" array
+// shape, so there's only one place that parses it.
 static void applyLeaderboardResultsFromCloud(int round, const Json::Value &resultsArr)
 {
     if (!(state.matchResult.valid && state.matchResult.round == round))
@@ -936,8 +868,6 @@ static void applyLeaderboardResultsFromCloud(int round, const Json::Value &resul
             if (e.cxId == it->second) { e.lbDelta = delta; break; }
         }
     }
-
-    sendLeaderboardResultsToMask(getPlayerMask(), round, state.matchResult.entries);
 }
 
 // Host-only: posts the WHOLE round's results to the four leaderboards in one trusted
@@ -954,6 +884,7 @@ static void hostPostMatchResultsToCloud(int round, const std::vector<MatchResult
 {
     Json::Value payload;
     payload["round"] = round;
+    payload["lobbyId"] = state.lobby.lobbyId; // so the script can persist a "<lobbyId>:<round>"-indexed GlobalEntity for non-host clients to poll (see app_tickMatchResultsPoll)
     payload["pointsLeaderboardId"] = state.pointsLeaderboardId;
     payload["pointsLeaderboardIdQuarterly"] = state.pointsLeaderboardIdQuarterly;
     payload["coverageLeaderboardId"] = state.coverageLeaderboardId;
@@ -1009,18 +940,6 @@ static void applyMatchResult(int round, const std::vector<MatchResultEntry> &ent
     state.matchResult.round = round;
     state.matchResult.entries = entries;
 
-    // Drain any "lb_result" broadcasts that arrived before this round's match_result did
-    // (different senders, no relative ordering guarantee between them — see s_pendingLbResults).
-    for (auto &e : state.matchResult.entries)
-    {
-        auto it = s_pendingLbResults.find(e.cxId);
-        if (it != s_pendingLbResults.end())
-        {
-            e.lbDelta = it->second;
-            s_pendingLbResults.erase(it);
-        }
-    }
-
     if (state.leaderboardPostedRound == round)
         return;
     state.leaderboardPostedRound = round;
@@ -1028,11 +947,61 @@ static void applyMatchResult(int round, const std::vector<MatchResultEntry> &ent
     // Only the host posts — hostPostMatchResultsToCloud (via PostMatchResults.js) covers
     // every player in one call, so every OTHER client posting its own would just be a
     // redundant (and no-longer-even-possible, since postScoreToLeaderboardOnBehalfOf is
-    // Cloud-Code-only) duplicate. Non-host clients just wait for the "lb_result" broadcast
-    // that call produces.
+    // Cloud-Code-only) duplicate. Non-host clients pick the result up on their own via
+    // app_tickMatchResultsPoll() instead of waiting on the host to relay it — see there.
     bool isHost = !state.lobby.ownerCxId.empty() && state.user.cxId == state.lobby.ownerCxId;
     if (isHost)
         hostPostMatchResultsToCloud(round, entries);
+}
+
+// Non-host: polls the GlobalEntity PostMatchResults.js writes (indexed by
+// "<lobbyId>:<round>") until it shows up, instead of waiting on the host to relay its own
+// script response over the relay connection — a host that disconnects right after posting
+// (or mid-broadcast) used to leave everyone else stuck at the "Leaderboard unavailable"
+// timeout even though the leaderboard post itself had already succeeded. Safe to call every
+// frame: it no-ops until there's a valid, not-yet-resolved matchResult for a non-host
+// client, then self-throttles to RESULTS_POLL_INTERVAL_MS. Called from matchSummary_update().
+void app_tickMatchResultsPoll()
+{
+    if (!state.matchResult.valid) return;
+
+    bool isHost = !state.lobby.ownerCxId.empty() && state.user.cxId == state.lobby.ownerCxId;
+    if (isHost) return; // host already has its results from its own PostMatchResults call
+
+    bool anyReady = false;
+    for (const auto &e : state.matchResult.entries)
+        if (e.lbDelta.ready) { anyReady = true; break; }
+    if (anyReady) return; // already applied
+
+    if (s_resultsPollRound != state.matchResult.round)
+    {
+        s_resultsPollRound = state.matchResult.round;
+        s_lastResultsPollMs = 0;
+        s_resultsPollInFlight = false;
+    }
+    if (s_resultsPollInFlight) return;
+
+    long long nowMs = std::chrono::duration_cast<std::chrono::milliseconds>(
+        std::chrono::steady_clock::now().time_since_epoch()).count();
+    if (nowMs - s_lastResultsPollMs < RESULTS_POLL_INTERVAL_MS) return;
+    s_lastResultsPollMs = nowMs;
+    s_resultsPollInFlight = true;
+
+    int round = state.matchResult.round;
+    std::string indexedId = state.lobby.lobbyId + ":" + std::to_string(round);
+    pBCWrapper->getGlobalEntityService()->getListByIndexedId(indexedId, 1,
+        new BCCallback(
+            [round](const Json::Value &result)
+            {
+                s_resultsPollInFlight = false;
+                const Json::Value &list = result["data"]["entityList"];
+                if (!list.isArray() || list.empty()) return; // not written yet — next tick retries
+                applyLeaderboardResultsFromCloud(round, list[0]["data"]["results"]);
+            },
+            [](const std::string &)
+            {
+                s_resultsPollInFlight = false; // next tick retries
+            }));
 }
 
 // Drives the shared coverage/ranking calculation and the host-authoritative match-end
@@ -1133,8 +1102,9 @@ static void onRelayConnected()
     state.coverageComputedGen = (unsigned long long)-1;
     state.resultsSentAtMs = 0;
     s_pendingMatchResult.clear();
-    s_pendingLbResults.clear();
-    s_pendingLbChunk.clear();
+    s_resultsPollRound = -1;
+    s_lastResultsPollMs = 0;
+    s_resultsPollInFlight = false;
     state.awaitingRematch = false;
     state.isProvisioning = false;
 
@@ -1357,54 +1327,6 @@ static void onRelayMessage(int netId, const Json::Value &json)
                         applyMatchResult(round, s_pendingMatchResult);
                         s_pendingMatchResult.clear();
                     }
-                }
-            }
-            else if (op == "lb_result")
-            {
-                // Host-computed leaderboard results for the WHOLE round (see
-                // hostPostMatchResultsToCloud/PostMatchResults.js), chunked like
-                // match_result since a 40-player lobby could exceed one packet. Can arrive
-                // before this round's match_result has populated state.matchResult.entries
-                // — buffer by cxId in that case (drained in applyMatchResult).
-                if (json["data"]["first"].asBool())
-                    s_pendingLbChunk.clear();
-
-                for (const auto &entry : json["data"]["e"])
-                {
-                    LeaderboardDelta delta;
-                    delta.ready = true;
-                    auto readPeriod = [&](const char *key, LeaderboardPeriodDelta &pd)
-                    {
-                        if (!entry.isMember(key)) return; // absent == "no change" for that period
-                        pd.improved = true;
-                        pd.rankBefore = entry[key]["b"].asInt();
-                        pd.rankAfter = entry[key]["a"].asInt();
-                    };
-                    readPeriod("pl", delta.pointsLifetime);
-                    readPeriod("pq", delta.pointsQuarterly);
-                    readPeriod("cl", delta.coverageLifetime);
-                    readPeriod("cq", delta.coverageQuarterly);
-                    s_pendingLbChunk.push_back(std::make_pair(entry["cx"].asString(), delta));
-                }
-
-                if (json["data"]["last"].asBool())
-                {
-                    for (const auto &kv : s_pendingLbChunk)
-                    {
-                        bool applied = false;
-                        for (auto &e : state.matchResult.entries)
-                        {
-                            if (e.cxId == kv.first)
-                            {
-                                e.lbDelta = kv.second;
-                                applied = true;
-                                break;
-                            }
-                        }
-                        if (!applied)
-                            s_pendingLbResults[kv.first] = kv.second;
-                    }
-                    s_pendingLbChunk.clear();
                 }
             }
             else if (op == "game_start")

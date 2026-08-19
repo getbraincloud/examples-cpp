@@ -185,6 +185,7 @@ static void drawPlayerCard(const MatchResultEntry &entry, float width)
 void matchSummary_update()
 {
     app_tickRematchGate();
+    app_tickMatchResultsPoll();
 
     // Per-player auto-queue: if this player hasn't clicked "Queue for Rematch" themselves
     // by MATCH_SUMMARY_REMATCH_MS, queue them automatically and send them back to the
