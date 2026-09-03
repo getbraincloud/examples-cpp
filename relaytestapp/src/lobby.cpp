@@ -172,8 +172,13 @@ static void drawLobbyMembersPanel(float x, float y)
     {
         if (settings.autoGeoTest)
         {
+            // One-shot: elapsed stays >= the threshold on every frame after it first
+            // trips, and the screen deliberately stays on Lobby through the whole
+            // provisioning/STARTING wait — without the isReady guard this re-fired
+            // app_startGame() (and its updateReady() call) every single frame for the
+            // rest of that wait, instead of once.
             auto elapsed = std::chrono::steady_clock::now() - state.geoTestLobbyArrivalTime;
-            if (elapsed >= std::chrono::milliseconds(1500))
+            if (elapsed >= std::chrono::milliseconds(1500) && !state.user.isReady)
                 app_startGame();
         }
         else

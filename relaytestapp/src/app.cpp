@@ -1440,15 +1440,9 @@ void app_update()
                 pBCWrapper->getRelayService()->disconnect();
                 isDisconnecting = false;
 
-                // Non-host users re-ready for the next round now that we're back in the lobby.
-                // The host does NOT auto-ready — the host controls when the next match starts.
-                // Only for lobby types with no Match Summary screen (geo test, RoomServer, etc.) —
-                // CursorParty lobbies already cleared isReady in the END_MATCH handler above so the
-                // Match Summary screen's per-player "Queue for Rematch" gate (BCLOUD-14489) controls
-                // it; auto-readying here would silently defeat that gate and every player's 45s
-                // opt-in window.
-                if (state.user.cxId != state.lobby.ownerCxId &&
-                    !(isCursorPartyLobby(settings.lobbyType) && !settings.autoGeoTest))
+               if (!settings.autoGeoTest &&
+                    state.user.cxId != state.lobby.ownerCxId &&
+                    !isCursorPartyLobby(settings.lobbyType))
                 {
                     state.user.isReady = true;
                     pBCWrapper->getLobbyService()->updateReady(
