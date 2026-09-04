@@ -23,9 +23,15 @@
 #include "globals.h"
 #include "app.h"
 #include "menuBar.h"
+#include "mediaPreview.h"
+#include "emoji.h"
 
 // Thirdparty includes
 #include "imgui.h"
+
+#include <algorithm>
+#include <cctype>
+#include <ctime>
 
 // Panels dimension defines
 #define MENU_BAR_HEIGHT 19.0f
@@ -39,6 +45,42 @@ char sendBuffer[SEND_BUFFER_SIZE] = { '\0' };
 // Because of the way ImGui works, we need to keep track if we want
 // to regain focus to the textbox on the next frame.
 bool giveTextBarFocus = false;
+
+namespace
+{
+    std::string formatMessageTime(uint64_t milliseconds)
+    {
+        std::time_t value = static_cast<std::time_t>(
+            milliseconds > 100000000000ULL ? milliseconds / 1000ULL : milliseconds);
+        std::tm localTime = {};
+#if defined(_WIN32)
+        localtime_s(&localTime, &value);
+#else
+        localtime_r(&value, &localTime);
+#endif
+        char text[32] = {};
+        std::strftime(text, sizeof(text), "%Y-%m-%d %I:%M %p", &localTime);
+        std::string result = text;
+        if (result.size() > 11 && result[11] == '0') result.erase(11, 1);
+        return result;
+    }
+
+    bool isMediaOnlyMessage(const std::string& text, const std::vector<std::string>& urls)
+    {
+        if (urls.empty()) return false;
+        std::string remainder = text;
+        for (const std::string& url : urls)
+        {
+            if (!mediaPreview_isDirectMediaUrl(url)) return false;
+            size_t position = remainder.find(url);
+            if (position != std::string::npos) remainder.erase(position, url.size());
+        }
+        return std::all_of(remainder.begin(), remainder.end(), [](unsigned char character)
+        {
+            return std::isspace(character) != 0;
+        });
+    }
+}
 
 // Draws the application's chat screen GUI and updates its logic
 void chat_update()
@@ -143,6 +185,13 @@ void chat_update()
                 ImGuiWindowFlags_NoCollapse |
                 ImGuiWindowFlags_NoMove |
                 ImGuiWindowFlags_NoResize);
+
+            // Keep following new messages only while the user is already at
+            // the bottom. Once they scroll up, preserve their reading position.
+            const float scrollBottomThreshold = 2.0f;
+            bool followLatest = ImGui::GetScrollY() >=
+                ImGui::GetScrollMaxY() - scrollBottomThreshold;
+
             for (auto& pMessage : state.chatData.pActiveChannel->messages)
             {
                 ImGui::Spacing();
@@ -156,12 +205,27 @@ void chat_update()
                     "%s",
                     (pMessage->user.name + ":").c_str());
                 
+                std::vector<std::string> messageUrls = mediaPreview_findUrls(pMessage->text);
+                bool mediaOnly = isMediaOnlyMessage(pMessage->text, messageUrls);
                 ImGui::SameLine();
-                ImGui::Text("%s", pMessage->text.c_str());
+                if (mediaOnly)
+                    ImGui::TextDisabled("%s", formatMessageTime(pMessage->date).c_str());
+                else
+                {
+                    std::string displayText = emoji_expandShortcodes(pMessage->text);
+                    ImGui::TextWrapped("%s", displayText.c_str());
+                }
+
+                // Attachments and links are relayed as URLs in the
+                // message text. Render each one as an inline rich preview.
+                ImGui::PushID(pMessage->msgId.c_str());
+                for (const std::string& url : messageUrls)
+                    mediaPreview_draw(url);
+                ImGui::PopID();
             }
 
-            // Force the window to always be scrolled to the bottom
-            ImGui::SetScrollY(ImGui::GetScrollMaxY());
+            if (followLatest)
+                ImGui::SetScrollY(ImGui::GetScrollMaxY());
             ImGui::End();
         }
     }

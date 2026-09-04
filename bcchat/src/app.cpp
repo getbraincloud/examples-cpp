@@ -21,6 +21,7 @@
 // App includes
 #include "app.h"
 #include "globals.h"
+#include "emoji.h"
 #include "loading.h"
 #include "chat.h"
 #include "login.h"
@@ -718,7 +719,7 @@ void app_sendMessage(const char* szMessage)
 
     // If we type "/me " in front of the message, we don't record it
     // in history.
-    std::string message = szMessage;
+    std::string message = emoji_expandShortcodes(szMessage);
     auto recordInHistory = true;
     if (strncmp(szMessage, "/me ", 4) == 0)
     {
