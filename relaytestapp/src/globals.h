@@ -17,6 +17,7 @@
 // Desc: Defines global application state, data and constants
 // Author: David St-Louis
 //-----------------------------------------------------------------------------
+#pragma once
 
 // Imgui
 #include <imgui.h>
@@ -41,6 +42,11 @@
 
 // Total number of distinct player colors (supports up to this many simultaneous players)
 #define NUM_COLORS 40
+
+// Matches the vendored brainCloud C++ SDK's RelayComms::MAX_PLAYERS / INVALID_NET_ID (40) —
+// a netId in [0, MAX_LOBBY_MEMBERS) is valid; MAX_LOBBY_MEMBERS itself is the SDK's
+// "not found" sentinel. Used when packing a netId onto the wire (e.g. splotch ownership).
+static constexpr int MAX_LOBBY_MEMBERS = 40;
 
 // Color palette matching JS (#RRGGBB) and Java (Color.decode) exactly.
 // Uses IM_COL32(r,g,b,a) which correctly packs into ImGui's ABGR uint32 format.
@@ -108,6 +114,35 @@ inline ImVec4 getColor(int i) {
 // Display diameter of the splotch sprite in game-world units — matches _DISPLAY_SIZE in Splotch.gd
 static constexpr float SPLOTCH_DISPLAY_SIZE = 64.0f;
 
+// Canvas / coverage-scoring geometry. All clients must agree on these exact values —
+// they define the wire-normalized 0..1 coordinate space AND the coverage % denominator.
+static constexpr float CANVAS_W = 800.0f;
+static constexpr float CANVAS_H = 600.0f;
+static constexpr float SPLOTCH_RADIUS = SPLOTCH_DISPLAY_SIZE * 0.5f; // 32 — splotch stamp radius for coverage scoring
+
+// computeCoverage()'s ownership-grid cell size in canvas pixels — the resolution at which
+// "who currently owns this bit of the board" is tracked. Small enough (relative to
+// SPLOTCH_RADIUS) that the per-player % is a close read of the actual painted area, not a
+// coarse approximation. All ports should use the same value so scores/behavior match.
+static constexpr float COVERAGE_GRID_CELL_SIZE = 2.0f;
+
+// Match timing (moved here from game.cpp so app_tickMatch() and the HUD can both see them
+// regardless of where the timer widget is drawn).
+static constexpr long long MATCH_DURATION_MS = 90000LL;
+static constexpr long long RESULT_GRACE_MS = 3000LL;      // delay between match_result broadcast and endMatch()
+static constexpr long long COVERAGE_RECOMPUTE_MS = 250LL; // live-board recompute throttle
+
+// How long the post-match summary screen waits for everyone to queue for a rematch
+// before the host starts the next round anyway (BCLOUD-14489).
+static constexpr long long MATCH_SUMMARY_REMATCH_MS = 45000LL;
+
+// How long a player card waits for its leaderboard delta (polled from the GlobalEntity
+// PostMatchResults.js writes — see app_tickMatchResultsPoll) before giving up and showing
+// "Leaderboard unavailable" instead of "Updating leaderboards..." forever — the cloud
+// script call is best-effort, so this is the backstop that keeps the summary screen from
+// looking permanently stuck if it never shows up.
+static constexpr long long LEADERBOARD_RESULT_TIMEOUT_MS = 8000LL;
+
 // Screen state enum.
 enum class ScreenState : int
 {
@@ -117,7 +152,8 @@ enum class ScreenState : int
     JoiningLobby,
     Lobby, /* Lobby screen */
     Starting,
-    Game /* Game screen */
+    Game, /* Game screen */
+    MatchSummary /* Post-match results + rematch-queue screen (BCLOUD-14489) */
 };
 
 // A point in 2D space
@@ -130,14 +166,24 @@ struct Point
 struct User
 {
     std::string cxId; /* RTT Connection Id */
+    std::string profileId; /* brainCloud profileId — needed server-side (postScoreToLeaderboardOnBehalfOf takes a profileId, not a cxId) */
     std::string name; /* User name */
     int colorIndex = 7;
     bool isReady = false;
     bool isAlive = false;
-    bool allowSendTo = true;
     Point pos = {0, 0};
     std::map<std::string, int> pings; /* per-region ping data shared via lobby extra */
     int activePing = -1;              /* live relay RTT broadcast during gameplay (ms); -1 = not yet received */
+    int worldwideRank = -1;           /* this player's own rank on the coverage leaderboard, shared via lobby extra; -1 = unknown/no score yet */
+};
+
+// A chat message — used for both the global (brainCloud Chat service) channel and
+// this-lobby (Lobby service SendSignal) chat.
+struct ChatMessage
+{
+    std::string msgId;
+    std::string fromName;
+    std::string text;
 };
 
 // Lobby
@@ -147,6 +193,8 @@ struct Lobby
     std::string ownerCxId;
     std::string regionId; /* region extracted from lobbyId prefix (e.g. "na-east") */
     std::vector<User> members;
+    std::vector<ChatMessage> chatMessages;                        /* this-lobby chat, via SendSignal — resets whenever Lobby is reset (state.lobby = Lobby()) */
+    std::chrono::steady_clock::time_point arrivalTime;            /* when we entered this lobby, for the INFO tab's "time in lobby" */
 };
 
 // Server info
@@ -173,13 +221,82 @@ struct Shockwave
 // Permanent color splotch left behind by a shockwave
 struct Splotch
 {
-    Point     pos;
-    int       colorIndex;
-    long long startTimeMs; /* ms since epoch — used for expiry and JIP sync */
-    float     rotation;    /* radians — transmitted in relay message so all clients match */
+    Point       pos;
+    int         colorIndex;
+    long long   startTimeMs;  /* ms since epoch — used for expiry and JIP sync */
+    float       rotation;     /* radians — transmitted in relay message so all clients match */
+    std::string ownerCxId;    /* match-scoped owner key for coverage attribution; empty = unattributed (legacy sender) */
 };
 
 static constexpr float SPLOTCH_TAU = 6.28318530f; // 2π — upper bound for random rotation
+
+// One player's live/final standing from computeCoverage() (see coverage.h).
+// coveragePct is an ABSOLUTE canvas-area percentage (not a share of painted area) —
+// this keeps the "highest coverage ever" leaderboard meaningful for solo matches too.
+struct CoverageEntry
+{
+    std::string cxId;
+    int         colorIndex      = -1;
+    int         visibleCount    = 0;    /* ownership-grid cells currently painted by this player (see coverage.h) */
+    float       coveragePct     = 0.0f; /* clamped [0,100] */
+    int         rank            = 1;    /* 1-based; ties share a rank */
+    int         prevRank        = 1;    /* previous recompute's rank, for the rank-swap flash */
+    long long   rankChangedAtMs = 0;    /* set when rank last differed from prevRank */
+    int         beaten          = 0;    /* players strictly below this one (ties don't count) */
+};
+
+// One leaderboard period's (Lifetime or Quarterly) rank-before/after for a single board.
+// "improved" is the trigger for whether the summary screen shows a badge at all — for
+// the points boards that means the rank got numerically better; for the coverage boards
+// it means this round's score replaced a lower personal best (see postMatchScoresAndComputeDeltas).
+struct LeaderboardPeriodDelta
+{
+    bool improved   = false;
+    int  rankBefore = -1; /* -1 = unranked/no score yet before this round */
+    int  rankAfter  = -1;
+};
+
+// Personal leaderboard-rank movement from posting this round's score, across all four
+// boards. Computed server-side for everyone in one PostMatchResults.js call made by the
+// host — see hostPostMatchResultsToCloud (host, applied directly from the script response)
+// and app_tickMatchResultsPoll (everyone else, polled from the GlobalEntity that call writes).
+struct LeaderboardDelta
+{
+    bool ready = false; /* true once this player's own delta has been computed (self) or received (others) */
+    LeaderboardPeriodDelta pointsLifetime;
+    LeaderboardPeriodDelta pointsQuarterly;
+    LeaderboardPeriodDelta coverageLifetime;  /* "improved" = new coverage personal best */
+    LeaderboardPeriodDelta coverageQuarterly;
+};
+
+// One player's entry in a host-broadcast, authoritative match_result.
+struct MatchResultEntry
+{
+    std::string cxId;
+    int         rank        = 0;
+    float       coveragePct = 0.0f;
+    int         beaten      = 0;
+    LeaderboardDelta lbDelta; /* filled in asynchronously — see State::matchResult */
+};
+
+// Authoritative snapshot of a finished match's standings, broadcast by the (possibly
+// migrated) host. Every client applies this once per round — see State::leaderboardPostedRound.
+struct MatchResult
+{
+    bool                           valid = false;
+    int                            round = -1;
+    std::vector<MatchResultEntry>  entries;
+};
+
+// Host-side match lifecycle, driven by app_tickMatch(). Reset to Running on every new
+// round (onRelayConnected) — non-host clients just sit in Running the whole match; only
+// whichever client currently satisfies isHost drives the ResultsBroadcast/Ended steps.
+enum class MatchPhase : int
+{
+    Running,          /* match clock ticking */
+    ResultsBroadcast, /* match_result sent; waiting RESULT_GRACE_MS before endMatch() */
+    Ended             /* endMatch() called for this round */
+};
 
 // Main application state. This contain all of the "live" data.
 struct State
@@ -204,10 +321,38 @@ struct State
     std::chrono::steady_clock::time_point geoTestLobbyArrivalTime; /* When we entered Lobby state during a geo test (for 1.5s auto-start delay) */
     std::chrono::steady_clock::time_point geoTestRelayConnectTime; /* When relay connected during a geo test (for 2.5s soak before disconnect) */
     int splotchDurationSec = -1;  /* -1 = forever; from SplotchDuration global property */
+
+    // Coverage scoring / leaderboards (BCLOUD-14472 / BCLOUD-14490)
+    unsigned long long splotchGeneration = 0;    /* bumped on every splotch add/clear/expiry-prune */
+    unsigned long long coverageComputedGen = (unsigned long long)-1; /* generation coverage[] was last computed at */
+    long long coverageComputedAtMs = 0;          /* wall-clock of last recompute, for the throttle */
+    std::vector<CoverageEntry> coverage;         /* live, sorted rank board */
+
+    MatchPhase matchPhase = MatchPhase::Running;
+    long long resultsSentAtMs = 0;               /* when match_result was broadcast, for the grace period */
+    MatchResult matchResult;                     /* authoritative result once applied (host or non-host) */
+    int leaderboardPostedRound = -1;              /* guards against double-posting the CUMULATIVE points board */
+    std::chrono::steady_clock::time_point matchSummaryArrivalTime; /* when the MatchSummary screen appeared, for the 15s auto-rematch countdown */
+    bool awaitingRematch = false;   /* true from END_MATCH until the next round actually starts — gates app_tickRematchGate() */
+
+    // Non-blocking "starting the next round" feedback (BCLOUD-14489 follow-up): the Lobby
+    // screen stays up (chat/etc. still usable) through the whole STARTING->ROOM_READY
+    // provisioning sequence instead of jumping to a blocking loading/cancel screen; this
+    // is what the Lobby screen renders as a small inline status line while it's true.
+    bool isProvisioning = false;
+    std::string provisioningStatus;
+
+    // Leaderboard ids — read from brainCloud global properties in applyLobbyTypes(), same
+    // mechanism as AllLobbyTypes/Colours/SplotchDuration. Defaults let the app run before
+    // the boards exist in the portal (posts will just fail server-side until configured).
+    std::string coverageLeaderboardId          = "CursorParty_HighestCoverage";
+    std::string coverageLeaderboardIdQuarterly = "CursorParty_HighestCoverage_Quarterly";
+    std::string pointsLeaderboardId            = "CursorParty_Points";
+    std::string pointsLeaderboardIdQuarterly   = "CursorParty_Points_Quarterly";
 };
 
 // Change this one line to switch the default lobby type everywhere.
-static const std::string DEFAULT_LOBBY_TYPE = "CursorPartyGameLift";
+static const std::string DEFAULT_LOBBY_TYPE = "CursorPartyV2";
 
 struct Settings
 {
@@ -235,6 +380,10 @@ extern Settings settings;
 // Returns true if a per-instance config file (configs_N.txt) was loaded.
 bool loadConfigs();
 void saveConfigs();
+
+// Shared dark theme (rounded panels, navy palette) — call once after
+// ImGui::StyleColorsDark(), from every entry point (mainSDL.cpp, mainUWP.cpp).
+void applyTheme();
 
 // True for any lobby type in the CursorParty family (name starts with "CursorParty").
 // Add new CursorParty variants without touching any other file.

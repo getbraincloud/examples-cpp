@@ -144,6 +144,7 @@ int main(int argc, char *argv[])
 
     // ImGui::StyleColorsClassic();
     ImGui::StyleColorsDark(); // looks more aligned with the other examples
+    applyTheme();
     // Load app related stuff
     auto instanceConfigLoaded = loadConfigs();
     if (settings.multiInstance)

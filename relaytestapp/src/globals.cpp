@@ -40,8 +40,60 @@
 #define STB_IMAGE_IMPLEMENTATION
 #include "stb/stb_image.h"
 
+// For resolving the running executable's own directory — see assetPath() below.
+#if defined(_WIN32)
+#include <windows.h>
+#elif defined(__APPLE__)
+#include <mach-o/dyld.h>
+#else
+#include <unistd.h>
+#endif
+
 // Runtime color palette (populated from braincloud "Colours" property after login)
 std::vector<ImVec4> g_colors;
+
+// Directory containing the running executable — cached after the first call.
+// The CMake build copies assets/ next to the binary on every platform (Contents/
+// MacOS/assets inside the .app bundle on mac, alongside the .exe on Windows), so
+// resolving asset paths relative to THIS instead of the process's current working
+// directory works both for `bccm run` (which sets a deliberate cwd) and for a
+// distributed build launched by double-clicking it (Finder/Explorer set some
+// unrelated cwd, which is what silently broke splotch/arrow textures there).
+static const std::string &exeDir()
+{
+    static std::string dir;
+    static bool resolved = false;
+    if (!resolved)
+    {
+        resolved = true;
+        char buf[4096];
+#if defined(_WIN32)
+        DWORD len = GetModuleFileNameA(nullptr, buf, sizeof(buf));
+        std::string exePath(buf, len);
+#elif defined(__APPLE__)
+        uint32_t size = sizeof(buf);
+        std::string exePath;
+        if (_NSGetExecutablePath(buf, &size) == 0)
+            exePath.assign(buf);
+#else
+        ssize_t len = readlink("/proc/self/exe", buf, sizeof(buf) - 1);
+        std::string exePath(buf, len > 0 ? (size_t)len : 0);
+#endif
+        auto pos = exePath.find_last_of("/\\");
+        if (pos != std::string::npos)
+            dir = exePath.substr(0, pos);
+    }
+    return dir;
+}
+
+// Resolves relPath (e.g. "assets/PaintSplatter1.png") relative to the executable's
+// own directory. Falls back to the plain relative path (old cwd-relative behavior)
+// if the executable path couldn't be resolved for some reason.
+static std::string assetPath(const std::string &relPath)
+{
+    const std::string &dir = exeDir();
+    return dir.empty() ? relPath : (dir + "/" + relPath);
+}
 
 // Main application state instance
 State state;
@@ -139,12 +191,56 @@ bool loadConfigs()
 
     // Load arrow textures
     for (int i = 0; i < 8; ++i)
-        ARROWS[i] = loadTexture("assets/arrow" + std::to_string(i) + ".png");
+        ARROWS[i] = loadTexture(assetPath("assets/arrow" + std::to_string(i) + ".png"));
 
     // Load splotch texture
-    SPLOTCH_TEX = loadTexture("assets/PaintSplatter1.png");
+    SPLOTCH_TEX = loadTexture(assetPath("assets/PaintSplatter1.png"));
 
     return perInstanceLoaded;
+}
+
+// Dark-navy, rounded-panel theme, applied once at startup so every screen (main
+// menu, lobby, game HUD) reads as one consistent design rather than default ImGui
+// gray. Values chosen to match the reference main-menu/HUD mockups.
+void applyTheme()
+{
+    ImGuiStyle &style = ImGui::GetStyle();
+    style.WindowRounding    = 10.0f;
+    style.ChildRounding     = 8.0f;
+    style.FrameRounding     = 6.0f;
+    style.PopupRounding     = 8.0f;
+    style.GrabRounding      = 6.0f;
+    style.TabRounding       = 6.0f;
+    style.ScrollbarRounding = 8.0f;
+    style.WindowBorderSize  = 1.0f;
+    style.FrameBorderSize   = 0.0f;
+    style.WindowPadding     = ImVec2(16.0f, 16.0f);
+    style.ItemSpacing       = ImVec2(8.0f, 8.0f);
+
+    ImVec4 *colors = style.Colors;
+    colors[ImGuiCol_WindowBg]         = ImVec4(0.10f, 0.10f, 0.15f, 1.00f);
+    colors[ImGuiCol_ChildBg]          = ImVec4(0.00f, 0.00f, 0.00f, 0.00f);
+    colors[ImGuiCol_PopupBg]          = ImVec4(0.10f, 0.10f, 0.15f, 0.98f);
+    colors[ImGuiCol_Border]           = ImVec4(0.30f, 0.32f, 0.42f, 0.55f);
+    colors[ImGuiCol_FrameBg]          = ImVec4(0.16f, 0.17f, 0.23f, 1.00f);
+    colors[ImGuiCol_FrameBgHovered]   = ImVec4(0.20f, 0.22f, 0.30f, 1.00f);
+    colors[ImGuiCol_FrameBgActive]    = ImVec4(0.24f, 0.26f, 0.35f, 1.00f);
+    colors[ImGuiCol_TitleBg]          = ImVec4(0.10f, 0.10f, 0.15f, 1.00f);
+    colors[ImGuiCol_TitleBgActive]    = ImVec4(0.14f, 0.15f, 0.21f, 1.00f);
+    colors[ImGuiCol_Button]           = ImVec4(0.20f, 0.21f, 0.29f, 1.00f);
+    colors[ImGuiCol_ButtonHovered]    = ImVec4(0.27f, 0.29f, 0.40f, 1.00f);
+    colors[ImGuiCol_ButtonActive]     = ImVec4(0.30f, 0.45f, 0.90f, 1.00f);
+    colors[ImGuiCol_Header]           = colors[ImGuiCol_Button];
+    colors[ImGuiCol_HeaderHovered]    = colors[ImGuiCol_ButtonHovered];
+    colors[ImGuiCol_HeaderActive]     = colors[ImGuiCol_ButtonActive];
+    colors[ImGuiCol_TableHeaderBg]    = ImVec4(0.14f, 0.15f, 0.21f, 1.00f);
+    colors[ImGuiCol_TableBorderLight] = ImVec4(0.26f, 0.28f, 0.36f, 0.60f);
+    colors[ImGuiCol_TableBorderStrong]= ImVec4(0.30f, 0.32f, 0.42f, 0.80f);
+    colors[ImGuiCol_TableRowBg]       = ImVec4(1.00f, 1.00f, 1.00f, 0.00f);
+    colors[ImGuiCol_TableRowBgAlt]    = ImVec4(1.00f, 1.00f, 1.00f, 0.03f);
+    colors[ImGuiCol_ScrollbarBg]      = ImVec4(0.08f, 0.08f, 0.12f, 1.00f);
+    colors[ImGuiCol_Text]             = ImVec4(0.92f, 0.93f, 0.96f, 1.00f);
+    colors[ImGuiCol_Separator]        = colors[ImGuiCol_Border];
 }
 
 // Save configuration file to disk.

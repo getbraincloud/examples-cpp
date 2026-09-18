@@ -224,6 +224,7 @@ namespace RelayTestApp
             io.MouseDrawCursor = true;
             ImGui_ImplDX11_Init(m_d3dDevice.Get(), m_d3dContext.Get());
             ImGui::StyleColorsDark();
+            applyTheme();
         }
 
         // Called when the CoreWindow object is created (or re-created).

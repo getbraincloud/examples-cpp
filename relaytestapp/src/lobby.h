@@ -17,6 +17,7 @@
 // Desc: Interface for displaying a lobby screen and updating its logic
 // Author: David St-Louis
 //-----------------------------------------------------------------------------
+#pragma once
 
 // Draws the lobby dialog
 void lobby_update();

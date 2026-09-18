@@ -17,6 +17,7 @@
 // Desc: Interface for displaying and updating a loading screen
 // Author: David St-Louis
 //-----------------------------------------------------------------------------
+#pragma once
 
 // C/C++ headers
 #include <string>
