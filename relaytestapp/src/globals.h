@@ -304,6 +304,7 @@ struct State
     ScreenState screenState = ScreenState::Login; /* Current screen we are on */
     User user;                                    /* Our user */
     Lobby lobby;                                  /* Lobby with its members as received from brainCloud Lobby Service */
+    std::string currentLobbyId;                   /* Known as soon as any RTT lobby event carries data.lobbyId. Cleared on successful leave / DISBANDED. */
     Server server;                                /* Server info (IP, port, protocol, passcode) */
     std::vector<Shockwave> shockwaves;            /* Players' created shockwaves */
     std::vector<Splotch> splotches;               /* Persistent splotches left by shockwaves */

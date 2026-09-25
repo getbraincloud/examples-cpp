@@ -598,9 +598,6 @@ static void errorAndReturnToMenu(const std::string &message)
     pBCWrapper->getRelayService()->deregisterRelayCallback();
     pBCWrapper->getRelayService()->deregisterSystemCallback();
     pBCWrapper->getRelayService()->disconnect();
-    pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
-    pBCWrapper->getRTTService()->disableRTT();
-    s_rttConnecting = false; // callbacks just deregistered — nothing will clear this otherwise
 
     // Reset state but keep user, app config, and geo test results
     User user = state.user;
@@ -618,7 +615,6 @@ static void errorAndReturnToMenu(const std::string &message)
     state.geoTestedRegions = geoTestedRegions;
     state.geoTestResults = geoTestResults;
     state.screenState = ScreenState::MainMenu;
-    app_enableChatRTT(); // RTT was just disabled above — re-enable it for main-menu chat
 
     errorMessage = message;
     ImGui::OpenPopup("Error");
@@ -1404,9 +1400,6 @@ void app_update()
                 pBCWrapper->getRelayService()->deregisterRelayCallback();
                 pBCWrapper->getRelayService()->deregisterSystemCallback();
                 pBCWrapper->getRelayService()->disconnect();
-                pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
-                pBCWrapper->getRTTService()->disableRTT();
-                s_rttConnecting = false; // callbacks just deregistered — nothing will clear this otherwise
                 User user = state.user;
                 auto appLobbies = state.appLobbies;
                 int splotchDurationSec = state.splotchDurationSec;
@@ -1426,7 +1419,6 @@ void app_update()
                 state.geoTestedRegions = geoTestedRegions;
                 state.geoTestResults = geoTestResults;
                 state.screenState = ScreenState::MainMenu;
-                app_enableChatRTT(); // RTT was just disabled above — re-enable it for main-menu chat
                 return;
             }
 
@@ -1818,6 +1810,10 @@ static void onLobbyEvent(const Json::Value &eventJson)
 {
     const auto &jsonData = eventJson["data"];
 
+    // Grab lobbyId as soon as it's known so a cancel before the first full event still leaves.
+    if (!jsonData["lobbyId"].asString().empty())
+        state.currentLobbyId = jsonData["lobbyId"].asString();
+
     // If there is a lobby object present in the message, update our lobby
     // state with it. This fires on every lobby-update event (member join/leave,
     // ready-state changes, etc.), not just the first one — parseLobby() returns a
@@ -1863,6 +1859,8 @@ static void onLobbyEvent(const Json::Value &eventJson)
         if (reasonCode != RTT_ROOM_READY)
         {
             // Disbanded for any other reason than ROOM_READY, means we failed to launch the game.
+            // Server already tore it down, so skip the redundant leaveLobby.
+            state.currentLobbyId.clear();
             app_closeGame();
         }
     }
@@ -2044,14 +2042,10 @@ void app_cancelLobby()
     isDisconnecting = true;
 
     // Notify server we're leaving the lobby if we have one
-    if (!state.lobby.lobbyId.empty())
+    if (!state.currentLobbyId.empty())
     {
-        pBCWrapper->getLobbyService()->leaveLobby(state.lobby.lobbyId, nullptr);
+        pBCWrapper->getLobbyService()->leaveLobby(state.currentLobbyId, nullptr);
     }
-
-    pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
-    pBCWrapper->getRTTService()->disableRTT();
-    s_rttConnecting = false; // callbacks just deregistered — nothing will clear this otherwise
 
     // Reset state but keep user, app config, and geo test results
     User user = state.user;
@@ -2070,7 +2064,6 @@ void app_cancelLobby()
     state.geoTestedRegions = geoTestedRegions;
     state.geoTestResults = geoTestResults;
     state.screenState = ScreenState::MainMenu;
-    app_enableChatRTT(); // RTT was just disabled above — re-enable it for main-menu chat
 }
 
 // Cleanly close the game. Go back to main menu but don't log
@@ -2080,9 +2073,12 @@ void app_closeGame()
     pBCWrapper->getRelayService()->deregisterRelayCallback();
     pBCWrapper->getRelayService()->deregisterSystemCallback();
     pBCWrapper->getRelayService()->disconnect();
-    pBCWrapper->getRTTService()->deregisterAllRTTCallbacks();
-    pBCWrapper->getRTTService()->disableRTT();
-    s_rttConnecting = false; // callbacks just deregistered — nothing will clear this otherwise
+
+    // Notify server we're leaving the lobby, if we have one (mirrors app_cancelLobby).
+    if (!state.currentLobbyId.empty())
+    {
+        pBCWrapper->getLobbyService()->leaveLobby(state.currentLobbyId, nullptr);
+    }
 
     // Reset state but keep user, app config, and geo test results
     User user = state.user;
@@ -2101,7 +2097,6 @@ void app_closeGame()
     state.geoTestedRegions = geoTestedRegions;
     state.geoTestResults = geoTestResults;
     state.screenState = ScreenState::MainMenu;
-    app_enableChatRTT(); // RTT was just disabled above — re-enable it for main-menu chat
 }
 
 // Ready up and signals RTT service we can start the game. Stays on whatever screen the
