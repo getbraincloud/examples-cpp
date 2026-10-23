@@ -17,6 +17,7 @@
 // Desc: Interface for main application logic
 // Author: David St-Louis
 //-----------------------------------------------------------------------------
+#pragma once
 
 // brainCloud
 #include <braincloud/BrainCloudRelay.h>
@@ -46,6 +47,17 @@ void app_reconnect();
 // Find lobby
 void app_play(BrainCloud::eRelayConnectionType protocol);
 
+// Enables RTT so main-menu chat works (idempotent — safe to call any time the
+// MainMenu screen is reached; no-ops if RTT is already connected).
+void app_enableChatRTT();
+
+// Sends a chat message to everyone in the current lobby, via Lobby service signals.
+void app_sendLobbySignal(const std::string &text);
+
+// Fetches this player's own worldwide rank (coverage leaderboard) and shares it via
+// the lobby's extra field. Safe to call repeatedly.
+void app_fetchWorldwideRank();
+
 // Cancel lobby search or leave lobby. Go back to main menu without logging out.
 void app_cancelLobby();
 
@@ -58,6 +70,20 @@ void app_endMatch();
 // Ready up and signals RTT service we can start the game
 void app_startGame();
 
+// Non-host lobby members have no "Start" button (only the host can start the round),
+// but still need a way to signal they're ready before the host starts — toggles this
+// player's own ready state. Not used during the rematch flow (see app_setRematchReady).
+void app_toggleReady();
+
+// Marks this player queued for a rematch and takes them back to the Lobby screen —
+// used by both the Match Summary screen's button and its own auto-timeout.
+void app_setRematchReady(bool ready);
+
+// Host-only: starts the next round once everyone has queued for a rematch, or the
+// 15s auto-rematch timer elapses. Called once per frame from both lobby_update() and
+// matchSummary_update() (whichever screen the host is currently on).
+void app_tickRematchGate();
+
 // User changes his player color
 void app_changeUserColor(int colorIndex);
 
@@ -67,5 +93,12 @@ void app_mouseMoved(const Point& pos);
 // User clicked mouse in the play area
 void app_shockwave(const Point& pos);
 
-// Host clears all splotches on every client
-void app_clearSplotches();
+// Drives coverage/ranking recompute + the host-authoritative match-end + leaderboard-post
+// flow. Called once per frame from game_update() while on the Game screen.
+void app_tickMatch();
+
+// Non-host: polls for the host's PostMatchResults results (a GlobalEntity, not a relay
+// broadcast — see the function definition in app.cpp) once a round's matchResult is valid.
+// Safe/cheap to call every frame; self-throttles. Called once per frame from
+// matchSummary_update() while on the Match Summary screen.
+void app_tickMatchResultsPoll();
