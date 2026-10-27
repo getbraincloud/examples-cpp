@@ -45,6 +45,7 @@
 #include "app.h"
 #include "globals.h"
 #include "login.h"
+#include "mediaPreview.h"
 
 ImVec4 clear_color = ImVec4(0.45f, 0.55f, 0.60f, 1.00f);
 
@@ -80,6 +81,7 @@ int main()
     ImGui::CreateContext();
     ImGuiIO& io = ImGui::GetIO(); (void)io;
     io.ConfigFlags |= ImGuiConfigFlags_NavEnableKeyboard;
+    mediaPreview_initializeFonts();
 
     // Init imgui GL renderer
     ImGui_ImplSDL3_InitForOpenGL(window, gl_context);
@@ -134,6 +136,7 @@ int main()
     }
 
     // Cleanup
+    mediaPreview_shutdown();
     ImGui_ImplOpenGL2_Shutdown();
     ImGui_ImplSDL3_Shutdown();
     ImGui::DestroyContext();

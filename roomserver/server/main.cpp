@@ -15,7 +15,7 @@ struct Response
 
 int main(int argc, char** argv)
 {
-    printf("-- Room Server Example Server 4.5.6 --\n");
+    printf("-- Room Server Example Server 6.1.0 --\n");
 
     // Create a RoomServer utility class that will fetch the Lobby data
     // from brainCloud.

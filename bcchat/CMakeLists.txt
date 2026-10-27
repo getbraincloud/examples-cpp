@@ -73,6 +73,11 @@ list(APPEND src_files
     src/login.h
     src/chat.cpp
     src/chat.h
+    src/emoji.cpp
+    src/emoji.h
+    src/emojiShortcodes.generated.h
+    src/mediaPreview.cpp
+    src/mediaPreview.h
     src/loading.cpp
     src/loading.h
     src/askForName.cpp
@@ -196,6 +201,16 @@ if(WIN32)
 	)
 endif()
 
+if(NOT UWP)
+    add_custom_command(TARGET BCChat POST_BUILD
+        COMMAND cmake -E copy_if_different
+            "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparties/imgui/misc/fonts/Roboto-Medium.ttf"
+            "$<TARGET_FILE_DIR:BCChat>/Roboto-Medium.ttf"
+        COMMENT "Copying the bold UI font"
+    )
+endif()
+
 # Setup includes and linked libraries
 target_include_directories(BCChat ${includes})
 target_link_libraries(BCChat ${libs})
+target_compile_definitions(BCChat PRIVATE IMGUI_USE_WCHAR32)

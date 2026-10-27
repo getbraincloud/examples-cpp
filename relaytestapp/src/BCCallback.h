@@ -31,6 +31,7 @@
 //     })
 // );
 //-----------------------------------------------------------------------------
+#pragma once
 
 // Thirdparty includes
 #include <braincloud/IServerCallback.h>
