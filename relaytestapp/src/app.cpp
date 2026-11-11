@@ -217,7 +217,7 @@ static RTTCallback bcRTTCallback;
 static RelayConnectCallback bcRelayConnectCallback;
 static RelayCallback bcRelayCallback;
 static RelaySystemCallback bcRelaySystemCallback;
-static bool reconnectAttempted = false;
+static bool startupLoginAttempted = false;
 static bool relayConnectInitiated = false;
 
 // Initialize brainCloud
@@ -1544,9 +1544,20 @@ void app_update()
     switch (state.screenState)
     {
     case ScreenState::Login:
-        if (!reconnectAttempted && settings.autoLogin && pBCWrapper->canReconnect())
-            app_reconnect();
-        else
+        // Consume the startup opportunity even if Auto Login is disabled or
+        // credentials are missing. Later edits and failures require manual login.
+        if (!startupLoginAttempted)
+        {
+            startupLoginAttempted = true;
+            if (settings.autoLogin)
+            {
+                if (pBCWrapper->canReconnect())
+                    app_reconnect();
+                else if (settings.username[0] && settings.password[0])
+                    app_login(settings.username, settings.password);
+            }
+        }
+        if (state.screenState == ScreenState::Login)
             login_update();
         break;
     case ScreenState::LoggingIn:
@@ -1606,7 +1617,7 @@ void app_update()
 // Logs out the current user and goes back to login screen
 void app_logOut()
 {
-    reconnectAttempted = false;
+    startupLoginAttempted = true;
     pBCWrapper->logout(true, nullptr);
     dead = true;
     resetState();
@@ -1665,7 +1676,7 @@ void app_login(const char *username, const char *password)
 // Attempt  reconnect with saved profile
 void app_reconnect()
 {
-    reconnectAttempted = true;
+    startupLoginAttempted = true;
 
     // Show loading screen
     loading_text = "Reconnecting ...";

@@ -45,9 +45,10 @@ void login_update()
             ImGuiWindowFlags_NoResize);
         ImGuiIO& io = ImGui::GetIO();
         ImGui::Text("A new user will be created if it doesn't exist.");
-        ImGui::InputText("Username", settings.username, MAX_CREDENTIAL_CHAR);
-        ImGui::InputText("Password", settings.password, MAX_CREDENTIAL_CHAR,
-            ImGuiInputTextFlags_Password);
+        bool submitLogin = ImGui::InputText("Username", settings.username, MAX_CREDENTIAL_CHAR,
+            ImGuiInputTextFlags_EnterReturnsTrue);
+        submitLogin |= ImGui::InputText("Password", settings.password, MAX_CREDENTIAL_CHAR,
+            ImGuiInputTextFlags_Password | ImGuiInputTextFlags_EnterReturnsTrue);
 
         // Greyed out login button if user/pass not yet entered
         auto canLogin = strlen(settings.username) && strlen(settings.password);
@@ -58,9 +59,8 @@ void login_update()
                 ImGui::GetStyle().Alpha * 0.5f);
         }
 
-        // Login button — autoLogin drives automatic sign-in from config;
-        // autoJoin is reserved for auto-clicking Play in the main menu.
-        if ((ImGui::Button("Login") || settings.autoLogin) && canLogin)
+        // Editing credentials or changing Auto Login never submits the form.
+        if ((ImGui::Button("Login") || submitLogin) && canLogin)
         {
             // Save user/pass locally for next time
             saveConfigs();
