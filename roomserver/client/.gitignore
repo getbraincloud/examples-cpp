@@ -1,2 +1,3 @@
 build/
 ids.h
+/resources/cacerts.pem

@@ -55,3 +55,8 @@ Fill in values for BRAINCLOUD_APP_ID and BRAINCLOUD_APP_SECRET.
    make
    ./RoomServerExampleClient
    ```
+
+CMake automatically copies the CA certificate bundle from the pinned
+`thirdparties/braincloud-cpp` submodule to `client/resources/cacerts.pem` for RTT
+TLS connections. The generated copy is ignored by Git; do not commit it.
+Keep your local `client/ids.h` settings uncommitted as well.
