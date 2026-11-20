@@ -7,6 +7,16 @@ cmake_minimum_required (VERSION 3.2)
 set(CMAKE_CXX_STANDARD 11)
 
 project ("hellobc")
+
+# The SDK expects the parent project's CA bundle in resources/cacerts.pem.
+# Generate it from the pinned SDK so the example does not maintain a second copy.
+file(MAKE_DIRECTORY "${CMAKE_CURRENT_SOURCE_DIR}/resources")
+configure_file(
+    "${CMAKE_CURRENT_SOURCE_DIR}/../thirdparties/braincloud-cpp/resources/cacerts.pem"
+    "${CMAKE_CURRENT_SOURCE_DIR}/resources/cacerts.pem"
+    COPYONLY
+)
+
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT hellobc)
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY XCODE_STARTUP_PROJECT hellobc)
 

@@ -11,4 +11,4 @@ add_subdirectory(brainclouds2s-cpp)
 
 add_executable(${PROJECT_NAME} main.cpp RoomServer.cpp)
 target_include_directories(${PROJECT_NAME} PRIVATE brainclouds2s-cpp/include)
-target_link_libraries(${PROJECT_NAME} PRIVATE brainclouds2s)
+target_link_libraries(${PROJECT_NAME} PRIVATE brainCloudS2S)

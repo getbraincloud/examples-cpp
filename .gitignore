@@ -9,6 +9,7 @@ deploymentTargetDropDown.xml
 **/cmake-build-*/
 **/artifacts/
 tmp/
+hellobc/resources/cacerts.pem
 relaytestapp/configs_1.txt
 relaytestapp/configs_10.txt
 relaytestapp/configs_11.txt
