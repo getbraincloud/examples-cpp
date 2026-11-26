@@ -1,0 +1,9 @@
+.git
+**/.git
+ids.txt
+**/ids.txt
+ids.h
+**/ids.h
+build/
+**/build/
+.DS_Store
