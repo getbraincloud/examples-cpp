@@ -1,9 +1,10 @@
-FROM debian:buster-slim as builder
+FROM debian:bookworm-slim as builder
 
 # Install app dependencies
 RUN apt-get update -y --fix-missing && apt-get install -y \
     cmake \
     g++ \
+    git \
     libcurl4-openssl-dev \
     libjsoncpp-dev
 
@@ -21,12 +22,12 @@ RUN make
 
 # ===== OKAY - FORGET ALL THAT AND START ANEW ===
 
-FROM debian:buster-slim
+FROM debian:bookworm-slim
 
 # THESE GUYS ONLY REQUIRED DURING BUILD
 RUN apt-get update -y --fix-missing && apt-get install -y \
     libcurl4 \
-    libjsoncpp1 && \
+    libjsoncpp25 && \
     rm -rf /var/lib/apt/lists/*
 
 # Create app directoryg+
