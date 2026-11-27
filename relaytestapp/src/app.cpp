@@ -211,6 +211,7 @@ public:
 BrainCloud::BrainCloudWrapper *pBCWrapper = nullptr;
 static std::string errorMessage;
 static bool dead = false;
+static bool initFailed = false;
 
 static RTTConnectCallback bcRTTConnectCallback;
 static RTTCallback bcRTTCallback;
@@ -235,15 +236,14 @@ static void initBC()
     }
     dead = false;
 
-    // Always use the wrapper's initialize() so BrainCloudClient is properly
-    // constructed (the wrapper lazily allocates it there — calling getBCClient()
-    // before initialize() returns nullptr and crashes).
-    pBCWrapper->initialize(BRAINCLOUD_SERVER_URL,
-                           BRAINCLOUD_APP_SECRET,
-                           BRAINCLOUD_APP_ID,
-                           appVersion.c_str(),
-                           "bitheads",
-                           "Cursor Party");
+    // Reads braincloud.cfg; needs braincloud_tuning.cpp compiled in (brainCloud setup writes both).
+    if (!pBCWrapper->initialize())
+    {
+        delete pBCWrapper;
+        pBCWrapper = nullptr;
+        initFailed = true; // don't retry every frame
+        return;
+    }
 
     if (settings.multiInstance)
     {
@@ -1446,11 +1446,11 @@ void app_update()
         }
         else
         {
-            initBC();
+            if (!initFailed) initBC();
 
-            if (pBCWrapper->getBCClient()->isInitialized() == false)
+            if (!pBCWrapper || pBCWrapper->getBCClient()->isInitialized() == false)
             {
-                loading_text = "Initialize failed. Check ids.";
+                loading_text = "Initialize failed. Run brainCloud setup to write braincloud.cfg.";
                 // Show loading screen
                 state.screenState = ScreenState::LoggingIn;
             }
@@ -1796,6 +1796,7 @@ static Server parseServer(const Json::Value &serverJson)
 
     const auto &ports = serverJson["connectData"]["ports"];
     server.host = serverJson["connectData"]["address"].asString();
+    server.secureUrl = serverJson["connectData"]["secureUrl"].asString();
     if (!ports["ws"].isNull())
         server.wsPort = ports["ws"].asInt();
     if (!ports["tcp"].isNull())
@@ -2010,6 +2011,7 @@ static void startGame()
     // For standard servers the port is chosen by the user-selected protocol.
     auto connectProtocol = settings.protocol;
     int port = 0;
+    std::string host = state.server.host;
     if (state.server.gameLiftPort != -1)
     {
         port = state.server.gameLiftPort;
@@ -2034,13 +2036,15 @@ static void startGame()
             port = state.server.udpPort;
             break;
         case BrainCloud::eRelayConnectionType::WSS:
+            host = state.server.secureUrl;
+            port = 0;
             break;
         }
     }
 
-    printf("[DEBUG] relay connect: protocol=%d port=%d\n", (int)connectProtocol, port);
+    printf("[DEBUG] relay connect: protocol=%d host=%s port=%d\n", (int)connectProtocol, host.c_str(), port);
     pBCWrapper->getRelayService()->connect(connectProtocol,
-                                           state.server.host,
+                                           host,
                                            port,
                                            state.server.passcode,
                                            state.server.lobbyId,

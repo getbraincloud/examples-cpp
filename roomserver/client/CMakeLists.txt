@@ -22,3 +22,6 @@ target_include_directories(${PROJECT_NAME} PUBLIC
     braincloud-cpp/lib/jsoncpp-1.0.0/
 )
 target_link_libraries(${PROJECT_NAME} PUBLIC brainCloud)
+
+# Compiles braincloud_tuning.cpp and copies braincloud.cfg beside the app (brainCloud setup writes both).
+braincloud_copy_config(${PROJECT_NAME})

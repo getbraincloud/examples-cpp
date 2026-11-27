@@ -34,7 +34,7 @@
 #include <vector>
 #include <memory>
 
-// brainCloud App settings. Create ids.h and define BRAINCLOUD_SERVER_URL, BRAINCLOUD_APP_ID and BRAINCLOUD_APP_SECRET
+// App version. brainCloud ids come from braincloud.cfg (run brainCloud setup).
 #include "ids.h"
 
 // Max character count that can be used for username and password
@@ -128,7 +128,7 @@ static constexpr float COVERAGE_GRID_CELL_SIZE = 2.0f;
 
 // Match timing (moved here from game.cpp so app_tickMatch() and the HUD can both see them
 // regardless of where the timer widget is drawn).
-static constexpr long long MATCH_DURATION_MS = 90000LL;
+static constexpr long long MATCH_DURATION_MS = 60000LL;
 static constexpr long long RESULT_GRACE_MS = 3000LL;      // delay between match_result broadcast and endMatch()
 static constexpr long long COVERAGE_RECOMPUTE_MS = 250LL; // live-board recompute throttle
 
@@ -201,6 +201,7 @@ struct Lobby
 struct Server
 {
     std::string host;
+    std::string secureUrl; // full wss:// URL, used as-is for WSS
     int wsPort = -1;
     int tcpPort = -1;
     int udpPort = -1;

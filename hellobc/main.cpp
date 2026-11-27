@@ -153,10 +153,6 @@ void app_update()
 // Example argument: ./hellobc "{\"TestSaveData\": {\"ClearData\":false, \"ForgetUser\": false, \"Repeat\": 1}}"
 int main(int argc, char* argv[])
 {
-    std::string serverUrl = BRAINCLOUD_SERVER_URL;
-    std::string secretKey = BRAINCLOUD_APP_SECRET;
-    std::string appId = BRAINCLOUD_APP_ID;
-    std::string appVersion = VERSION;
 
     status += "---- Welcome to brainCloud!\n";
 
@@ -182,13 +178,13 @@ int main(int argc, char* argv[])
         // Initialize
         pBCWrapper = new BrainCloud::BrainCloudWrapper("");
 
-        pBCWrapper->initialize(
-            serverUrl.c_str(),
-            secretKey.c_str(),
-            appId.c_str(),
-            appVersion.c_str(),
-            "bitHeads",
-            "HelloBC");
+        // Reads braincloud.cfg; needs braincloud_tuning.cpp compiled in (brainCloud setup writes both).
+        if (!pBCWrapper->initialize())
+        {
+            status += "---- braincloud.cfg missing or unreadable. Run brainCloud setup.\n";
+            flush_status();
+            return 1;
+        }
 
         status += "---- Initialized BrainCloud version ";
         status += pBCWrapper->getBCClient()->getBrainCloudClientVersion().c_str();

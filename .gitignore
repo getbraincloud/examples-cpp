@@ -90,3 +90,7 @@ relaytestapp/log_36.txt
 relaytestapp/log_37.txt
 relaytestapp/log_38.txt
 relaytestapp/log_39.txt
+
+# brainCloud setup output, restored from data/ by bccm generate
+**/braincloud.cfg
+**/braincloud_tuning.cpp

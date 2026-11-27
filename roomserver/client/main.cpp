@@ -9,9 +9,6 @@
 #include <braincloud/reason_codes.h>
 #include <braincloud/internal/IRelayTCPSocket.h>
 
-// Create this file in examples-cpp/roomserver/client/ids.h
-// which should define BRAINCLOUD_SERVER_URL, BRAINCLOUD_APP_ID and BRAINCLOUD_APP_SECRET
-#include "ids.h"
 
 using namespace BrainCloud;
 using namespace std;
@@ -88,11 +85,12 @@ int main(int argc, char** argv)
 {
     // Create our brainCloud client
     bc = make_shared<BrainCloudWrapper>("");
-    bc->initialize(BRAINCLOUD_SERVER_URL,
-                   BRAINCLOUD_APP_SECRET,
-                   BRAINCLOUD_APP_ID,
-                   bc->getBCClient()->getBrainCloudClientVersion().c_str(),
-                   "MyCompany", "MyGame");
+    // Reads braincloud.cfg; needs braincloud_tuning.cpp compiled in (brainCloud setup writes both).
+    if (!bc->initialize())
+    {
+        printf("braincloud.cfg missing or unreadable. Run brainCloud setup.\n");
+        return 1;
+    }
  
     
     printf("-- Room Server Example Client %s --\n", bc->getBCClient()->getBrainCloudClientVersion().c_str());

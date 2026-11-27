@@ -222,4 +222,7 @@ add_custom_command(TARGET CursorParty POST_BUILD
 target_include_directories(CursorParty ${includes})
 target_link_libraries(CursorParty ${libs})
 
+# Compiles braincloud_tuning.cpp and copies braincloud.cfg beside the app (brainCloud setup writes both).
+braincloud_copy_config(CursorParty)
+
 set_property(DIRECTORY ${CMAKE_CURRENT_SOURCE_DIR} PROPERTY VS_STARTUP_PROJECT CursorParty)

@@ -123,3 +123,8 @@ list(APPEND libs mbedcrypto)
 list(APPEND includes PUBLIC ${CMAKE_CURRENT_SOURCE_DIR}/src)
 target_include_directories(hellobc ${includes})
 target_link_libraries(hellobc ${libs})
+
+# Compiles braincloud_tuning.cpp and copies braincloud.cfg beside the app (brainCloud setup writes both).
+if (COMMAND braincloud_copy_config)
+    braincloud_copy_config(hellobc)
+endif()
